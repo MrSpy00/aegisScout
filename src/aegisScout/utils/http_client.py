@@ -47,16 +47,8 @@ def get_async_client(timeout: float = 15.0, verify: bool = True, follow_redirect
     limits = httpx.Limits(max_keepalive_connections=5, max_connections=10)
     
     # If the user has configured ZenRows/ScraperAPI, we can use their API endpoints
-    # but to keep it simple, we construct a client.
-    client_args = {
-        "headers": headers,
-        "timeout": timeout,
-        "verify": verify,
-        "follow_redirects": follow_redirects,
-        "limits": limits
-    }
     if proxy_url:
         logger.info(f"Using proxy: {proxy_url}")
-        client_args["proxies"] = proxy_url
+        return httpx.AsyncClient(headers=headers, timeout=timeout, verify=verify, follow_redirects=follow_redirects, limits=limits, proxy=proxy_url)
         
-    return httpx.AsyncClient(**client_args)
+    return httpx.AsyncClient(headers=headers, timeout=timeout, verify=verify, follow_redirects=follow_redirects, limits=limits)

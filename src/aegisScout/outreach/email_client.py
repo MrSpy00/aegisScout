@@ -4,7 +4,7 @@ import email
 from email.mime.text import MIMEText
 from datetime import datetime, timedelta, timezone
 from typing import List, Tuple, Optional
-from sqlmodel import Session, select, func
+from sqlmodel import Session, select, func, col
 
 from aegisScout.core.config import settings
 from aegisScout.core.database import engine
@@ -40,9 +40,9 @@ def get_available_smtp_account() -> Tuple[Optional[SmtpAccount], Optional[str]]:
         for acc in accounts:
             # Count emails sent with this account in the last hour
             sent_count = session.exec(
-                select(func.count(Message.id)).where(
-                    (Message.smtp_account_id == acc.id) &
-                    (Message.sent_at >= one_hour_ago)
+                select(func.count(col(Message.id))).where(
+                    (col(Message.smtp_account_id) == acc.id) &
+                    (col(Message.sent_at) >= one_hour_ago)
                 )
             ).one()
 
@@ -84,13 +84,12 @@ def send_cold_email(to_email: str, subject: str, body: str, smtp_account_id: Opt
                 return False, f"Belirtilen SMTP hesabı (ID: {smtp_account_id}) bulunamadı veya pasif.", None
         else:
             # Look for rotated active account
-            acc, err = get_available_smtp_account()
+            rotated_acc, err = get_available_smtp_account()
             if err == "limit_reached":
                 return False, "Tüm SMTP hesaplarının saatlik gönderim limiti (max 5) doldu.", None
-            # If err == "no_accounts", we fall back to global settings below
+            acc = rotated_acc
 
     if acc is not None:
-        # Use database SMTP account
         host = acc.smtp_host
         port = acc.smtp_port or 587
         user = acc.smtp_user
@@ -100,19 +99,19 @@ def send_cold_email(to_email: str, subject: str, body: str, smtp_account_id: Opt
             return False, f"SMTP şifresi deşifre edilemedi: {dec_err}", acc.id
     else:
         # Fallback to global settings
-        host = settings.notify_email_smtp_host
+        host = str(settings.notify_email_smtp_host or "")
         port = settings.notify_email_smtp_port or 587
-        user = settings.notify_email_username or settings.notify_email_smtp_user
-        password = settings.notify_email_password or settings.notify_email_smtp_pass
+        user = str(settings.notify_email_username or settings.notify_email_smtp_user or "")
+        password = str(settings.notify_email_password or settings.notify_email_smtp_pass or "")
 
     if not host or not user or not password:
         return False, "SMTP Ayarları eksik. Lütfen ayarlar panelinden e-posta hesabı ekleyin.", None
 
     try:
-        msg = MIMEText(body, "plain", "utf-8")
-        msg["Subject"] = subject
-        msg["From"] = user
-        msg["To"] = to_email
+        mime_msg = MIMEText(body, "plain", "utf-8")
+        mime_msg["Subject"] = subject
+        mime_msg["From"] = user
+        mime_msg["To"] = to_email
         
         # Connect and send
         server = smtplib.SMTP(host, port, timeout=10.0)
@@ -121,15 +120,15 @@ def send_cold_email(to_email: str, subject: str, body: str, smtp_account_id: Opt
             server.starttls()
             server.ehlo()
         server.login(user, password)
-        server.sendmail(user, [to_email], msg.as_string())
+        server.sendmail(user, [to_email], mime_msg.as_string())
         server.quit()
         
         logger.info(f"Email successfully sent to {to_email} using {user}")
         return True, "Başarıyla gönderildi.", (acc.id if acc else None)
     except Exception as e:
-        msg = f"SMTP Mail gönderim hatası ({user}): {str(e)}"
-        logger.error(msg)
-        return False, msg, (acc.id if acc else None)
+        err_msg = f"SMTP Mail gönderim hatası ({user}): {str(e)}"
+        logger.error(err_msg)
+        return False, err_msg, (acc.id if acc else None)
 
 
 def _extract_email_body(msg: email.message.Message) -> str:
@@ -141,7 +140,7 @@ def _extract_email_body(msg: email.message.Message) -> str:
             if content_type == "text/plain" and "attachment" not in content_disposition:
                 try:
                     payload = part.get_payload(decode=True)
-                    if payload:
+                    if isinstance(payload, bytes):
                         body = payload.decode("utf-8", errors="ignore")
                         break
                 except Exception:
@@ -149,7 +148,7 @@ def _extract_email_body(msg: email.message.Message) -> str:
     else:
         try:
             payload = msg.get_payload(decode=True)
-            if payload:
+            if isinstance(payload, bytes):
                 body = payload.decode("utf-8", errors="ignore")
         except Exception:
             pass
@@ -200,21 +199,22 @@ def check_imap_replies() -> List[dict[str, str]]:
                 mail_ids = messages[0].split()
                 for m_id in mail_ids:
                     status, data = mail.fetch(m_id, "(RFC822)")
-                    if status == "OK":
+                    if status == "OK" and data[0] and isinstance(data[0], tuple):
                         raw_email = data[0][1]
-                        msg = email.message_from_bytes(raw_email)
-                        from_header = msg.get("From", "")
-                        import re
-                        email_match = re.search(r"[\w.-]+@[\w.-]+\.\w+", from_header)
-                        if email_match:
-                            sender_email = email_match.group(0).lower().strip()
-                            subject = msg.get("Subject", "")
-                            body = _extract_email_body(msg)
-                            replied_emails.append({
-                                "email": sender_email,
-                                "subject": subject,
-                                "body": body or "E-posta üzerinden yanıt alındı."
-                            })
+                        if isinstance(raw_email, bytes):
+                            msg = email.message_from_bytes(raw_email)
+                            from_header = msg.get("From", "")
+                            import re
+                            email_match = re.search(r"[\w.-]+@[\w.-]+\.\w+", from_header)
+                            if email_match:
+                                sender_email = email_match.group(0).lower().strip()
+                                subject = msg.get("Subject", "")
+                                body = _extract_email_body(msg)
+                                replied_emails.append({
+                                    "email": sender_email,
+                                    "subject": subject,
+                                    "body": body or "E-posta üzerinden yanıt alındı."
+                                })
             mail.close()
             mail.logout()
         except Exception as e:

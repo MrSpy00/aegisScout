@@ -1,7 +1,7 @@
 import asyncio
 from datetime import datetime, timezone, timedelta
-from sqlmodel import Session, select
-from typing import Dict, Any
+from sqlmodel import Session, select, col
+from typing import Dict, Any, List
 
 from aegisScout.core.database import engine
 from aegisScout.core.models import Lead, Message, Campaign, ActivityLog
@@ -20,7 +20,8 @@ async def check_and_send_followups() -> dict:
     Checks all campaigns for leads in 'contacted' status that require follow-ups,
     and sends the next scheduled follow-up email if the threshold has passed.
     """
-    stats = {"emails_sent": 0, "errors": []}
+    errors_list: List[str] = []
+    sent_count: int = 0
     
     with Session(engine) as session:
         # Load campaigns that have follow-up templates configured
@@ -37,9 +38,9 @@ async def check_and_send_followups() -> dict:
             # Find all leads in this campaign that have status 'contacted'
             leads = session.exec(
                 select(Lead).where(
-                    (Lead.campaign_id == campaign.id) &
-                    (Lead.status == "contacted") &
-                    (Lead.email != None)
+                    Lead.campaign_id == campaign.id,
+                    Lead.status == "contacted",
+                    col(Lead.email).is_not(None)
                 )
             ).all()
             
@@ -47,8 +48,8 @@ async def check_and_send_followups() -> dict:
                 # Double check that the lead hasn't replied (no inbound messages)
                 inbound_exists = session.exec(
                     select(Message).where(
-                        (Message.lead_id == lead.id) &
-                        (Message.direction == "inbound")
+                        Message.lead_id == lead.id,
+                        Message.direction == "inbound"
                     )
                 ).first()
                 if inbound_exists:
@@ -58,11 +59,11 @@ async def check_and_send_followups() -> dict:
                 # Load all outbound email messages sent to this lead
                 outbound_messages = session.exec(
                     select(Message).where(
-                        (Message.lead_id == lead.id) &
-                        (Message.direction == "outbound") &
-                        (Message.channel == "email") &
-                        (Message.status == "sent")
-                    ).order_by(Message.sent_at.desc())
+                        Message.lead_id == lead.id,
+                        Message.direction == "outbound",
+                        Message.channel == "email",
+                        Message.status == "sent"
+                    ).order_by(col(Message.sent_at).desc())
                 ).all()
 
                 if not outbound_messages:
@@ -77,7 +78,7 @@ async def check_and_send_followups() -> dict:
                 days_elapsed = (datetime.utcnow() - last_msg.sent_at).days
 
                 # Step 1: Check if last message was Initial, and we need to send Follow-up 1
-                if last_msg.message_type == "initial" and has_step1:
+                if last_msg.message_type == "initial" and has_step1 and lead.email and campaign.followup_subject_1 and campaign.followup_body_1:
                     delay_days = campaign.followup_delay_1_days or 3
                     if days_elapsed >= delay_days:
                         logger.info(f"Sending Follow-up 1 to {lead.business_name} ({lead.email})...")
@@ -103,12 +104,12 @@ async def check_and_send_followups() -> dict:
                                 details=f"Follow-up 1 sent to {lead.business_name} ({lead.email})",
                                 session_id=lead.session_id
                             ))
-                            stats["emails_sent"] += 1
+                            sent_count += 1
                         else:
-                            stats["errors"].append(f"Follow-up 1 failed for {lead.business_name}: {err}")
+                            errors_list.append(f"Follow-up 1 failed for {lead.business_name}: {err}")
                 
                 # Step 2: Check if last message was Follow-up 1, and we need to send Follow-up 2
-                elif last_msg.message_type == "followup_1" and has_step2:
+                elif last_msg.message_type == "followup_1" and has_step2 and lead.email and campaign.followup_subject_2 and campaign.followup_body_2:
                     delay_days = campaign.followup_delay_2_days or 7
                     if days_elapsed >= delay_days:
                         logger.info(f"Sending Follow-up 2 to {lead.business_name} ({lead.email})...")
@@ -134,9 +135,9 @@ async def check_and_send_followups() -> dict:
                                 details=f"Follow-up 2 sent to {lead.business_name} ({lead.email})",
                                 session_id=lead.session_id
                             ))
-                            stats["emails_sent"] += 1
+                            sent_count += 1
                         else:
-                            stats["errors"].append(f"Follow-up 2 failed for {lead.business_name}: {err}")
+                            errors_list.append(f"Follow-up 2 failed for {lead.business_name}: {err}")
             session.commit()
             
-    return stats
+    return {"emails_sent": sent_count, "errors": errors_list}

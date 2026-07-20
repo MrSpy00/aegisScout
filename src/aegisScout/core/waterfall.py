@@ -16,6 +16,7 @@ from bs4 import BeautifulSoup
 from sqlmodel import Session
 from datetime import datetime
 
+from aegisScout.core.config import get_settings
 from aegisScout.core.database import engine
 from aegisScout.core.models import Lead, ResearchNote, ActivityLog
 from aegisScout.utils.email_verifier import verify_email
@@ -106,6 +107,7 @@ async def free_duckduckgo_search_emails(query: str) -> List[str]:
 
 async def google_custom_search_emails(query: str) -> List[str]:
     """Search emails using Google Custom Search API if API key and CX are configured."""
+    settings = get_settings()
     api_key = settings.google_custom_search_api_key
     cx = settings.google_custom_search_cx
     if not api_key or not cx:
@@ -211,6 +213,7 @@ async def run_waterfall_enrichment(lead_id: int) -> Dict[str, Any]:
             found_emails = []
             
             # Try Google first if API is configured, otherwise fallback to free DuckDuckGo
+            settings = get_settings()
             if settings.google_custom_search_api_key and settings.google_custom_search_cx:
                 found_emails = await google_custom_search_emails(query)
             

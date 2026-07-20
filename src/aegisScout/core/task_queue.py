@@ -160,4 +160,5 @@ class TaskQueueManager:
         }
 
     def get_all_statuses(self) -> List[Dict[str, Any]]:
-        return [self.get_task_status(tid) for tid in self.tasks if self.get_task_status(tid) is not None]
+        res = [self.get_task_status(tid) for tid in self.tasks]
+        return [st for st in res if st is not None]

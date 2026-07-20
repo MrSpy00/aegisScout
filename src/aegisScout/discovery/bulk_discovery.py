@@ -43,11 +43,11 @@ async def run_bulk_discovery(config_path: Path, max_parallel: int = 3) -> Dict[s
             provider = target.get("provider", "all")
 
             logger.info(f"Bulk discovery worker starting: {sector} in {location} ({radius}km)...")
-            leads = await discover_leads(sector=sector, location=location, radius_km=radius, provider_name=provider)
+            added_count, _, _ = await discover_leads(sector=sector, location=location, radius_km=int(radius), provider_name=provider)
             return {
                 "sector": sector,
                 "location": location,
-                "count": len(leads)
+                "count": added_count
             }
 
     tasks = [_process_target(t) for t in targets]

@@ -51,9 +51,10 @@ class RateLimiter:
         # Lazy import to avoid circular dependency at module load time
         from aegisScout.core.database import engine
         from aegisScout.core.models import ActivityLog
+        from sqlmodel import col
         with Session(engine) as session:
             count = session.exec(
-                select(func.count(ActivityLog.id)).where(
+                select(func.count(col(ActivityLog.id))).where(
                     ActivityLog.action == "instagram_send",
                     ActivityLog.timestamp >= since,
                 )

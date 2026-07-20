@@ -3,7 +3,7 @@ import re
 import json
 import math
 from pathlib import Path
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional, Any, Tuple
 from concurrent.futures import ThreadPoolExecutor
 from aegisScout.core.config import get_settings
 from aegisScout.utils.logger import get_logger
@@ -99,7 +99,7 @@ def build_tfidf_index(chunks: List[Dict[str, Any]]) -> Dict[str, Any]:
         idf[token] = math.log((1 + num_docs) / (1 + freq)) + 1.0
 
     # Doc vectors (TF-IDF weighted)
-    doc_vectors = []
+    doc_vectors: List[Dict[str, float]] = []
     for i, chunk in enumerate(chunks):
         tokens = doc_tokens[i]
         if not tokens:
@@ -193,10 +193,10 @@ def index_knowledge_base() -> Dict[str, Any]:
     files = get_all_kb_files()
     logger.info(f"Indexing knowledge base. Found {len(files)} files.")
     
-    chunks = []
+    chunks: List[Dict[str, Any]] = []
     chunk_id_counter = 0
     
-    def _process_file(file_path: Path) -> List[str]:
+    def _process_file(file_path: Path) -> List[Tuple[str, str]]:
         ext = file_path.suffix.lower()
         content = ""
         if ext in (".txt", ".md"):
@@ -237,10 +237,11 @@ def index_knowledge_base() -> Dict[str, Any]:
     if settings.llm_primary_provider == "ollama" or settings.ollama_base_url:
         logger.info("Attempting to calculate embeddings using Ollama...")
         # Check if Ollama is responsive
-        for chunk in chunks:
-            emb = get_ollama_embedding(chunk["content"], settings.ollama_base_url, settings.ollama_model)
+        for chk in chunks:
+            c_content = str(chk.get("content", ""))
+            emb = get_ollama_embedding(c_content, settings.ollama_base_url, settings.ollama_model)
             if emb:
-                chunk["embedding"] = emb
+                chk["embedding"] = emb
                 has_embeddings = True
             else:
                 break  # Failover to next
@@ -248,10 +249,11 @@ def index_knowledge_base() -> Dict[str, Any]:
     # 2. Check Gemini
     if not has_embeddings and settings.gemini_api_key:
         logger.info("Attempting to calculate embeddings using Gemini...")
-        for chunk in chunks:
-            emb = get_gemini_embedding(chunk["content"], settings.gemini_api_key)
+        for chk in chunks:
+            c_content = str(chk.get("content", ""))
+            emb = get_gemini_embedding(c_content, settings.gemini_api_key)
             if emb:
-                chunk["embedding"] = emb
+                chk["embedding"] = emb
                 has_embeddings = True
             else:
                 break
@@ -335,12 +337,12 @@ def search_knowledge_base(query: str, top_k: int = 2) -> List[Dict[str, Any]]:
     if not query_tokens:
         return []
         
-    query_tf = {}
+    query_tf: Dict[str, float] = {}
     for token in query_tokens:
         query_tf[token] = query_tf.get(token, 0) + 1.0
         
     max_tf = max(query_tf.values())
-    query_vector = {}
+    query_vector: Dict[str, float] = {}
     for token, count in query_tf.items():
         if token in idf:
             query_vector[token] = (count / max_tf) * idf[token]

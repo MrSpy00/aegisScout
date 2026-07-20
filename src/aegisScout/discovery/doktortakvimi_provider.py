@@ -182,7 +182,7 @@ class DoktorTakvimiDiscoveryProvider(BaseDiscoveryProvider):
         )
 
         for a in soup.find_all("a", href=True):
-            href = (a.get("href") or "").strip()
+            href = str(a.get("href") or "").strip()
             if not href:
                 continue
             if any(bad in href.lower() for bad in blacklist_substrings):
@@ -267,12 +267,12 @@ class DoktorTakvimiDiscoveryProvider(BaseDiscoveryProvider):
 
         og = soup.find("meta", attrs={"property": "og:title"})
         if og and og.get("content"):
-            cleaned = _clean_name(og["content"])
+            cleaned = _clean_name(str(og["content"]))
             if cleaned:
                 return cleaned
 
         if soup.title and soup.title.string:
-            return _clean_name(soup.title.string)
+            return _clean_name(str(soup.title.string))
         return None
 
     def _extract_phone(self, soup: BeautifulSoup) -> Optional[str]:
@@ -281,12 +281,12 @@ class DoktorTakvimiDiscoveryProvider(BaseDiscoveryProvider):
         finally a phone-shaped regex on the visible text.
         """
         for tel in soup.find_all("a", href=re.compile(r"^tel:", re.I)):
-            number = _normalize_phone(tel.get("href", ""))
+            number = _normalize_phone(str(tel.get("href", "")))
             if number:
                 return number
 
         for tag in soup.find_all(attrs={"itemprop": "telephone"}):
-            value = tag.get("content") or tag.get_text(strip=True)
+            value = str(tag.get("content") or tag.get_text(strip=True))
             number = _normalize_phone(value)
             if number:
                 return number
@@ -307,12 +307,12 @@ class DoktorTakvimiDiscoveryProvider(BaseDiscoveryProvider):
         paragraph that contains "Adres".
         """
         for tag in soup.find_all(attrs={"itemprop": "streetAddress"}):
-            text = tag.get("content") or tag.get_text(" ", strip=True)
+            text = str(tag.get("content") or tag.get_text(" ", strip=True))
             if text:
                 return _clean_whitespace(text)
 
         for tag in soup.find_all(attrs={"itemprop": "address"}):
-            text = tag.get("content") or tag.get_text(" ", strip=True)
+            text = str(tag.get("content") or tag.get_text(" ", strip=True))
             if text:
                 return _clean_whitespace(text)
 
@@ -342,21 +342,21 @@ class DoktorTakvimiDiscoveryProvider(BaseDiscoveryProvider):
         )
         # 1. Schema.org url field.
         for tag in soup.find_all(attrs={"itemprop": "url"}):
-            href = tag.get("href") or tag.get("content")
-            if href and not any(b in href.lower() for b in blacklist_domains):
-                return href.strip()
+            href_val = str(tag.get("href") or tag.get("content") or "")
+            if href_val and not any(b in href_val.lower() for b in blacklist_domains):
+                return href_val.strip()
         # 2. og:url fallback (likely self-referencing — skip).
         # 3. Anchor scan.
         for a in soup.find_all("a", href=True):
-            href = a["href"].strip()
-            if not href.startswith("http"):
+            href_val = str(a.get("href", "")).strip()
+            if not href_val.startswith("http"):
                 continue
-            if any(b in href.lower() for b in blacklist_domains):
+            if any(b in href_val.lower() for b in blacklist_domains):
                 continue
             # Ignore mailto, javascript, tel.
-            if href.startswith(("mailto:", "tel:", "javascript:")):
+            if href_val.startswith(("mailto:", "tel:", "javascript:")):
                 continue
-            return href
+            return href_val
         return None
 
     def _extract_rating(self, soup: BeautifulSoup) -> tuple[Optional[float], Optional[int]]:
@@ -371,10 +371,10 @@ class DoktorTakvimiDiscoveryProvider(BaseDiscoveryProvider):
         )
         if rating is None:
             for meta in soup.find_all("meta"):
-                content = (meta.get("content") or "").strip()
+                content = str(meta.get("content") or "").strip()
                 if not content:
                     continue
-                if "rating" in (meta.get("itemprop") or "").lower():
+                if "rating" in str(meta.get("itemprop") or "").lower():
                     rating = _parse_float_from(content)
                     if rating is not None:
                         break
@@ -384,8 +384,8 @@ class DoktorTakvimiDiscoveryProvider(BaseDiscoveryProvider):
         )
         if review_count is None:
             for meta in soup.find_all("meta"):
-                content = (meta.get("content") or "").strip()
-                if "reviewCount" in (meta.get("itemprop") or ""):
+                content = str(meta.get("content") or "").strip()
+                if "reviewCount" in str(meta.get("itemprop") or ""):
                     review_count = _parse_int_from(content)
                     if review_count is not None:
                         break

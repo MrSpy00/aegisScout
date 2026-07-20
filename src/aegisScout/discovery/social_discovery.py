@@ -304,7 +304,7 @@ def _google_cse_search(query: str, num: int = 5) -> List[str]:
     if not api_key or not cx:
         return []
     url = "https://customsearch.googleapis.com/customsearch/v1"
-    params = {"key": api_key, "cx": cx, "q": query, "num": num}
+    params = {"key": str(api_key), "cx": str(cx), "q": query, "num": str(num)}
     try:
         with httpx.Client(timeout=10.0) as client:
             r = client.get(url, params=params)

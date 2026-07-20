@@ -972,7 +972,7 @@ class GuiApi:
             task_id = f"research_{lead_id}_{int(time.time())}"
             
             lead_name = f"ID: {lead_id}"
-            with Session(engine) as session:
+            with Session(db_module.engine) as session:
                 lead = session.get(Lead, lead_id)
                 if lead:
                     lead_name = lead.business_name
@@ -1984,9 +1984,10 @@ class GuiApi:
         the JS layer always has a valid JSON object to parse.
         """
         try:
+            from aegisScout.core.toml_config import load_toml_config
             section: dict = {}
             try:
-                section = config_data.get("app", {}) or {}
+                section = load_toml_config().get("app", {}) or {}
             except Exception:
                 section = {}
             if not isinstance(section, dict):

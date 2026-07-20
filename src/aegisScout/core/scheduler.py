@@ -22,24 +22,27 @@ class AegisScheduler:
 
     def send_high_score_alert(self, lead: Lead, webhook_url: Optional[str] = None) -> None:
         """Send Desktop / Webhook alert for high-value discovered leads."""
+        score_val = lead.priority_score or lead.website_quality_score or 0
         title = f"🎯 Yüksek Skorlu Lider Bulundu: {lead.business_name}"
         message = (
             f"Şirket: {lead.business_name}\n"
-            f"Skor: {lead.score}/100\n"
+            f"Skor: {score_val}/100\n"
             f"E-posta: {lead.email or 'N/A'}\n"
             f"Telefon: {lead.phone or 'N/A'}"
         )
-        # Send desktop notification
-        self.notifier.notify(title=title, message=message, level="info")
+        # Send notifications
+        asyncio.create_task(self.notifier.notify_all(title=title, text=message))
 
         # Send Webhook alert if configured
         if webhook_url:
-            asyncio.create_task(
-                self.notifier.send_webhook_notification(
-                    webhook_url=webhook_url,
-                    payload={"event": "high_score_lead", "lead": lead.dict()}
-                )
-            )
+            async def _post_webhook():
+                try:
+                    import httpx
+                    async with httpx.AsyncClient(timeout=10) as client:
+                        await client.post(webhook_url, json={"event": "high_score_lead", "lead": lead.dict()})
+                except Exception as e:
+                    logger.warning(f"Webhook send failed: {e}")
+            asyncio.create_task(_post_webhook())
 
     async def _run_loop(self, discovery_job: Callable[[], List[Lead]], min_alert_score: float = 80.0):
         """Internal worker loop executing scheduled jobs."""
@@ -52,7 +55,7 @@ class AegisScheduler:
                 else:
                     leads = await asyncio.to_thread(discovery_job)
 
-                high_scoring = [l for l in (leads or []) if (l.score or 0) >= min_alert_score]
+                high_scoring = [l for l in (leads or []) if ((l.priority_score or l.website_quality_score or 0) >= min_alert_score)]
                 for lead in high_scoring:
                     self.send_high_score_alert(lead)
 

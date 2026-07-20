@@ -10,10 +10,10 @@ from aegisScout.core.models import Message, Lead, Campaign
 def get_campaign_analytics(campaign_id: int) -> Dict[str, Any]:
     """Calculate aggregate statistics and funnel breakdown for a campaign."""
     with Session(engine) as session:
-        messages = session.exec(select(Message).where(Message.campaign_id == campaign_id)).all()
+        messages = session.exec(select(Message).join(Lead).where(Lead.campaign_id == campaign_id)).all()
         total_sent = len(messages)
         delivered = sum(1 for m in messages if m.status in ("sent", "delivered", "read"))
-        replied = sum(1 for m in messages if m.reply_received or m.status == "replied")
+        replied = sum(1 for m in messages if m.status == "replied")
         converted = sum(1 for m in messages if m.status == "converted")
 
         open_rate = (delivered / total_sent * 100.0) if total_sent > 0 else 0.0
@@ -32,7 +32,7 @@ def get_campaign_analytics(campaign_id: int) -> Dict[str, Any]:
             if m.sent_at:
                 hourly_stats[m.sent_at.hour] += 1
 
-        best_hour = max(hourly_stats, key=hourly_stats.get) if total_sent > 0 else 10
+        best_hour = max(hourly_stats, key=lambda h: hourly_stats[h]) if total_sent > 0 else 10
 
     return {
         "campaign_id": campaign_id,

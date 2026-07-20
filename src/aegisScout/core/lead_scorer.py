@@ -61,7 +61,8 @@ def score_lead(lead: Lead) -> LeadScore:
     tech_score = 0.0
     if lead.has_website:
         # If website has missing tech (opportunity for sales), give higher score
-        if lead.opportunities or "SEO" in (lead.opportunities or ""):
+        opps = getattr(lead, "opportunities", None)
+        if opps or "SEO" in str(opps or ""):
             tech_score = 15.0
         else:
             tech_score = 10.0

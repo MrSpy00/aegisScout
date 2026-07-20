@@ -125,7 +125,7 @@ class BingSearchDiscoveryProvider(BaseDiscoveryProvider):
                         continue
 
                     title = link_tag.get_text(strip=True)
-                    href = link_tag.get("href", "")
+                    href = str(link_tag.get("href", ""))
 
                     if not href or not href.startswith("http"):
                         continue

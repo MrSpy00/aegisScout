@@ -136,6 +136,17 @@ Here are actual screenshots of the desktop application's main panels:
 - **Anti-Bot HTTP/SOCKS5 Proxy Havuzu (`proxy_pool.py`):** HTTP/SOCKS5 proxy rotasyonu, canlılık/gecikme testi (latency check) ve otomatik havuz yenileme.
 - **Açılır/Kapanır (Collapsible) Sol Menü & 9 Dilde Tam i18n Desteği:** `#sidebar-toggle-btn` butonu, daraltılmış mod araç ipuçları, 9 dilde (Türkçe, İngilizce, Almanca, İspanyolca, Fransızca, Arapça, Çince, Rusça, Hintçe) dinamik çeviri ve 12 temada renk kontrastı optimizasyonları.
 
+### 20. Derin OSINT ve Çoklu Sosyal Medya Taraması (V4/V5)
+- **Genişletilmiş Platform Desteği:** Web sitelerinden Instagram, Facebook, LinkedIn, Twitter/X, TikTok, Telegram, YouTube, GitHub, Medium, Substack, Behance, Dribbble, Snapchat, Spotify, SoundCloud, Twitch bağlantılarını otomatik tespit eder.
+- **TikTok & Sosyal Profil Tespiti:** Sosyal profil ağlarını analiz ederek doğrudan iletişim adreslerini ve şirket hesaplarını eşleştirir.
+
+### 21. Zamanlanmış Görev Motoru (Cron Manager — V4/V5)
+- **Zamanlanmış Otomatik Görevler:** Periyodik müşteri keşfi, otomatik takip e-postaları, gelen kutusu denetimi ve veri senkronizasyonunu arka planda düzenli aralıklarla otomatik çalıştırır.
+
+### 22. SQLite WAL ve Yüksek Başarımlı Veritabanı (V5)
+- **WAL Modu ve İndeksleme:** Veritabanı performansı WAL (Write-Ahead Logging) ve özel SQLite indeksleri ile güçlendirilmiş, eşzamanlı okuma/yazma işlemleri hızlandırılmıştır.
+- **Otomatik Tekilleştirme (Deduplication):** Tekrarlayan adres ve alan adı girdileri veritabanı seviyesinde otomatik olarak engellenir.
+
 ---
 
 
@@ -415,6 +426,17 @@ aegisScout tasks cancel <task_id>
 - **Task Lifecycle:** Each task transitions through `pending -> running -> completed / failed / cancelled`. Pause and resume are supported.
 - **Progress Tracking:** Running tasks report percentage-based progress. All task statuses can be listed via the CLI.
 - **Safe Cancellation:** Running or pending tasks can be safely cancelled or paused from the command line.
+
+### 19. Deep OSINT & Multi-Platform Social Discovery (V4/V5)
+- **Extended Social Mining:** Automatically extracts Instagram, Facebook, LinkedIn, Twitter/X, TikTok, Telegram, YouTube, GitHub, Medium, Substack, Behance, Dribbble, Snapchat, Spotify, SoundCloud, Twitch links from target websites.
+- **Deep Contact Association:** Cross-verifies social profiles to map target leads to their direct corporate touchpoints.
+
+### 20. Automated Cron Task Scheduler (V4/V5)
+- **Cron Manager:** Periodically schedules discovery, follow-ups, inbox scanning, and data synchronization without manual intervention.
+
+### 21. SQLite WAL & Database Performance Boost (V5)
+- **WAL Mode & Custom Indexes:** Employs Write-Ahead Logging (WAL) and optimized SQL indexing for ultra-fast query execution and concurrent read/writes.
+- **Automated Deduplication:** Prevents duplicate leads and domains at the database query layer.
 
 ---
 

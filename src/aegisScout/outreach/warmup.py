@@ -193,7 +193,7 @@ def _process_imap_inbox(account: SmtpAccount, sender_email: str) -> List[Tuple[s
         status, folder_list = mail.list()
         if status == "OK" and folder_list:
             for folder_bytes in folder_list:
-                if folder_bytes:
+                if isinstance(folder_bytes, bytes):
                     parts = folder_bytes.decode("utf-8", errors="ignore").split()
                     if parts:
                         all_folders.append(parts[-1].strip('"'))
@@ -227,22 +227,27 @@ def _process_imap_inbox(account: SmtpAccount, sender_email: str) -> List[Tuple[s
             for msg_id in search_data[0].split():
                 # Fetch message details
                 status, fetch_data = mail.fetch(msg_id, "(RFC822)")
-                if status == "OK" and fetch_data[0]:
+                if status == "OK" and fetch_data[0] and isinstance(fetch_data[0], tuple):
                     raw_email = fetch_data[0][1]
-                    msg = email.message_from_bytes(raw_email)
-                    subject = msg.get("Subject", "")
-                    
-                    # Extract body text
-                    body = ""
-                    if msg.is_multipart():
-                        for part in msg.walk():
-                            if part.get_content_type() == "text/plain":
-                                body = part.get_payload(decode=True).decode("utf-8", errors="ignore")
-                                break
-                    else:
-                        body = msg.get_payload(decode=True).decode("utf-8", errors="ignore")
+                    if isinstance(raw_email, (bytes, bytearray)):
+                        msg = email.message_from_bytes(raw_email)
+                        subject = str(msg.get("Subject", ""))
                         
-                    found_messages.append((msg_id.decode("utf-8"), subject, body))
+                        # Extract body text
+                        body = ""
+                        if msg.is_multipart():
+                            for part in msg.walk():
+                                if part.get_content_type() == "text/plain":
+                                    payload = part.get_payload(decode=True)
+                                    if isinstance(payload, bytes):
+                                        body = payload.decode("utf-8", errors="ignore")
+                                    break
+                        else:
+                            payload = msg.get_payload(decode=True)
+                            if isinstance(payload, bytes):
+                                body = payload.decode("utf-8", errors="ignore")
+                            
+                        found_messages.append((msg_id.decode("utf-8") if isinstance(msg_id, bytes) else str(msg_id), subject, body))
                     
                     # Mark as read/seen
                     mail.store(msg_id, "+FLAGS", "\\Seen")

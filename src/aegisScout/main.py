@@ -32,7 +32,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 from rich import print as rprint
-from sqlmodel import Session, select
+from sqlmodel import Session, select, col
 
 from aegisScout import __version__
 from aegisScout.core.config import settings
@@ -136,7 +136,7 @@ def _should_skip_db(ctx: typer.Context) -> bool:
             return True
         if any(h in current.args for h in ("--help", "-h")):
             return True
-        current = current.parent
+        current = current.parent  # type: ignore[assignment]
 
     args_list = sys.argv[1:]
     all_words = set(args_list)
@@ -226,9 +226,10 @@ def discover(
             f"Arama: [green]{s}[/green] @ [green]{location}[/green] "
             f"({radius} km) [{effective_provider}]..."
         )
-        added = asyncio.run(
+        res = asyncio.run(
             commands.discover_leads(s, location, radius, effective_provider)
         )
+        added = res[0]
         rprint(f"  ↳ [bold green]{added}[/bold green] yeni kayıt eklendi.")
         total_added += added
 
@@ -270,7 +271,7 @@ def list_leads(
         stmt = select(Lead)
         if status:
             stmt = stmt.where(Lead.status == status)
-        stmt = stmt.order_by(Lead.id.desc()).limit(limit)
+        stmt = stmt.order_by(col(Lead.id).desc()).limit(limit)
         leads = session.exec(stmt).all()
 
         if not leads:
@@ -377,7 +378,7 @@ def review() -> None:
       aegisScout review
     """
     with Session(engine) as session:
-        stmt = select(Lead).where(Lead.status.in_(["researched", "drafted"]))
+        stmt = select(Lead).where(col(Lead.status).in_(["researched", "drafted"]))
         leads = session.exec(stmt).all()
 
         if not leads:
@@ -1178,7 +1179,7 @@ def campaign_list() -> None:
       aegisScout campaign list
     """
     with Session(engine) as session:
-        campaigns = session.exec(select(Campaign).order_by(Campaign.id.desc())).all()
+        campaigns = session.exec(select(Campaign).order_by(col(Campaign.id).desc())).all()
         if not campaigns:
             rprint("[yellow]Henüz kampanya tanımlanmamış.[/yellow]")
             return
@@ -1265,11 +1266,11 @@ def campaign_assign(
             assigned_count = 1
 
         if auto_filter:
-            stmt = select(Lead).where(Lead.campaign_id.is_(None))
+            stmt = select(Lead).where(col(Lead.campaign_id).is_(None))
             if campaign.sector_filter:
                 stmt = stmt.where(Lead.sector == campaign.sector_filter)
             if campaign.location_filter:
-                stmt = stmt.where(Lead.address.like(f"%{campaign.location_filter}%"))
+                stmt = stmt.where(col(Lead.address).like(f"%{campaign.location_filter}%"))
 
             leads_to_assign = session.exec(stmt).all()
             for lead in leads_to_assign:

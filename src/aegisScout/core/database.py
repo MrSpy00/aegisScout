@@ -23,7 +23,7 @@ from __future__ import annotations
 import os
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Any
 
 from sqlalchemy import event
 from sqlmodel import SQLModel, Session, create_engine, text
@@ -154,7 +154,7 @@ def make_engine(url: Optional[str] = None):
     if effective_url.startswith("sqlite"):
         connect_args = {"check_same_thread": False, "timeout": 30}
 
-    kwargs = {"pool_pre_ping": True}
+    kwargs: dict[str, Any] = {"pool_pre_ping": True}
     if not effective_url.endswith(":memory:"):
         kwargs.update({
             "pool_size": 5,
@@ -224,11 +224,11 @@ def init_db(engine_to_use=None) -> None:
     with Session(engine_to_use) as session:
         # --- Seed default session ---
         try:
-            cnt = session.exec(
+            cnt = session.execute(
                 text("SELECT COUNT(*) FROM user_sessions WHERE id = 1")
             ).first()
             if not cnt or cnt[0] == 0:
-                session.exec(
+                session.execute(
                     text(
                         "INSERT OR IGNORE INTO user_sessions (id, name, created_at) "
                         "VALUES (1, 'Varsayılan Oturum', CURRENT_TIMESTAMP)"
@@ -246,7 +246,7 @@ def init_db(engine_to_use=None) -> None:
 
 def _column_exists(session: Session, table: str, column: str) -> bool:
     try:
-        rows = session.exec(text(f"PRAGMA table_info({table})")).all()
+        rows = session.execute(text(f"PRAGMA table_info({table})")).all()
         return any(row[1] == column for row in rows)
     except Exception:
         return False
@@ -293,7 +293,7 @@ def _run_migrations(session: Session, db_logger) -> None:
         if not _column_exists(session, table, column):
             db_logger.info(f"Migration: adding '{column}' to '{table}'...")
             try:
-                session.exec(
+                session.execute(
                     text(f"ALTER TABLE {table} ADD COLUMN {column} {col_def}")
                 )
                 session.commit()
@@ -311,7 +311,7 @@ def _run_migrations(session: Session, db_logger) -> None:
     ]
     for idx_name, idx_sql in indexes:
         try:
-            session.exec(text(idx_sql))
+            session.execute(text(idx_sql))
             session.commit()
         except Exception as e:
             db_logger.warning(f"Failed to create index {idx_name}: {e}")
@@ -324,9 +324,9 @@ def deduplicate_leads(session: Session) -> int:
     from sqlmodel import select
 
     leads = session.exec(select(Lead)).all()
-    seen_domains = {}
-    seen_names = {}
-    seen_phones = {}
+    seen_domains: dict[str, int] = {}
+    seen_names: dict[str, int] = {}
+    seen_phones: dict[str, int] = {}
     merged_count = 0
 
     for lead in leads:

@@ -18,6 +18,7 @@ class LeadCandidate(BaseModel):
     facebook_url: Optional[str] = None
     telegram_url: Optional[str] = None
     twitter_url: Optional[str] = None
+    email: Optional[str] = None
     rating: Optional[float] = None
     review_count: Optional[int] = None
     source: str

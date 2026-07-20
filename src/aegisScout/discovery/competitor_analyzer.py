@@ -30,7 +30,7 @@ async def analyze_competitors(lead_id: int) -> CompetitorReport:
         rivals = session.exec(stmt).all()
 
     gaps = []
-    if not target.website and any(r.website for r in rivals):
+    if not target.website_url and any(r.website_url for r in rivals):
         gaps.append("Rakiplerinizin %80'inin aktif web sitesi bulunuyor, sizin yok.")
     if (target.rating or 0) < 4.0 and any((r.rating or 0) >= 4.5 for r in rivals):
         gaps.append("Rakiplerinizin puanları 4.5+ seviyesinde yüksek müşteri memnuniyetine sahip.")

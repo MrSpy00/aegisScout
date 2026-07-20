@@ -202,7 +202,7 @@ class WebScraper:
         if domain_name.startswith("www."):
             domain_name = domain_name[4:]
         try:
-            age_days = await asyncio.to_thread(get_domain_age_days, domain_name)
+            age_days = await get_domain_age_days(domain_name)
             result["domain_age_days"] = age_days
             if age_days is not None:
                 result["is_new_domain"] = age_days < 90
@@ -211,7 +211,7 @@ class WebScraper:
 
         # BFS Crawl Setup
         import asyncio
-        visited = set()
+        visited: set[str] = set()
         queue = [(url, 0)]
         
         all_emails = set()
@@ -242,7 +242,7 @@ class WebScraper:
                 try:
                     async with httpx.AsyncClient(timeout=8.0, follow_redirects=True, verify=True) as client:
                         resp = await client.get(curr_url, headers=self.headers)
-                except httpx.SSLError:
+                except Exception:
                     verify_ssl = False
                     async with httpx.AsyncClient(timeout=8.0, follow_redirects=True, verify=False) as client:
                         resp = await client.get(curr_url, headers=self.headers)
@@ -277,7 +277,7 @@ class WebScraper:
             # Extract E-mails
             # A) mailto links
             for a in soup.find_all("a", href=True):
-                href = a["href"].strip()
+                href = str(a.get("href", "")).strip()
                 if href.lower().startswith("mailto:"):
                     email_addr = href.replace("mailto:", "").strip().split("?")[0]
                     if "@" in email_addr:
@@ -292,7 +292,7 @@ class WebScraper:
             # Extract Phones
             # A) tel links
             for a in soup.find_all("a", href=True):
-                href = a["href"].strip()
+                href = str(a.get("href", "")).strip()
                 if href.lower().startswith("tel:"):
                     phone_num = href.replace("tel:", "").strip()
                     if phone_num:
@@ -305,7 +305,7 @@ class WebScraper:
                 
             # Extract Instagram links
             for a in soup.find_all("a", href=True):
-                href = a["href"].lower()
+                href = str(a.get("href", "")).lower()
                 if "instagram.com" in href:
                     match = re.search(r"instagram\.com/([a-zA-Z0-9_\.]+)", href)
                     if match:
@@ -360,7 +360,7 @@ class WebScraper:
             # Queue internal subpages
             if depth < 2:
                 for a in soup.find_all("a", href=True):
-                    href = a["href"].strip()
+                    href = str(a.get("href", "")).strip()
                     if not href or href.startswith("#") or href.startswith("javascript:") or href.startswith("tel:") or href.startswith("mailto:"):
                         continue
                     full_link = urljoin(curr_url, href)
@@ -430,7 +430,8 @@ class WebScraper:
         if mobile_speed is not None:
             result["page_speed_mobile"] = mobile_speed
         else:
-            result["page_speed_mobile"] = max(40, result["page_speed_desktop"] - 10)
+            desktop_val = int(result["page_speed_desktop"] or 50)
+            result["page_speed_mobile"] = max(40, desktop_val - 10)
 
         # Opportunities / Issues Analysis for LLM Prompt
         opportunities_list = []
@@ -442,10 +443,14 @@ class WebScraper:
             opportunities_list.append("Kullanıcı davranış analizi aracı Hotjar kurulu değil.")
         if result["has_broken_links"]:
             opportunities_list.append(f"Web sitenizde bazı iç linkler kırık: {result['broken_links_details']}.")
-        if result["quality_score"] < 70:
-            opportunities_list.append(f"Mobil uyumluluk veya SEO etiketleri eksik, genel kalite skoru düşük ({result['quality_score']}/100).")
-        if result["page_speed_mobile"] < 60:
-            opportunities_list.append(f"Mobil site yüklenme hızı yavaş ({result['page_speed_mobile']}/100).")
+        
+        q_score = int(result["quality_score"] or 0)
+        if q_score < 70:
+            opportunities_list.append(f"Mobil uyumluluk veya SEO etiketleri eksik, genel kalite skoru düşük ({q_score}/100).")
+        
+        m_speed = int(result["page_speed_mobile"] or 0)
+        if m_speed < 60:
+            opportunities_list.append(f"Mobil site yüklenme hızı yavaş ({m_speed}/100).")
         if result["is_new_domain"]:
             opportunities_list.append(f"Alan adınız son 3 ay içinde alınmış çok yeni bir girişim ({result['domain_age_days']} günlük).")
 
@@ -489,7 +494,7 @@ class WebScraper:
         links_count = len(soup.find_all("link", rel="stylesheet"))
         score -= min(15, links_count * 2)
         images_count = len(soup.find_all("img"))
-        score -= min(15, images_count * 1.5)
+        score -= min(15, int(images_count * 1.5))
         html_size_kb = len(html or "") / 1024
         if html_size_kb > 200:
             score -= min(25, int((html_size_kb - 200) / 20))

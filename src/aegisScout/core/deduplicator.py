@@ -56,8 +56,12 @@ def find_duplicates(threshold: float = 0.85, max_distance_m: float = 50.0) -> Li
                 # Check location proximity if coordinates exist
                 is_close = False
                 dist_m = None
-                if lead_a.latitude and lead_a.longitude and lead_b.latitude and lead_b.longitude:
-                    dist_m = _calculate_distance_meters(lead_a.latitude, lead_a.longitude, lead_b.latitude, lead_b.longitude)
+                lat_a = getattr(lead_a, "latitude", None) or getattr(lead_a, "lat", None)
+                lng_a = getattr(lead_a, "longitude", None) or getattr(lead_a, "lng", None)
+                lat_b = getattr(lead_b, "latitude", None) or getattr(lead_b, "lat", None)
+                lng_b = getattr(lead_b, "longitude", None) or getattr(lead_b, "lng", None)
+                if lat_a and lng_a and lat_b and lng_b:
+                    dist_m = _calculate_distance_meters(float(lat_a), float(lng_a), float(lat_b), float(lng_b))
                     if dist_m <= max_distance_m:
                         is_close = True
                 

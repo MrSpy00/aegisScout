@@ -58,7 +58,7 @@ class LinkedinCompanyDiscoveryProvider(BaseDiscoveryProvider):
                     a = tag.find("a")
                     if a:
                         name = a.text.strip()
-                        href = a["href"]
+                        href = str(a.get("href", ""))
                         candidates.append(LeadCandidate(
                             business_name=name,
                             sector=sector,
@@ -84,12 +84,12 @@ class LinkedinCompanyDiscoveryProvider(BaseDiscoveryProvider):
                 if not title_a:
                     continue
                 title = title_a.text.strip()
-                href = title_a.get("href", "")
+                href = str(title_a.get("href", ""))
                 
                 # Decrypt redirect URL if it contains linkedin.com/company/
                 parsed = urllib.parse.urlparse(href)
                 queries = urllib.parse.parse_qs(parsed.query)
-                actual_url = queries["uddg"][0] if "uddg" in queries else href
+                actual_url = str(queries["uddg"][0]) if "uddg" in queries else href
                 
                 if "linkedin.com/company/" not in actual_url:
                     continue

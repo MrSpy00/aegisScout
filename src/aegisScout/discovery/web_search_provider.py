@@ -137,12 +137,12 @@ class WebSearchDiscoveryProvider(BaseDiscoveryProvider):
                         continue
 
                     title = title_a.text.strip()
-                    href = title_a.get("href", "")
+                    href = str(title_a.get("href", ""))
 
                     # Decode DuckDuckGo redirect URLs
                     parsed = urllib.parse.urlparse(href)
                     queries_qs = urllib.parse.parse_qs(parsed.query)
-                    actual_url = queries_qs.get("uddg", [href])[0]
+                    actual_url = str(queries_qs.get("uddg", [href])[0])
 
                     if not actual_url or not actual_url.startswith("http"):
                         continue

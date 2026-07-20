@@ -44,12 +44,13 @@ def _check_ssl_expiry(hostname: str) -> Optional[int]:
             server_hostname=hostname
         ) as conn:
             cert = conn.getpeercert()
-            not_after_str = cert.get("notAfter", "")
-            if not_after_str:
-                not_after = datetime.strptime(not_after_str, "%b %d %H:%M:%S %Y %Z")
-                not_after = not_after.replace(tzinfo=timezone.utc)
-                now = datetime.now(timezone.utc)
-                return (not_after - now).days
+            if cert and isinstance(cert, dict):
+                not_after_str = str(cert.get("notAfter", ""))
+                if not_after_str:
+                    not_after = datetime.strptime(not_after_str, "%b %d %H:%M:%S %Y %Z")
+                    not_after = not_after.replace(tzinfo=timezone.utc)
+                    now = datetime.now(timezone.utc)
+                    return (not_after - now).days
     except Exception:
         pass
     return None
@@ -110,16 +111,18 @@ class DeepOSINTScanner:
 
                     # Title & Description
                     if soup.title and soup.title.string:
-                        result["title"] = soup.title.string.strip()
-                        result["page_title_length"] = len(result["title"])
+                        title_text = str(soup.title.string).strip()
+                        result["title"] = title_text
+                        result["page_title_length"] = len(title_text)
 
                     desc_meta = (
                         soup.find("meta", attrs={"name": "description"})
                         or soup.find("meta", attrs={"property": "og:description"})
                     )
                     if desc_meta and desc_meta.get("content"):
-                        result["description"] = desc_meta["content"].strip()
-                        result["meta_description_length"] = len(result["description"])
+                        desc_text = str(desc_meta["content"]).strip()
+                        result["description"] = desc_text
+                        result["meta_description_length"] = len(desc_text)
 
                     # Mobile Viewport
                     viewport = soup.find("meta", attrs={"name": "viewport"})
@@ -234,14 +237,17 @@ class DeepOSINTScanner:
                         "dribbble.com", "github.com", "snapchat.com",
                         "spotify.com", "soundcloud.com", "twitch.tv",
                     ]
+                    links_val = result.get("social_links")
+                    raw_social_links: list[str] = [str(x) for x in links_val] if isinstance(links_val, list) else []
                     for a in soup.find_all("a", href=True):
-                        href = a["href"]
+                        href = str(a["href"])
                         if any(sd in href.lower() for sd in social_domains):
-                            result["social_links"].append(href)
-                    result["social_links"] = list(set(result["social_links"]))[:25]
+                            raw_social_links.append(href)
+                    unique_social: list[str] = list(set(raw_social_links))[:25]
+                    result["social_links"] = unique_social
 
                     # Specifically extract TikTok URL if present
-                    tiktok_links = [l for l in result["social_links"] if "tiktok.com" in l]
+                    tiktok_links = [l for l in unique_social if "tiktok.com" in l]
                     result["tiktok_url"] = tiktok_links[0] if tiktok_links else None
 
         except Exception as e:

@@ -375,7 +375,7 @@ out body center;
                 if area_id:
                     use_area = True
 
-        if use_area:
+        if use_area and area_id is not None:
             logger.info(f"Using Overpass AREA query for '{location}' (type: {addresstype}, area_id: {area_id}) instead of coordinate radius.")
             query = self._build_overpass_query_area(sector, area_id)
         else:

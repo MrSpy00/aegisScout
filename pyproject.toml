@@ -15,6 +15,7 @@ dependencies = [
     "pyperclip>=1.8.0",          # assisted_mode.py clipboard desteği
     "openpyxl>=3.1.0",
     "reportlab>=4.1.0",
+    "dnspython>=2.0.0",
 ]
 
 [project.optional-dependencies]

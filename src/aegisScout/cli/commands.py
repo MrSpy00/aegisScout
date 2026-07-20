@@ -4,8 +4,8 @@ import time
 import asyncio
 import httpx
 from datetime import datetime, timezone
-from sqlmodel import Session, select
-from typing import List, Optional, Callable, Dict
+from sqlmodel import Session, select, col
+from typing import List, Optional, Callable, Dict, Tuple
 
 from aegisScout.core.database import engine
 from aegisScout.core.models import Lead, ResearchNote, Message, ActivityLog
@@ -22,19 +22,19 @@ from aegisScout.discovery.yelp_tripadvisor_provider import YelpTripAdvisorDiscov
 from aegisScout.discovery.sahibinden_sarisayfalar_provider import SahibindenSariSayfalarDiscoveryProvider
 from aegisScout.discovery.linkedin_company_provider import LinkedinCompanyDiscoveryProvider
 try:
-    from aegisScout.discovery.bing_search_provider import BingSearchDiscoveryProvider
+    from aegisScout.discovery.bing_search_provider import BingSearchDiscoveryProvider  # type: ignore[assignment]
     _BING_AVAILABLE = True
 except ImportError:  # pragma: no cover
-    BingSearchDiscoveryProvider = None  # type: ignore[assignment]
+    BingSearchDiscoveryProvider = None  # type: ignore
     _BING_AVAILABLE = False
 # (1) Register DoktorTakvimi provider — opt-in import so the file may not
 # exist on older installs. The class is appended to BASE_DISCOVERY_PROVIDERS
 # below and participates in the "all" / "doktortakvimi" provider_name modes.
 try:
-    from aegisScout.discovery.doktortakvimi_provider import DoktorTakvimiDiscoveryProvider
+    from aegisScout.discovery.doktortakvimi_provider import DoktorTakvimiDiscoveryProvider  # type: ignore[assignment]
     _DOKTORTAKVIMI_AVAILABLE = True
 except ImportError:  # pragma: no cover — optional module
-    DoktorTakvimiDiscoveryProvider = None  # type: ignore[assignment]
+    DoktorTakvimiDiscoveryProvider = None  # type: ignore
     _DOKTORTAKVIMI_AVAILABLE = False
 
 from aegisScout.ai.provider_router import ProviderRouter
@@ -268,7 +268,7 @@ async def discover_leads(
     session_id: int = 1,
     task_id: Optional[str] = None,
     **kwargs
-) -> int:
+) -> Tuple[int, int, int]:
     """
     Discover leads using the selected provider, deduplicate, and save to DB.
     Returns the number of newly added leads.
@@ -339,7 +339,7 @@ async def discover_leads(
             keywords = _extract_sector_keywords(sec) if sec else []
             full_phrase_lower = sec.lower() if sec else ""
             for name, provider in providers:
-                if tqm:
+                if tqm and task_id:
                     await tqm.wait_if_paused(task_id)
                 _cb(f"Veri kaynağı '{name}' üzerinden '{sec}' sektörü ve '{loc}' konumu aranıyor (Konum: {idx_l + 1}/{len(locations)}, Sektör: {idx_s + 1}/{len(sectors)})...")
                 try:
@@ -389,7 +389,7 @@ async def discover_leads(
     with Session(engine) as session:
         total_cand = len(candidates)
         for idx, c in enumerate(candidates):
-            if tqm:
+            if tqm and task_id:
                 await tqm.wait_if_paused(task_id)
                 tqm.update_progress(task_id, 30.0 + (idx / max(1, total_cand)) * 70.0)
             # Deduplication: business_name + address unique constraint
@@ -401,9 +401,9 @@ async def discover_leads(
                 )
             else:
                 stmt = select(Lead).where(
-                    (Lead.business_name == c.business_name) &
-                    (Lead.address.is_(None)) &
-                    (Lead.session_id == session_id)
+                    Lead.business_name == c.business_name,
+                    col(Lead.address).is_(None),
+                    Lead.session_id == session_id
                 )
             if session.exec(stmt).first():
                 duplicate_count += 1
@@ -497,7 +497,7 @@ async def research_lead(lead_id: int, force: bool = False, task_id: Optional[str
             lead.has_website = True
 
         logger.info(f"Researching lead: {lead.business_name} (ID:{lead_id})...")
-        if tqm:
+        if tqm and task_id:
             await tqm.wait_if_paused(task_id)
             tqm.update_progress(task_id, 15.0)
 
@@ -546,7 +546,7 @@ async def research_lead(lead_id: int, force: bool = False, task_id: Optional[str
             if quality_score is not None:
                 lead.website_quality_score = quality_score
 
-        if tqm:
+        if tqm and task_id:
             await tqm.wait_if_paused(task_id)
             tqm.update_progress(task_id, 45.0)
 
@@ -567,7 +567,7 @@ async def research_lead(lead_id: int, force: bool = False, task_id: Optional[str
             except Exception as e:
                 logger.warning(f"Instagram handle search failed: {e}")
 
-        if tqm:
+        if tqm and task_id:
             await tqm.wait_if_paused(task_id)
             tqm.update_progress(task_id, 65.0)
 
@@ -653,7 +653,7 @@ async def research_lead(lead_id: int, force: bool = False, task_id: Optional[str
         except Exception as e:
             logger.warning(f"Multi-platform social discovery failed: {e}")
 
-        if tqm:
+        if tqm and task_id:
             await tqm.wait_if_paused(task_id)
             tqm.update_progress(task_id, 85.0)
 

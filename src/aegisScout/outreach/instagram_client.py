@@ -12,11 +12,11 @@ except ImportError:
     HAS_INSTAGRAPI = False
     Client = None
     # Dummy exception classes to avoid NameErrors
-    class ClientError(Exception): pass
-    class LoginRequired(Exception): pass
-    class TwoFactorRequired(Exception): pass
-    class ChallengeRequired(Exception): pass
-    class FeedbackRequired(Exception): pass
+    class ClientError(Exception): pass  # type: ignore[no-redef]
+    class LoginRequired(Exception): pass  # type: ignore[no-redef]
+    class TwoFactorRequired(Exception): pass  # type: ignore[no-redef]
+    class ChallengeRequired(Exception): pass  # type: ignore[no-redef]
+    class FeedbackRequired(Exception): pass  # type: ignore[no-redef]
 
 from aegisScout.core.config import settings
 from aegisScout.utils.logger import get_logger

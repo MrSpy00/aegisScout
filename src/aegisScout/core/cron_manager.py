@@ -62,7 +62,7 @@ class CronManager:
             return False
         logger.info(f"Triggering cron job {job_id} immediately...")
         try:
-            asyncio.run(discover_leads(sector=job.sector, location=job.location, radius_km=job.radius_km))
+            asyncio.run(discover_leads(sector=job.sector, location=job.location, radius_km=int(job.radius_km), provider_name="all"))
             job.last_run = datetime.now()
             job.next_run = datetime.now() + timedelta(hours=job.interval_hours)
             return True
