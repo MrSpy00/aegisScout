@@ -23,9 +23,11 @@ from aegisScout.utils.logger import get_logger
 from aegisScout.utils.encryption import encrypt_json_file, decrypt_json_file
 from aegisScout.outreach.rate_limiter import RateLimiter
 
+from aegisScout.utils.paths import get_data_dir
+
 logger = get_logger("outreach.instagram_client")
 
-SESSION_DIR = Path("data/sessions")
+SESSION_DIR = get_data_dir() / "sessions"
 SESSION_FILE = SESSION_DIR / "session.json"
 
 class InstagramClient:

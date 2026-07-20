@@ -11,7 +11,6 @@ dependencies = [
     "beautifulsoup4>=4.12.0",
     "sqlmodel>=0.0.19",
     "pydantic-settings>=2.2.0",
-    "toml>=0.10.2",
     "cryptography>=42.0.0",
     "pyperclip>=1.8.0",          # assisted_mode.py clipboard desteği
     "openpyxl>=3.1.0",
@@ -48,4 +47,17 @@ where = ["src"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+exclude = ["tests/"]
+
+[tool.coverage.run]
+source = ["src/aegisScout"]
+omit = ["*/tests/*", "*/gui_assets.py"]
+
+[tool.coverage.report]
+fail_under = 70
+
 

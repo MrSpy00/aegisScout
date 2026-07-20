@@ -111,16 +111,22 @@ outreach_handler.addFilter(NameFilter("aegisScout.outreach"))
 # Session Log Handler (Markdown and JSON lines)
 # ---------------------------------------------------------------------------
 import json
+import threading
 from datetime import datetime
 
 class SessionLogHandler(logging.Handler):
     """
     Custom handler to log the current execution session to Markdown and JSON Lines.
-    Creates a new file in logs/sessions/ directory for each run of the application.
+    Uses an in-memory buffer and background thread flusher for optimal disk I/O performance.
     """
-    def __init__(self, logs_dir: Path):
+    def __init__(self, logs_dir: Path, flush_interval: float = 2.0):
         super().__init__()
         self.sessions_dir = logs_dir / "sessions"
+        self._buffer_lock = threading.Lock()
+        self._buffer: list[dict] = []
+        self._flush_interval = flush_interval
+        self._timer: Optional[threading.Timer] = None
+        self._stopped = False
         try:
             self.sessions_dir.mkdir(parents=True, exist_ok=True)
             # Create a unique session timestamp
@@ -135,37 +141,70 @@ class SessionLogHandler(logging.Handler):
                 f.write(f"- **Python Version**: {sys.version.split()[0]}\n\n")
                 f.write("## Log Entries\n\n")
             self._initialized = True
+            self._schedule_flush()
         except Exception as e:
             self._initialized = False
             sys.stderr.write(f"Failed to initialize SessionLogHandler: {e}\n")
+
+    def _schedule_flush(self):
+        if self._stopped:
+            return
+        self._timer = threading.Timer(self._flush_interval, self.flush)
+        self._timer.daemon = True
+        self._timer.start()
 
     def emit(self, record):
         if not self._initialized:
             return
         try:
             time_str = datetime.fromtimestamp(record.created).strftime("%Y-%m-%d %H:%M:%S")
-            levelname = record.levelname
-            thread_name = record.threadName
-            logger_name = record.name
-            msg = record.getMessage()
-            
-            # Append entry to Markdown file
-            md_line = f"* **{time_str}** `[{levelname}]` `[{thread_name}]` `{logger_name}` — {msg}\n"
-            with open(self.md_file_path, "a", encoding="utf-8") as f:
-                f.write(md_line)
-                
-            # Append entry to JSON Lines file
-            json_entry = {
+            entry = {
                 "timestamp": time_str,
-                "level": levelname,
-                "thread": thread_name,
-                "logger": logger_name,
-                "message": msg
+                "level": record.levelname,
+                "thread": record.threadName,
+                "logger": record.name,
+                "message": record.getMessage()
             }
-            with open(self.json_file_path, "a", encoding="utf-8") as f:
-                f.write(json.dumps(json_entry, ensure_ascii=False) + "\n")
+            with self._buffer_lock:
+                self._buffer.append(entry)
         except Exception:
             self.handleError(record)
+
+    def flush(self):
+        if not self._initialized:
+            return
+        with self._buffer_lock:
+            if not self._buffer:
+                if not self._stopped:
+                    self._schedule_flush()
+                return
+            to_write = list(self._buffer)
+            self._buffer.clear()
+
+        try:
+            md_lines = []
+            json_lines = []
+            for item in to_write:
+                md_lines.append(f"* **{item['timestamp']}** `[{item['level']}]` `[{item['thread']}]` `{item['logger']}` — {item['message']}\n")
+                json_lines.append(json.dumps(item, ensure_ascii=False) + "\n")
+
+            with open(self.md_file_path, "a", encoding="utf-8") as f:
+                f.writelines(md_lines)
+
+            with open(self.json_file_path, "a", encoding="utf-8") as f:
+                f.writelines(json_lines)
+        except Exception:
+            pass
+        finally:
+            if not self._stopped:
+                self._schedule_flush()
+
+    def close(self):
+        self._stopped = True
+        if self._timer:
+            self._timer.cancel()
+        self.flush()
+        super().close()
 
 
 # Initialize session handler

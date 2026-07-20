@@ -55,7 +55,7 @@ class ProxyPoolManager:
         """Test a proxy connection for latency and working status."""
         try:
             start_time = asyncio.get_event_loop().time()
-            async with httpx.AsyncClient(proxies=proxy_url, timeout=timeout) as client:
+            async with httpx.AsyncClient(proxy=proxy_url, timeout=timeout) as client:
                 resp = await client.get(test_target)
                 latency_ms = round((asyncio.get_event_loop().time() - start_time) * 1000, 2)
                 if resp.status_code == 200:

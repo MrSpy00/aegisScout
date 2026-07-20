@@ -25,9 +25,11 @@ from aegisScout.ai.provider_router import ProviderRouter
 from aegisScout.core.config import settings
 from aegisScout.utils.logger import get_logger
 
+from aegisScout.utils.paths import get_data_dir
+
 logger = get_logger("outreach.warmup")
 
-STATS_FILE = Path("data/warmup_stats.json")
+STATS_FILE = get_data_dir() / "warmup_stats.json"
 
 
 def _load_stats() -> Dict[str, int]:
@@ -83,11 +85,21 @@ REPLY_TEMPLATES = [
 ]
 
 
+_router: Optional[ProviderRouter] = None
+
+
+def _get_router() -> ProviderRouter:
+    global _router
+    if _router is None:
+        _router = ProviderRouter()
+    return _router
+
+
 async def generate_warmup_email() -> Tuple[str, str]:
     """Generate a natural email subject and body using Gemini, or fallback to offline templates."""
     if settings.gemini_api_key:
         try:
-            router = ProviderRouter()
+            router = _get_router()
             prompt = (
                 "Write a short, realistic, 2-3 sentence business email in Turkish. "
                 "The email should sound like a natural inquiry, partnership request, or scheduling request. "
@@ -120,7 +132,7 @@ async def generate_warmup_reply(original_body: str) -> str:
     """Generate a realistic reply to an email using Gemini, or fallback to templates."""
     if settings.gemini_api_key:
         try:
-            router = ProviderRouter()
+            router = _get_router()
             prompt = (
                 f"Write a short, natural, 1-2 sentence reply in Turkish to this email:\n"
                 f"'{original_body}'\n\n"

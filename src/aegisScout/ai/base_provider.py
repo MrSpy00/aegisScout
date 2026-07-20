@@ -85,6 +85,15 @@ class BaseLLMProvider(ABC):
         """Generate a text completion for a given prompt and system prompt."""
         raise NotImplementedError
 
+    async def stream_generate(
+        self, prompt: str, system_prompt: Optional[str] = None, callback: Optional[Callable[[str], None]] = None, **kwargs
+    ) -> str:
+        """Stream tokens to callback as they arrive, returning complete text."""
+        result = await self.generate(prompt=prompt, system_prompt=system_prompt, **kwargs)
+        if callback:
+            callback(result)
+        return result
+
     # ------------------------------------------------------------------
     # Timeout
     # ------------------------------------------------------------------

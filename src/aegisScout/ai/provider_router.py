@@ -29,10 +29,6 @@ from aegisScout.utils.logger import get_logger
 logger = get_logger("ai.router")
 
 
-class ProviderError(Exception):
-    """Raised when an LLM provider request fails after all retries."""
-
-
 class ProviderParseError(Exception):
     """Raised when an LLM response cannot be parsed as expected."""
 

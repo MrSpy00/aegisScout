@@ -4,13 +4,15 @@ import json
 import math
 from pathlib import Path
 from typing import List, Dict, Optional, Any
+from concurrent.futures import ThreadPoolExecutor
 from aegisScout.core.config import get_settings
 from aegisScout.utils.logger import get_logger
+from aegisScout.utils.paths import get_data_dir
 
 logger = get_logger("ai.local_rag")
 
-KB_DIR = Path("data/knowledge_base")
-INDEX_FILE = Path("data/kb_vectors.json")
+KB_DIR = get_data_dir() / "knowledge_base"
+INDEX_FILE = get_data_dir() / "kb_vectors.json"
 
 
 def _get_kb_dir() -> Path:
@@ -194,7 +196,7 @@ def index_knowledge_base() -> Dict[str, Any]:
     chunks = []
     chunk_id_counter = 0
     
-    for file_path in files:
+    def _process_file(file_path: Path) -> List[str]:
         ext = file_path.suffix.lower()
         content = ""
         if ext in (".txt", ".md"):
@@ -204,19 +206,21 @@ def index_knowledge_base() -> Dict[str, Any]:
                 logger.error(f"Error reading text file {file_path}: {e}")
         elif ext == ".pdf":
             content = parse_pdf(file_path)
-            
         if not content.strip():
-            continue
-            
-        file_chunks = chunk_text(content)
-        for chunk in file_chunks:
-            chunks.append({
-                "id": chunk_id_counter,
-                "file_name": file_path.name,
-                "content": chunk,
-                "embedding": None
-            })
-            chunk_id_counter += 1
+            return []
+        return [(file_path.name, c) for c in chunk_text(content)]
+
+    with ThreadPoolExecutor(max_workers=min(8, max(1, len(files)))) as executor:
+        results = executor.map(_process_file, files)
+        for file_results in results:
+            for file_name, chunk in file_results:
+                chunks.append({
+                    "id": chunk_id_counter,
+                    "file_name": file_name,
+                    "content": chunk,
+                    "embedding": None
+                })
+                chunk_id_counter += 1
 
     if not chunks:
         # Write empty index

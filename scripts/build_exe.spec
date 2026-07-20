@@ -20,6 +20,7 @@ a = Analysis(
         ('../config/config.example.toml', 'config'),
         ('../src/aegisScout/assets/logo.png', 'aegisScout/assets'),
         ('../src/aegisScout/assets/logo.ico', 'aegisScout/assets'),
+        ('../src/aegisScout/assets/index.html', 'aegisScout/assets'),
         (webview_lib, 'webview/lib') if webview_lib else None,
     ] if x is not None],
     hiddenimports=[
@@ -52,7 +53,7 @@ a = Analysis(
         # Dev/doc tools not needed
         'unittest', 'pydoc', 'pdb', 'docutils', 'sphinx', 'setuptools',
         'distutils', 'pip', 'jupyter', 'IPython', 'ipykernel', 'jedi',
-        'parso', 'black', 'isort', 'mypy', 'ruff',
+        'parso', 'black', 'isort', 'mypy', 'ruff', 'toml',
         # Web servers / browsers not needed
         'weasyprint', 'tornado', 'flask', 'django',
         # Cloud SDKs not needed
@@ -62,6 +63,8 @@ a = Analysis(
         # Misc heavy deps not needed
         'cv2', 'tensorflow', 'torch', 'transformers', 'datasets',
         'huggingface', 'wandb', 'mlflow',
+        # Cryptography unneeded modules
+        'cryptography.x509',
         # MS / Windows-specific not needed
         'win32com', 'win32ctypes',
     ],

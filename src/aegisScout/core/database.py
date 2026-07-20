@@ -132,11 +132,19 @@ def make_engine(url: Optional[str] = None):
     if effective_url.startswith("sqlite"):
         connect_args = {"check_same_thread": False, "timeout": 30}
 
+    kwargs = {"pool_pre_ping": True}
+    if not effective_url.endswith(":memory:"):
+        kwargs.update({
+            "pool_size": 5,
+            "max_overflow": 10,
+            "pool_recycle": 3600,
+        })
+
     engine = create_engine(
         effective_url,
         echo=False,
         connect_args=connect_args,
-        pool_pre_ping=True,
+        **kwargs,
     )
     _register_sqlite_pragmas(engine)
     return engine

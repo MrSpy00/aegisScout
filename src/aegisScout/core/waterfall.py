@@ -20,11 +20,11 @@ from aegisScout.core.database import engine
 from aegisScout.core.models import Lead, ResearchNote, ActivityLog
 from aegisScout.utils.email_verifier import verify_email
 from aegisScout.utils.logger import get_logger
-from aegisScout.core.config import settings
+from aegisScout.utils.paths import get_data_dir
 
 logger = get_logger("core.waterfall")
 
-CONFIG_FILE = Path("data/waterfall_config.json")
+CONFIG_FILE = get_data_dir() / "waterfall_config.json"
 
 DEFAULT_CONFIG = [
     {

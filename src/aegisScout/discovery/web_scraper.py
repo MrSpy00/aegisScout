@@ -9,7 +9,7 @@ from aegisScout.utils.logger import get_logger
 logger = get_logger("discovery.web_scraper")
 
 
-def get_domain_age_days(domain: str) -> Optional[int]:
+async def get_domain_age_days(domain: str) -> Optional[int]:
     """
     Finds the registration age of a domain in days using a keyless RDAP lookup,
     falling back to a raw socket WHOIS query on port 43 if RDAP is unavailable.
@@ -17,8 +17,8 @@ def get_domain_age_days(domain: str) -> Optional[int]:
     # 1. Try RDAP first (modern REST standard)
     try:
         url = f"https://rdap.org/domain/{domain}"
-        with httpx.Client(timeout=5.0) as client:
-            resp = client.get(url, follow_redirects=True)
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            resp = await client.get(url, follow_redirects=True)
             if resp.status_code == 200:
                 data = resp.json()
                 events = data.get("events", [])

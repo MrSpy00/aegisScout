@@ -18,7 +18,7 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-import toml
+import tomllib
 
 
 # ---------------------------------------------------------------------------
@@ -76,36 +76,64 @@ def _set_config_dir(path: Path) -> None:
 # Loader
 # ---------------------------------------------------------------------------
 
-def load_toml_config(config_path: Optional[Path] = None) -> dict:
-    """Load and return the project's TOML config as a dict.
+def dumps_toml(data: dict) -> str:
+    """Simple TOML serializer for config structures."""
+    lines = []
+    for key, value in data.items():
+        if isinstance(value, dict):
+            lines.append(f"\n[{key}]")
+            for sub_k, sub_v in value.items():
+                if isinstance(sub_v, bool):
+                    lines.append(f"{sub_k} = {str(sub_v).lower()}")
+                elif isinstance(sub_v, (int, float)):
+                    lines.append(f"{sub_k} = {sub_v}")
+                elif isinstance(sub_v, list):
+                    lines.append(f"{sub_k} = {sub_v!r}")
+                else:
+                    lines.append(f'{sub_k} = "{sub_v}"')
+        elif isinstance(value, bool):
+            lines.append(f"{key} = {str(value).lower()}")
+        elif isinstance(value, (int, float)):
+            lines.append(f"{key} = {value}")
+        elif isinstance(value, list):
+            lines.append(f"{key} = {value!r}")
+        else:
+            lines.append(f'{key} = "{value}"')
+    return "\n".join(lines) + "\n"
 
-    Parameters
-    ----------
-    config_path:
-        Optional override path. If absent, the module-level
-        ``CONFIG_FILE`` is used (which itself was resolved via
-        :func:`_resolve_config_dir`). When the live file is missing
-        but a ``config.example.toml`` exists in the same dir, the
-        example is loaded as a safe fallback. A completely missing
-        file returns an empty dict.
-    """
+
+def dump_toml(data: dict, f) -> None:
+    """Write dict to file as TOML."""
+    content = dumps_toml(data)
+    if hasattr(f, "write"):
+        f.write(content)
+    else:
+        with open(f, "w", encoding="utf-8") as out:
+            out.write(content)
+
+
+def load_toml_config(config_path: Optional[Path] = None) -> dict:
+    """Load and return the project's TOML config as a dict."""
     target = Path(config_path) if config_path else CONFIG_FILE
     target_dir = target.parent
 
     if target.exists():
-        return toml.load(target)
+        with open(target, "rb") as f:
+            return tomllib.load(f)
 
     # Try the example fallback in the same dir.
     example = target_dir / "config.example.toml"
     if example.exists():
-        return toml.load(example)
+        with open(example, "rb") as f:
+            return tomllib.load(f)
 
     # Try the bundle fallback (PyInstaller): example next to the exe.
     meipass = getattr(sys, "_MEIPASS", None)
     if meipass:
         bundle_example = Path(meipass) / "config" / "config.example.toml"
         if bundle_example.exists():
-            return toml.load(bundle_example)
+            with open(bundle_example, "rb") as f:
+                return tomllib.load(f)
 
     # No config at all — caller must tolerate empty config.
     return {}

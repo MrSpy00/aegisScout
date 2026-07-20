@@ -8,6 +8,16 @@ from aegisScout.utils.logger import get_logger
 logger = get_logger("ai.multi_agent")
 
 
+_router: Optional[ProviderRouter] = None
+
+
+def _get_router() -> ProviderRouter:
+    global _router
+    if _router is None:
+        _router = ProviderRouter()
+    return _router
+
+
 async def generate_multi_agent_draft(
     business_name: str,
     sector: str,
@@ -23,7 +33,7 @@ async def generate_multi_agent_draft(
     Runs the 3-Agent Workflow (Inspector -> Copywriter -> Editor) to generate
     a highly personalized, natural outbound draft message.
     """
-    ai_router = ProviderRouter()
+    ai_router = _get_router()
     
     # RAG lookup: search for case studies matching the sector/details
     rag_context = ""

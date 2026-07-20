@@ -829,13 +829,12 @@ def _persist_mod_b_acknowledged() -> None:
         # — most production installs copy the example first.
         return
     try:
-        import toml
-        existing = toml.load(cfg_path) if cfg_path.exists() else {}
+        from aegisScout.core.toml_config import load_toml_config, dump_toml
+        existing = load_toml_config(cfg_path) if cfg_path.exists() else {}
         if "outreach" not in existing:
             existing["outreach"] = {}
         existing["outreach"]["mod_b_acknowledged"] = True
-        with open(cfg_path, "w", encoding="utf-8") as f:
-            toml.dump(existing, f)
+        dump_toml(existing, cfg_path)
         # Mutate in-memory cache so subsequent reads see the new value
         try:
             config_data.setdefault("outreach", {})["mod_b_acknowledged"] = True
@@ -909,14 +908,13 @@ def automate(
             flag_file.unlink()
         # Best-effort: also clear the toml acknowledgement
         try:
-            import toml
+            from aegisScout.core.toml_config import load_toml_config, dump_toml
             cfg_path = Path("config") / "config.toml"
             if cfg_path.exists():
-                data = toml.load(cfg_path)
+                data = load_toml_config(cfg_path)
                 if "outreach" in data:
                     data["outreach"]["mod_b_acknowledged"] = False
-                    with open(cfg_path, "w", encoding="utf-8") as f:
-                        toml.dump(data, f)
+                    dump_toml(data, cfg_path)
                     config_data.get("outreach", {})["mod_b_acknowledged"] = False
         except Exception:
             pass

@@ -27,7 +27,8 @@ DEFAULT_DISPOSABLE_DOMAINS = {
 
 def load_disposable_domains() -> set[str]:
     """Load disposable domains from file if it exists, otherwise return default set."""
-    file_path = Path("data/disposable_domains.txt")
+    from aegisScout.utils.paths import get_data_dir
+    file_path = get_data_dir() / "disposable_domains.txt"
     if file_path.exists():
         try:
             with open(file_path, "r", encoding="utf-8") as f:

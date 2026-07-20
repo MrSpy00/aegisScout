@@ -17,11 +17,12 @@ from aegisScout.core.models import Lead
 from aegisScout.ai.providers.gemini_provider import GeminiProvider
 from aegisScout.core.config import settings
 from aegisScout.utils.logger import get_logger
+from aegisScout.utils.paths import get_data_dir
 
 logger = get_logger("core.screen_audit")
 
 # Ensure screenshot directory exists
-SCREENSHOTS_DIR = Path("data/screenshots")
+SCREENSHOTS_DIR = get_data_dir() / "screenshots"
 SCREENSHOTS_DIR.mkdir(parents=True, exist_ok=True)
 
 

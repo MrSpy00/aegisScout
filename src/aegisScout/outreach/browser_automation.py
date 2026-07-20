@@ -15,13 +15,13 @@ from sqlmodel import Session
 from playwright.sync_api import sync_playwright
 from aegisScout.core.database import engine
 from aegisScout.core.models import Lead, Message
-from aegisScout.utils.logger import get_logger
+from aegisScout.utils.paths import get_data_dir
 
 logger = get_logger("outreach.browser_automation")
 
 # Profile paths
-WHATSAPP_PROFILE_DIR = Path("data/browser_profiles/whatsapp")
-LINKEDIN_PROFILE_DIR = Path("data/browser_profiles/linkedin")
+WHATSAPP_PROFILE_DIR = get_data_dir() / "browser_profiles/whatsapp"
+LINKEDIN_PROFILE_DIR = get_data_dir() / "browser_profiles/linkedin"
 
 WHATSAPP_PROFILE_DIR.mkdir(parents=True, exist_ok=True)
 LINKEDIN_PROFILE_DIR.mkdir(parents=True, exist_ok=True)

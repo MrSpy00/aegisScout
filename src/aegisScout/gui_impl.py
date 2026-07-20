@@ -28,7 +28,14 @@ from sqlmodel import Session, select, text
 from sqlalchemy import func
 
 from aegisScout.core.config import settings
-from aegisScout.core.database import engine, init_db
+from aegisScout.core import database as db_module
+from aegisScout.core.database import init_db
+
+class _EngineProxy:
+    def __getattr__(self, name):
+        return getattr(db_module.engine, name)
+
+engine = _EngineProxy()
 from aegisScout.core.models import (
     Lead,
     ResearchNote,
