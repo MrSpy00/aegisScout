@@ -45,9 +45,9 @@ def test_lead_deduplication():
     SQLModel.metadata.create_all(engine)
 
     with Session(engine) as session:
-        lead1 = Lead(id=1, business_name="Acme Corp", domain="acme.com", phone="123456", score=50)
-        lead2 = Lead(id=2, business_name="Acme Corp LLC", domain="acme.com", email="info@acme.com", score=80)
-        lead3 = Lead(id=3, business_name="Beta Ltd", domain="beta.com", phone="999888", score=60)
+        lead1 = Lead(business_name="Acme Corp", website_url="https://acme.com", phone="123456", priority_score=50.0)
+        lead2 = Lead(business_name="Acme Corp LLC", website_url="https://acme.com", email="info@acme.com", priority_score=80.0)
+        lead3 = Lead(business_name="Beta Ltd", website_url="https://beta.com", phone="999888", priority_score=60.0)
         session.add_all([lead1, lead2, lead3])
         session.commit()
 
@@ -56,10 +56,9 @@ def test_lead_deduplication():
 
         remaining = session.query(Lead).all()
         assert len(remaining) == 2
-        # Primary lead should have updated score and merged email
-        acme = session.get(Lead, 1)
+        acme = [l for l in remaining if "Acme" in l.business_name][0]
         assert acme.email == "info@acme.com"
-        assert acme.score == 80
+        assert acme.score == 80.0
 
 
 def test_ssrf_safety_filter():

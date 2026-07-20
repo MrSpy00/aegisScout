@@ -12,11 +12,11 @@ def test_crm_payload_formatting():
     lead = Lead(
         id=10,
         business_name="Scout CRM Inc",
-        domain="scoutcrm.io",
+        website_url="https://scoutcrm.io",
         email="hello@scoutcrm.io",
         phone="5551234",
-        city="Ankara",
-        score=88.0,
+        address="Ankara",
+        priority_score=88.0,
     )
 
     hubspot_data = CRMSyncManager.format_lead_for_hubspot(lead)
@@ -30,7 +30,7 @@ def test_crm_payload_formatting():
 
 @pytest.mark.asyncio
 async def test_webhook_post_success():
-    lead = Lead(id=1, business_name="Webhook Test LLC", domain="test.org")
+    lead = Lead(id=1, business_name="Webhook Test LLC", website_url="https://test.org")
     manager = CRMSyncManager()
 
     webhook_url = "https://api.zapier.com/v1/hooks/catch/12345"

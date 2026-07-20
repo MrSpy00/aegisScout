@@ -10,11 +10,11 @@ def test_ai_sequence_builder_and_variable_rendering():
     lead = Lead(
         id=1,
         business_name="TechCorp İstanbul",
-        category="Yazılım",
-        domain="techcorp.com.tr",
-        score=92.5,
+        sector="Yazılım",
+        website_url="https://techcorp.com.tr",
+        priority_score=92.5,
         outreach_hook="Sayfa yüklenme süresi 4.5s (yavaş)",
-        city="İstanbul",
+        address="İstanbul",
     )
 
     builder = AISequenceBuilder()

@@ -50,10 +50,20 @@ class CRMSyncManager:
             logger.warning(f"CRM Webhook blocked due to unsafe URL: {webhook_url}")
             return False
 
+        from datetime import datetime
+
+        serialized_leads = []
+        for lead in leads:
+            data = lead.dict() if hasattr(lead, "dict") else dict(lead)
+            for k, v in data.items():
+                if isinstance(v, datetime):
+                    data[k] = v.isoformat()
+            serialized_leads.append(data)
+
         payload = {
             "source": "aegisScout",
             "count": len(leads),
-            "leads": [lead.dict() for lead in leads],
+            "leads": serialized_leads,
         }
 
         try:

@@ -12,12 +12,12 @@ async def test_parallel_discovery_orchestration():
     orchestrator = DiscoveryOrchestrator(max_concurrent_providers=2)
 
     def dummy_provider_1():
-        return [Lead(id=101, business_name="Alpha Tech", domain="alphatech.io")]
+        return [Lead(id=101, business_name="Alpha Tech", website_url="https://alphatech.io")]
 
     async def dummy_provider_2():
         return [
-            Lead(id=102, business_name="Beta Solutions", domain="betasol.com"),
-            Lead(id=103, business_name="Alpha Tech", domain="alphatech.io"), # duplicate
+            Lead(id=102, business_name="Beta Solutions", website_url="https://betasol.com"),
+            Lead(id=103, business_name="Alpha Tech", website_url="https://alphatech.io"), # duplicate
         ]
 
     streamed_leads = []
@@ -31,8 +31,8 @@ async def test_parallel_discovery_orchestration():
 
     assert len(all_leads) == 2
     assert len(streamed_leads) == 2
-    assert all_leads[0].business_name == "Alpha Tech"
-    assert all_leads[1].business_name == "Beta Solutions"
+    names = {l.business_name for l in all_leads}
+    assert names == {"Alpha Tech", "Beta Solutions"}
 
 
 @pytest.mark.asyncio

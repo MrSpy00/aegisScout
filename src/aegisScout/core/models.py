@@ -78,6 +78,49 @@ class Lead(SQLModel, table=True):
     campaign: Optional["Campaign"] = Relationship(back_populates="leads")
     crm_logs: List["CrmLog"] = Relationship(back_populates="lead", cascade_delete=True)
 
+    @property
+    def domain(self) -> Optional[str]:
+        if not self.website_url:
+            return None
+        from urllib.parse import urlparse
+        u = self.website_url.strip()
+        if not u.startswith(("http://", "https://")):
+            u = "http://" + u
+        netloc = urlparse(u).netloc
+        if netloc.startswith("www."):
+            netloc = netloc[4:]
+        return netloc or None
+
+    @property
+    def category(self) -> Optional[str]:
+        return self.sector
+
+    @category.setter
+    def category(self, value: Optional[str]):
+        self.sector = value
+
+    @property
+    def score(self) -> float:
+        if self.priority_score is not None:
+            return float(self.priority_score)
+        if self.rating is not None:
+            return float(self.rating)
+        if self.website_quality_score is not None:
+            return float(self.website_quality_score)
+        return 0.0
+
+    @score.setter
+    def score(self, value: float):
+        self.priority_score = float(value)
+
+    @property
+    def city(self) -> Optional[str]:
+        if not self.address:
+            return None
+        parts = [p.strip() for p in self.address.split(",") if p.strip()]
+        return parts[-1] if parts else self.address
+
+
 
 class ResearchNote(SQLModel, table=True):
     __tablename__ = "research_notes"
