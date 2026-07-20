@@ -26,6 +26,11 @@ from aegisScout.utils.key_vault import AegisKeyVault
 def temp_db():
     engine = make_engine("sqlite:///:memory:")
     SQLModel.metadata.create_all(engine)
+    from aegisScout.core.models import UserSession
+    with Session(engine) as session:
+        us = UserSession(id=1, name="Varsayılan Oturum")
+        session.add(us)
+        session.commit()
     return engine
 
 def test_lead_scorer_v2():
@@ -96,7 +101,12 @@ async def test_capture_screenshot_async_loop_safety(tmp_path):
     assert isinstance(res, bool)
 
 @pytest.mark.asyncio
-async def test_run_website_screen_audit_thread_safety(temp_db):
+async def test_run_website_screen_audit_thread_safety(temp_db, monkeypatch):
+    import aegisScout.core.database as db_mod
+    import aegisScout.core.screen_audit as sa_mod
+    monkeypatch.setattr(db_mod, "engine", temp_db)
+    monkeypatch.setattr(sa_mod, "engine", temp_db)
+
     from aegisScout.core.screen_audit import run_website_screen_audit
     with Session(temp_db) as session:
         lead = Lead(business_name="Test Business", website_url="https://example.com")
