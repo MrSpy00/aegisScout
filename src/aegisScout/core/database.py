@@ -91,6 +91,7 @@ def _register_sqlite_pragmas(engine) -> None:
             cursor.execute("PRAGMA foreign_keys=ON")
             cursor.execute("PRAGMA journal_mode=WAL")
             cursor.execute("PRAGMA synchronous=NORMAL")
+            cursor.execute("PRAGMA busy_timeout=5000")
             
             # SQLCipher support setup
             try:
@@ -106,6 +107,27 @@ def _register_sqlite_pragmas(engine) -> None:
             )
         finally:
             cursor.close()
+
+
+def sqlite_retry_on_lock(max_retries: int = 5, delay: float = 0.2):
+    """Decorator to retry DB operations if SQLite database is locked."""
+    import time
+    import functools
+    import sqlite3
+
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            for attempt in range(max_retries):
+                try:
+                    return func(*args, **kwargs)
+                except (sqlite3.OperationalError, Exception) as e:
+                    if "locked" in str(e).lower() and attempt < max_retries - 1:
+                        time.sleep(delay * (2 ** attempt))
+                    else:
+                        raise
+        return wrapper
+    return decorator
 
 
 # ---------------------------------------------------------------------------
@@ -280,6 +302,76 @@ def _run_migrations(session: Session, db_logger) -> None:
                 db_logger.error(f"Migration failed ({table}.{column}): {e}")
                 session.rollback()
 
+    # Create Compound Indexes for fast queries
+    indexes = [
+        ("idx_leads_status_score", "CREATE INDEX IF NOT EXISTS idx_leads_status_score ON leads (status, score);"),
+        ("idx_leads_created", "CREATE INDEX IF NOT EXISTS idx_leads_created ON leads (created_at);"),
+        ("idx_leads_domain", "CREATE INDEX IF NOT EXISTS idx_leads_domain ON leads (domain);"),
+        ("idx_leads_phone", "CREATE INDEX IF NOT EXISTS idx_leads_phone ON leads (phone);"),
+    ]
+    for idx_name, idx_sql in indexes:
+        try:
+            session.exec(text(idx_sql))
+            session.commit()
+        except Exception as e:
+            db_logger.warning(f"Failed to create index {idx_name}: {e}")
+            session.rollback()
+
+
+def deduplicate_leads(session: Session) -> int:
+    """Intelligent lead deduplication based on domain, business name, and phone."""
+    from aegisScout.core.models import Lead
+    from sqlmodel import select
+
+    leads = session.exec(select(Lead)).all()
+    seen_domains = {}
+    seen_names = {}
+    seen_phones = {}
+    merged_count = 0
+
+    for lead in leads:
+        if not lead.id:
+            continue
+        domain_key = lead.domain.strip().lower() if lead.domain else None
+        name_key = lead.business_name.strip().lower() if lead.business_name else None
+        phone_key = lead.phone.strip() if lead.phone else None
+
+        primary_id = None
+        if domain_key and domain_key in seen_domains:
+            primary_id = seen_domains[domain_key]
+        elif name_key and name_key in seen_names:
+            primary_id = seen_names[name_key]
+        elif phone_key and phone_key in seen_phones:
+            primary_id = seen_phones[phone_key]
+
+        if primary_id and primary_id != lead.id:
+            primary_lead = session.get(Lead, primary_id)
+            if primary_lead:
+                # Merge missing values into primary
+                if not primary_lead.email and lead.email:
+                    primary_lead.email = lead.email
+                if not primary_lead.phone and lead.phone:
+                    primary_lead.phone = lead.phone
+                if not primary_lead.website_url and lead.website_url:
+                    primary_lead.website_url = lead.website_url
+                if (lead.score or 0) > (primary_lead.score or 0):
+                    primary_lead.score = lead.score
+                session.delete(lead)
+                merged_count += 1
+                continue
+
+        # Register primary keys
+        if domain_key:
+            seen_domains[domain_key] = lead.id
+        if name_key:
+            seen_names[name_key] = lead.id
+        if phone_key:
+            seen_phones[phone_key] = lead.id
+
+    if merged_count > 0:
+        session.commit()
+    return merged_count
+
 
 def get_session():
     """Dependency-injection compatible session generator (for the existing
@@ -295,7 +387,10 @@ __all__ = [
     "init_db",
     "get_session",
     "get_database_url",
+    "sqlite_retry_on_lock",
+    "deduplicate_leads",
     "DATABASE_URL",
     "DEFAULT_DB_FILENAME",
     "DEFAULT_RELATIVE_DIR",
 ]
+

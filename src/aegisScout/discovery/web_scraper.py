@@ -5,6 +5,7 @@ from datetime import datetime
 from bs4 import BeautifulSoup
 from typing import Optional, Tuple
 from aegisScout.utils.logger import get_logger
+from aegisScout.utils.security import is_safe_url
 
 logger = get_logger("discovery.web_scraper")
 
@@ -230,7 +231,7 @@ class WebScraper:
         
         while queue and len(visited) < 15:
             curr_url, depth = queue.pop(0)
-            if curr_url in visited:
+            if curr_url in visited or not is_safe_url(curr_url):
                 continue
             visited.add(curr_url)
             
