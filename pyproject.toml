@@ -1,0 +1,51 @@
+[project]
+name = "aegisScout"
+version = "0.1.0"
+description = "Business discovery, analysis and outreach automation tool"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "typer>=0.12.0",
+    "rich>=13.7.0",
+    "httpx>=0.27.0",
+    "beautifulsoup4>=4.12.0",
+    "sqlmodel>=0.0.19",
+    "pydantic-settings>=2.2.0",
+    "toml>=0.10.2",
+    "cryptography>=42.0.0",
+    "pyperclip>=1.8.0",          # assisted_mode.py clipboard desteği
+    "openpyxl>=3.1.0",
+    "reportlab>=4.1.0",
+]
+
+[project.optional-dependencies]
+# Mod B: Tam Instagram otomasyonu (opsiyonel, riskli — PRD §3.3)
+mod-b = [
+    "instagrapi>=2.1.0",
+]
+# GUI: pywebview tabanlı masaüstü arayüzü (opsiyonel — PRD Faz 7)
+gui = [
+    "pywebview>=4.0.0",
+]
+# Geliştirici araçları / testler
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "respx>=0.21.0",
+    "freezegun>=1.4.0",          # zaman tabanlı testler için
+]
+
+[project.scripts]
+aegisScout = "aegisScout.main:app"
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+

@@ -1,0 +1,35 @@
+[app]
+name = "aegisScout"
+show_console = true
+
+[rate_limits]
+# Instagram günlük ve saatlik DM gönderim limitleri (PRD §3.3)
+instagram_actions_per_hour = 5
+instagram_actions_per_day = 15
+# Web scraping bekleme süreleri (saniye)
+scrape_delay_min_seconds = 3
+scrape_delay_max_seconds = 8
+
+[discovery]
+default_search_radius_km = 10
+target_sectors = ["kuaför", "diş kliniği", "kafe", "mimar", "emlakçı"]
+
+[outreach]
+# AI mesaj üretiminde kullanılacak dil ve ton
+# language: "tr" (Türkçe) | "en" (İngilizce)
+language = "tr"
+# tone: "warm" (sıcak ve samimi) | "professional" (resmi) | "casual" (rahat)
+tone = "warm"
+# Şirket adı mesajda kullanılır
+company_name = "aegisSoft"
+# Mod B (Tam Instagram Otomasyonu) risk onayı.
+# `aegisScout automate enable --i-understand-the-risk` çalıştırıldığında
+# otomatik olarak true yapılır ve config.toml'a yazılır. Manuel düzenlerseniz
+# riskleri bildiğinizi onaylamış sayılırsınız.
+mod_b_acknowledged = false
+
+[notifications]
+# Telegram bildirimleri için (opsiyonel, .env'den de okunabilir)
+# telegram_enabled = true
+# Email bildirimleri için (opsiyonel)
+# email_enabled = false
