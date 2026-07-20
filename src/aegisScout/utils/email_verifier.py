@@ -82,14 +82,19 @@ def verify_email(email: str, sender_email: str = "verify@aegisScout.local") -> d
         answers = dns.resolver.resolve(domain, "MX")
         mx_servers = [str(r.exchange).rstrip(".") for r in answers]
     except Exception as e:
-        logger.warning(f"DNS MX lookup failed for {domain}: {e}. Trying implicit MX (A record fallback)...")
+        logger.warning(f"DNS MX lookup failed for {domain}: {e}. Trying implicit MX (A/AAAA record fallback)...")
         try:
             a_answers = dns.resolver.resolve(domain, "A")
             if a_answers:
                 mx_servers = [domain]
         except Exception as a_err:
-            logger.warning(f"DNS A lookup also failed for {domain}: {a_err}")
-            return {"success": False, "status": "invalid", "details": f"DNS MX ve A sorgusu başarısız: {str(e)}"}
+            try:
+                aaaa_answers = dns.resolver.resolve(domain, "AAAA")
+                if aaaa_answers:
+                    mx_servers = [domain]
+            except Exception as aaaa_err:
+                logger.warning(f"DNS A/AAAA lookup also failed for {domain}: {a_err} / {aaaa_err}")
+                return {"success": False, "status": "invalid", "details": f"DNS MX ve A/AAAA sorgusu başarısız: {str(e)}"}
 
     if not mx_servers:
         return {"success": False, "status": "invalid", "details": "Domain için MX veya A kaydı bulunamadı."}

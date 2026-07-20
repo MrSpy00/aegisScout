@@ -74,11 +74,12 @@ def test_key_vault():
 
 def test_clean_location_for_search():
     from aegisScout.discovery.instagram_finder import _clean_location_for_search
-    addr = "Fevzi Paşa Caddesi No: 5, Beykoz, İstanbul, 34820"
+    addr = '"Erkek Kuaförü Osman" Fevzi Paşa Caddesi No: 5, Beykoz, İstanbul, 34820'
     cleaned = _clean_location_for_search(addr)
     assert "Beykoz" in cleaned or "İstanbul" in cleaned
     assert "34820" not in cleaned
     assert "No:" not in cleaned
+    assert '"' not in cleaned
 
 def test_email_verifier_valid_format():
     from aegisScout.utils.email_verifier import verify_email
@@ -93,4 +94,19 @@ async def test_capture_screenshot_async_loop_safety(tmp_path):
     target_file = tmp_path / "test.png"
     res = capture_screenshot("https://httpbin.org/get", target_file)
     assert isinstance(res, bool)
+
+@pytest.mark.asyncio
+async def test_run_website_screen_audit_thread_safety(temp_db):
+    from aegisScout.core.screen_audit import run_website_screen_audit
+    with Session(temp_db) as session:
+        lead = Lead(business_name="Test Business", website_url="https://example.com")
+        session.add(lead)
+        session.commit()
+        session.refresh(lead)
+        lead_id = lead.id
+
+    # Running screen audit inside active asyncio loop should run smoothly without Playwright sync exception
+    res = await run_website_screen_audit(lead_id)
+    assert "quality_score" in res or "error" not in res
+
 

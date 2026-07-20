@@ -5,28 +5,27 @@ from aegisScout.utils.logger import get_logger
 
 logger = get_logger("discovery.instagram_finder")
 
-class InstagramFinder:
-    """
-    Finds Instagram handle using Google Custom Search API.
-    Does not scrape Instagram directly to avoid ToS bans.
-    """
-    def __init__(self):
-        self.api_key = settings.google_custom_search_api_key
-        self.cx = settings.google_custom_search_cx
-
 def _clean_location_for_search(location: str) -> str:
     """Extract clean district/city from detailed address strings for search queries."""
     if not location:
         return ""
     import re
-    # Remove postal codes, street numbers, "No: X", etc.
-    loc = re.sub(r"\b\d{5}\b", "", location)
-    loc = re.sub(r"No:\s*\d+\w*", "", loc, flags=re.IGNORECASE)
-    loc = re.sub(r"Caddesi|Cad\.|Sokak|Sok\.|Mahallesi|Mah\.", "", loc, flags=re.IGNORECASE)
-    # Split by comma or newline and take last 2 parts (usually district, city)
+    loc = location.strip()
+    # Remove quotes
+    loc = loc.replace('"', '').replace("'", "")
+    # Remove 5-digit postal codes
+    loc = re.sub(r"\b\d{5}\b", "", loc)
+    # Remove No: X or No X patterns
+    loc = re.sub(r"\bNo:\s*\d+\w*", "", loc, flags=re.IGNORECASE)
+    loc = re.sub(r"\bNo\s*\d+\w*", "", loc, flags=re.IGNORECASE)
+    # Remove street / avenue / district keywords
+    loc = re.sub(r"\b(Caddesi|Cad\.|Sokak|Sok\.|Mahallesi|Mah\.|Bulvarı|Bulv\.|Avenue|Street|St\.|Rd\.|Road)\b", "", loc, flags=re.IGNORECASE)
+    # Split by comma, semicolon or newline and take last 2 non-empty parts (usually district, city)
     parts = [p.strip() for p in re.split(r"[\n,;]+", loc) if p.strip()]
     if parts:
-        return " ".join(parts[-2:])
+        cleaned = " ".join(parts[-2:])
+        cleaned = re.sub(r"\b\d+\b", "", cleaned).strip()
+        return cleaned if cleaned else location.strip()
     return location.strip()
 
 
@@ -41,10 +40,11 @@ class InstagramFinder:
 
     async def find_instagram(self, business_name: str, location: str) -> Optional[str]:
         clean_loc = _clean_location_for_search(location)
+        clean_bname = (business_name or "").replace('"', '').replace("'", "").strip()
 
         if self.api_key and self.cx:
             # Formulate query with cleaned location
-            query = f'site:instagram.com "{business_name}" {clean_loc}'.strip()
+            query = f'site:instagram.com "{clean_bname}" {clean_loc}'.strip()
             url = "https://customsearch.googleapis.com/customsearch/v1"
             params = {
                 "key": self.api_key,
@@ -75,12 +75,12 @@ class InstagramFinder:
                 logger.error(f"Error calling Google Custom Search API: {e}")
 
         logger.info("Trying DuckDuckGo keyless search for Instagram handle...")
-        handle = await self._search_ddg_instagram(business_name, clean_loc)
+        handle = await self._search_ddg_instagram(clean_bname, clean_loc)
         if handle:
             return handle
 
         logger.info("Trying Bing keyless search for Instagram handle...")
-        return await self._search_bing_instagram(business_name, clean_loc)
+        return await self._search_bing_instagram(clean_bname, clean_loc)
 
     async def _search_ddg_instagram(self, business_name: str, location: str) -> Optional[str]:
         import urllib.parse

@@ -2114,7 +2114,7 @@ class GuiApi:
                     args.get("provider", settings.discovery_primary_provider),
                 )
             if command == "research":
-                return self.research_lead(args.get("lead_id"))
+                return self.research_lead(args.get("lead_id"), force=args.get("force", True))
             if command == "export":
                 return {"queued": False, "note": "Use aegisScout export from CLI; not exposed in GUI."}
             if command == "is_configured":

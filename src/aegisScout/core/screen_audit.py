@@ -98,7 +98,7 @@ def get_base64_image(image_path: Path) -> str:
         return base64.b64encode(image_file.read()).decode("utf-8")
 
 
-def generate_local_heuristic_audit(lead: Lead, reason: str = "Gemini API anahtarı eksik") -> Dict[str, Any]:
+def generate_local_heuristic_audit(lead: Lead, reason: str = "Ekran görüntüsü veya API anahtarı eksik") -> Dict[str, Any]:
     """
     Fallback visual audit generator when Gemini API or screenshot is not available.
     Uses basic attributes to simulate a realistic design analysis.
@@ -166,7 +166,8 @@ async def run_website_screen_audit(lead_id: int) -> dict:
         screenshot_path = SCREENSHOTS_DIR / screenshot_filename
 
         # 1. Capture screenshot (with graceful fallback if Playwright is missing or fails)
-        success = capture_screenshot(lead.website_url, screenshot_path)
+        import asyncio
+        success = await asyncio.to_thread(_capture_screenshot_sync, lead.website_url, screenshot_path)
         if success:
             lead.screenshot_path = f"data/screenshots/{screenshot_filename}"
             session.add(lead)
