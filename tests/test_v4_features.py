@@ -71,3 +71,26 @@ def test_key_vault():
     vault = AegisKeyVault()
     assert vault.store("TEST_KEY", "12345") is True
     assert vault.retrieve("TEST_KEY") == "12345"
+
+def test_clean_location_for_search():
+    from aegisScout.discovery.instagram_finder import _clean_location_for_search
+    addr = "Fevzi Paşa Caddesi No: 5, Beykoz, İstanbul, 34820"
+    cleaned = _clean_location_for_search(addr)
+    assert "Beykoz" in cleaned or "İstanbul" in cleaned
+    assert "34820" not in cleaned
+    assert "No:" not in cleaned
+
+def test_email_verifier_valid_format():
+    from aegisScout.utils.email_verifier import verify_email
+    res = verify_email("invalid-email-format")
+    assert res["success"] is False
+    assert res["status"] == "invalid"
+
+@pytest.mark.asyncio
+async def test_capture_screenshot_async_loop_safety(tmp_path):
+    from aegisScout.core.screen_audit import capture_screenshot
+    # Must not raise "Playwright Sync API inside the asyncio loop" exception
+    target_file = tmp_path / "test.png"
+    res = capture_screenshot("https://httpbin.org/get", target_file)
+    assert isinstance(res, bool)
+

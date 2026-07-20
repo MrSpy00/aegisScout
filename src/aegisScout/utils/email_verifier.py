@@ -76,15 +76,23 @@ def verify_email(email: str, sender_email: str = "verify@aegisScout.local") -> d
     if domain in DISPOSABLE_DOMAINS:
         return {"success": False, "status": "invalid", "details": "Geçici (disposable) e-posta adresi."}
 
-    # 3. DNS MX Lookup
+    # 3. DNS MX Lookup (with Implicit MX fallback per RFC 5321)
+    mx_servers = []
     try:
         answers = dns.resolver.resolve(domain, "MX")
         mx_servers = [str(r.exchange).rstrip(".") for r in answers]
-        if not mx_servers:
-            return {"success": False, "status": "invalid", "details": "Domain için MX kaydı bulunamadı."}
     except Exception as e:
-        logger.warning(f"DNS MX lookup failed for {domain}: {e}")
-        return {"success": False, "status": "invalid", "details": f"DNS MX sorgusu başarısız: {str(e)}"}
+        logger.warning(f"DNS MX lookup failed for {domain}: {e}. Trying implicit MX (A record fallback)...")
+        try:
+            a_answers = dns.resolver.resolve(domain, "A")
+            if a_answers:
+                mx_servers = [domain]
+        except Exception as a_err:
+            logger.warning(f"DNS A lookup also failed for {domain}: {a_err}")
+            return {"success": False, "status": "invalid", "details": f"DNS MX ve A sorgusu başarısız: {str(e)}"}
+
+    if not mx_servers:
+        return {"success": False, "status": "invalid", "details": "Domain için MX veya A kaydı bulunamadı."}
 
     # Sort MX servers by priority (lower priority values come first in DNS answers)
     # dnspython answers are sorted by preference by default.

@@ -966,7 +966,7 @@ class GuiApi:
         except Exception as e:
             return {"error": str(e)}
 
-    def research_lead(self, lead_id):
+    def research_lead(self, lead_id, force: bool = True):
         try:
             lead_id = int(lead_id)
             task_id = f"research_{lead_id}_{int(time.time())}"
@@ -980,7 +980,7 @@ class GuiApi:
 
             async def task_coro(task_id: str):
                 try:
-                    await commands.research_lead(lead_id, task_id=task_id)
+                    await commands.research_lead(lead_id, force=force, task_id=task_id)
                     if self._window:
                         try:
                             self._window.evaluate_js(

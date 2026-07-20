@@ -31,7 +31,7 @@ SCREENSHOTS_DIR = get_data_dir() / "screenshots"
 SCREENSHOTS_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def capture_screenshot(url: str, output_path: Path) -> bool:
+def _capture_screenshot_sync(url: str, output_path: Path) -> bool:
     """Capture a screenshot of the given URL and save it to output_path using Playwright with cross-platform flags."""
     if not PLAYWRIGHT_AVAILABLE:
         logger.warning("Playwright is not installed. Run: pip install playwright && playwright install chromium")
@@ -69,18 +69,41 @@ def capture_screenshot(url: str, output_path: Path) -> bool:
         return False
 
 
+def capture_screenshot(url: str, output_path: Path) -> bool:
+    """Capture a screenshot of the given URL. Safely runs in an isolated thread if called inside an active asyncio loop."""
+    import asyncio
+    import concurrent.futures
+
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+
+    if loop and loop.is_running():
+        # Execute sync_playwright inside a clean worker thread without an asyncio event loop
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            future = pool.submit(_capture_screenshot_sync, url, output_path)
+            try:
+                return future.result(timeout=30)
+            except Exception as err:
+                logger.error(f"Threaded screenshot execution failed for {url}: {err}")
+                return False
+    else:
+        return _capture_screenshot_sync(url, output_path)
+
+
 def get_base64_image(image_path: Path) -> str:
     """Read image file and return its base64 string representation."""
     with open(image_path, "rb") as image_file:
         return base64.b64encode(image_file.read()).decode("utf-8")
 
 
-def generate_local_heuristic_audit(lead: Lead) -> Dict[str, Any]:
+def generate_local_heuristic_audit(lead: Lead, reason: str = "Gemini API anahtarı eksik") -> Dict[str, Any]:
     """
-    Fallback visual audit generator when Gemini API is not available.
+    Fallback visual audit generator when Gemini API or screenshot is not available.
     Uses basic attributes to simulate a realistic design analysis.
     """
-    logger.info("Gemini API key missing. Generating local heuristic screen-audit fallback...")
+    logger.info(f"Generating local heuristic screen-audit fallback (Neden: {reason})...")
     
     # Analyze domain features and rating if available
     quality_score = 75
@@ -130,6 +153,8 @@ async def run_website_screen_audit(lead_id: int) -> dict:
       2. Call Gemini Vision API to analyze design flaws (or fallback to local heuristics)
       3. Save the screenshot path, analysis notes, and personalized hook to database.
     """
+    import os
+
     with Session(engine) as session:
         lead = session.get(Lead, lead_id)
         if not lead:
@@ -151,7 +176,8 @@ async def run_website_screen_audit(lead_id: int) -> dict:
             logger.warning("Screenshot capture unavailable or failed. Using heuristic screen audit fallback.")
 
         # 2. Analyze design using Gemini Vision or local fallback
-        if success and settings.gemini_api_key:
+        api_key = (settings.gemini_api_key or os.environ.get("GEMINI_API_KEY") or "").strip()
+        if success and api_key:
             try:
                 img_b64 = get_base64_image(screenshot_path)
                 provider = GeminiProvider()
@@ -192,12 +218,13 @@ async def run_website_screen_audit(lead_id: int) -> dict:
                 
             except Exception as e:
                 logger.error(f"Gemini Vision API call failed: {e}. Falling back to heuristics.")
-                fallback = generate_local_heuristic_audit(lead)
+                fallback = generate_local_heuristic_audit(lead, reason=f"API hatası: {e}")
                 quality_score = fallback["quality_score"]
                 notes = f"Vision Hatası Fallback: {fallback['notes']}"
                 hook = fallback["hook"]
         else:
-            fallback = generate_local_heuristic_audit(lead)
+            reason = "Ekran görüntüsü alınamadı" if not success else "Gemini API anahtarı eksik"
+            fallback = generate_local_heuristic_audit(lead, reason=reason)
             quality_score = fallback["quality_score"]
             notes = fallback["notes"]
             hook = fallback["hook"]
