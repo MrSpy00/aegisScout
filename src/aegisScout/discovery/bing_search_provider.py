@@ -1,12 +1,14 @@
 """
-Bing Search Discovery Provider for aegisScout.
+Enhanced Bing Search Discovery Provider for aegisScout.
 Scrapes Bing HTML search results to discover business leads.
-Complements DuckDuckGo by providing additional result diversity.
+Complements DuckDuckGo with additional result diversity and broader coverage.
+Uses multiple query strategies and parallel execution for maximum yield.
 """
 import urllib.parse
 import re
 import httpx
-from typing import List, Optional
+import asyncio
+from typing import List, Optional, Set
 from bs4 import BeautifulSoup
 from aegisScout.discovery.base import BaseDiscoveryProvider
 from aegisScout.discovery.models import LeadCandidate
@@ -28,6 +30,17 @@ class BingSearchDiscoveryProvider(BaseDiscoveryProvider):
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
         }
         self.base_url = "https://www.bing.com/search"
+        self._aggregate_patterns = [
+            r"\b(en\s+iyi|top\s+\d+|sıralama|liste|listesi|rehber|directory)\b",
+            r"\b(fiyatları|karşılaştırma|compare|blog|haber|article)\b",
+        ]
+        self._ignored_domains = [
+            "bing.com", "microsoft.com", "yelp.com", "foursquare.com",
+            "tripadvisor.com", "sahibinden.com", "hepsiemlak.com",
+            "trendyol.com", "facebook.com", "twitter.com", "x.com",
+            "linkedin.com", "youtube.com", "pinterest.com",
+            "wikipedia.org", "wikimedia.org",
+        ]
 
     def _clean_business_name(self, title: str) -> str:
         """Clean search result title to extract a neat business name."""
@@ -51,11 +64,33 @@ class BingSearchDiscoveryProvider(BaseDiscoveryProvider):
         match = re.match(r"https?://(?:www\.)?instagram\.com/([a-zA-Z0-9_.-]+)", url)
         if match:
             handle = match.group(1).strip().lower()
-            ignored = {"p", "explore", "stories", "reel", "reels", "developer",
-                       "about", "legal", "terms", "privacy", "accounts", "emails"}
+            ignored = {
+                "p", "explore", "stories", "reel", "reels", "developer",
+                "about", "legal", "terms", "privacy", "accounts", "emails"
+            }
             if handle and handle not in ignored:
                 return handle
         return None
+
+    def _extract_phone_from_text(self, text: str) -> Optional[str]:
+        """Extract Turkish or international phone number from text."""
+        patterns = [
+            r"(\+?90\s*\d{3}\s*\d{3}\s*\d{2}\s*\d{2})",
+            r"(0\s*[2-5]\d{2}\s*\d{3}\s*\d{2}\s*\d{2})",
+            r"(\+?\d[\d\s\-\.]{8,}\d)",
+        ]
+        for pat in patterns:
+            m = re.search(pat, text)
+            if m:
+                phone = m.group(1).strip()
+                if len(re.sub(r"\D", "", phone)) >= 10:
+                    return phone
+        return None
+
+    def _extract_email_from_text(self, text: str) -> Optional[str]:
+        """Extract email from text."""
+        m = re.search(r"([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})", text)
+        return m.group(1).strip() if m else None
 
     async def _search_query(self, query: str, sector: str) -> List[LeadCandidate]:
         """Execute a single Bing search query and parse results."""
@@ -64,6 +99,7 @@ class BingSearchDiscoveryProvider(BaseDiscoveryProvider):
             "q": query,
             "count": "50",
             "setlang": "tr-TR",
+            "mkt": "tr-TR",
         }
         url = f"{self.base_url}?{urllib.parse.urlencode(params)}"
 
@@ -95,24 +131,14 @@ class BingSearchDiscoveryProvider(BaseDiscoveryProvider):
                         continue
 
                     # Ignore common directory/noise domains
-                    ignored_domains = [
-                        "bing.com", "microsoft.com", "yelp.com", "foursquare.com",
-                        "tripadvisor.com", "sahibinden.com", "hepsiemlak.com",
-                        "trendyol.com", "facebook.com", "twitter.com", "x.com",
-                        "linkedin.com", "youtube.com", "pinterest.com",
-                        "wikipedia.org", "wikimedia.org",
-                    ]
-                    if any(domain in href.lower() for domain in ignored_domains):
-                        if "instagram.com" not in href.lower():
+                    url_lower = href.lower()
+                    if "instagram.com" not in url_lower:
+                        if any(domain in url_lower for domain in self._ignored_domains):
                             continue
 
                     # Filter aggregate/list pages
-                    aggregate_patterns = [
-                        r"\b(en\s+iyi|top\s+\d+|sıralama|liste|listesi|rehber|directory)\b",
-                        r"\b(fiyatları|karşılaştırma|compare|blog|haber|article)\b",
-                    ]
                     title_lower = title.lower()
-                    if any(re.search(p, title_lower) for p in aggregate_patterns):
+                    if any(re.search(p, title_lower) for p in self._aggregate_patterns):
                         continue
 
                     business_name = self._clean_business_name(title)
@@ -141,18 +167,15 @@ class BingSearchDiscoveryProvider(BaseDiscoveryProvider):
                             candidate.instagram_url = f"https://instagram.com/{instagram_handle}"
 
                     # Extract snippet for phone/email
-                    snippet_elem = r.find(class_="b_caption") or r.find("p")
+                    snippet_elem = r.find(class_="b_caption") or r.find("p") or r.find(class_="b_descript")
                     if snippet_elem:
-                        snippet_text = snippet_elem.get_text(strip=True)
-                        phone_match = re.search(r"(\+?\d[\d\s\-.]{8,}\d)", snippet_text)
-                        if phone_match:
-                            candidate.phone = phone_match.group(1).strip()
-                        email_match = re.search(
-                            r"([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})",
-                            snippet_text
-                        )
-                        if email_match:
-                            candidate.email = email_match.group(1).strip()
+                        snippet_text = snippet_elem.get_text(separator=" ", strip=True)
+                        phone = self._extract_phone_from_text(snippet_text)
+                        if phone:
+                            candidate.phone = phone
+                        email = self._extract_email_from_text(snippet_text)
+                        if email:
+                            candidate.email = email
 
                     candidates.append(candidate)
 
@@ -165,13 +188,9 @@ class BingSearchDiscoveryProvider(BaseDiscoveryProvider):
         self, sector: str, location: str, radius_km: int = 10
     ) -> List[LeadCandidate]:
         """
-        Execute parallel Bing searches:
-        1. General: '{sector} {location}'
-        2. Contact: '{sector} {location} iletişim'
-        3. Instagram: '{sector} {location} site:instagram.com'
-        4. Phone: '{sector} {location} telefon numarası'
-        5. Service: '{sector} hizmetleri {location}'
-        6. Price list: '{sector} {location} fiyat listesi'
+        Execute multiple Bing searches for maximum lead discovery:
+        - General, contact, Instagram, phone, service, price list queries
+        - Parallel execution with rate-limiting safeguards
         """
         logger.info(f"Starting Bing search discovery for '{sector}' in '{location}'...")
 
@@ -182,20 +201,32 @@ class BingSearchDiscoveryProvider(BaseDiscoveryProvider):
             f"{sector} {location} telefon numarası",
             f"{sector} hizmetleri {location}",
             f"{sector} {location} fiyat listesi",
+            f"{sector} firmaları {location}",
+            f"{sector} işletmeleri {location}",
+            f"{sector} {location} randevu",
+            f"{sector} {location} web sitesi",
         ]
 
         if len(sector.split()) >= 2:
             queries.append(f'"{sector}" {location}')
+            queries.append(f'"{sector}" {location} iletişim')
 
-        all_candidates = []
-        for q in queries:
-            c_list = await self._search_query(q, sector)
-            all_candidates.extend(c_list)
+        all_candidates: List[LeadCandidate] = []
+        chunk_size = 3  # More conservative for Bing
+        for i in range(0, len(queries), chunk_size):
+            chunk = queries[i:i + chunk_size]
+            tasks = [self._search_query(q, sector) for q in chunk]
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            for r in results:
+                if isinstance(r, list):
+                    all_candidates.extend(r)
+            if i + chunk_size < len(queries):
+                await asyncio.sleep(0.5)  # Slightly longer delay for Bing
 
         # Deduplicate by URL or instagram handle
-        seen_sites: set = set()
-        seen_instas: set = set()
-        merged = []
+        seen_sites: Set[str] = set()
+        seen_instas: Set[str] = set()
+        merged: List[LeadCandidate] = []
 
         for c in all_candidates:
             if c.instagram_handle:
@@ -203,11 +234,18 @@ class BingSearchDiscoveryProvider(BaseDiscoveryProvider):
                     continue
                 seen_instas.add(c.instagram_handle)
             elif c.website_url:
-                clean_url = c.website_url.split("?")[0].rstrip("/")
+                clean_url = c.website_url.split("?")[0].rstrip("/").lower()
+                clean_url = re.sub(r"^https?://www\.", "https://", clean_url)
                 if clean_url in seen_sites:
                     continue
                 seen_sites.add(clean_url)
+            else:
+                name_key = c.business_name.lower().strip()
+                if name_key in seen_sites:
+                    continue
+                seen_sites.add(name_key)
+
             merged.append(c)
 
-        logger.info(f"Bing search discovery finished: found {len(merged)} unique leads.")
+        logger.info(f"Bing search discovery finished: found {len(merged)} unique leads from {len(all_candidates)} raw results.")
         return merged

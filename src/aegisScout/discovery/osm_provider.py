@@ -233,10 +233,10 @@ class OSMDiscoveryProvider(BaseDiscoveryProvider):
     Falls back to name regex search when no mapping exists.
     """
     def __init__(self):
-        # Overpass query internal timeout (seconds) - optimized to fail-fast on slow/overloaded servers
-        self.overpass_timeout_sec = 15
+        # Overpass query internal timeout (seconds) - optimized for reliability
+        self.overpass_timeout_sec = 20
         # httpx network timeout must be > Overpass internal timeout
-        self.http_timeout_sec = self.overpass_timeout_sec + 5
+        self.http_timeout_sec = self.overpass_timeout_sec + 8
 
     def _resolve_sector_tags(self, sector: str) -> list[tuple[str, str]]:
         sector_lower = sector.lower().strip()
@@ -313,7 +313,7 @@ class OSMDiscoveryProvider(BaseDiscoveryProvider):
 (
 {union_str}
 );
-out center;
+out body;
 """
 
     def _build_overpass_query_area(self, sector: str, area_id: int) -> str:
@@ -344,7 +344,7 @@ area({area_id})->.searchArea;
 (
 {union_str}
 );
-out center;
+out body center;
 """
 
     async def search(
