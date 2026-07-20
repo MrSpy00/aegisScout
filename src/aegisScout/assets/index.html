@@ -540,14 +540,14 @@
 
     .btn-danger {
       background-color: var(--color-danger);
-      color: var(--bg-secondary);
+      color: #ffffff;
       border: 1px solid var(--color-danger);
       box-shadow: 0 2px 6px rgba(239, 68, 68, 0.2);
     }
 
     .btn-danger:hover {
       background-color: var(--danger);
-      color: var(--bg-secondary);
+      color: #ffffff;
       transform: translateY(-1px);
       box-shadow: 0 4px 12px rgba(239, 68, 68, 0.35);
     }
@@ -709,7 +709,7 @@
       border-radius: 5px;
       font-size: 0.7rem;
       font-weight: 700;
-      color: var(--bg-secondary);
+      color: #ffffff;
       letter-spacing: 0.02em;
     }
     .social-chip.is-active a { color: var(--color-accent); }
@@ -861,7 +861,7 @@
     }
 
     .modal-card {
-      background: linear-gradient(145deg, var(--bg-card, var(--bg-surface)), var(--bg-secondary));
+      background: linear-gradient(145deg, var(--bg-card, var(--bg-surface)), var(--bg-base));
       border: 1px solid rgba(255,255,255,0.1);
       border-radius: 20px;
       padding: 32px;
@@ -1150,6 +1150,7 @@
       justify-content: center;
       padding: 12px 10px;
       gap: 0;
+      position: relative;
     }
     .sidebar.collapsed .nav-item svg {
       margin: 0;
@@ -1158,8 +1159,9 @@
     .sidebar.collapsed .brand-logo {
       display: block !important;
       margin: 0 auto;
-      width: 36px;
-      height: 36px;
+      width: 32px;
+      height: 32px;
+      cursor: pointer;
     }
     .sidebar.collapsed .sidebar-toggle-btn {
       transform: rotate(180deg);
@@ -2516,6 +2518,7 @@
       try {
         safeLocalStorage.setItem(SIDEBAR_COLLAPSED_KEY, willCollapse ? '1' : '0');
       } catch (_) { /* localStorage may be disabled — non-fatal */ }
+      _updateNavTooltips(willCollapse);
       // Repaint toggle button title attribute for accessibility in current language
       try {
         const btn = document.getElementById('sidebar-toggle-btn');
@@ -2526,12 +2529,30 @@
       } catch (_) {}
     }
 
+    function _updateNavTooltips(isCollapsed) {
+      try {
+        document.querySelectorAll('.nav-item').forEach(item => {
+          const span = item.querySelector('span[data-i18n]');
+          if (span && isCollapsed) {
+            const key = span.getAttribute('data-i18n');
+            const text = getTranslation(key) || span.innerText;
+            item.setAttribute('title', text);
+          } else {
+            item.removeAttribute('title');
+          }
+        });
+      } catch (_) {}
+    }
+
     function restoreSidebarState() {
       try {
         const raw = safeLocalStorage.getItem(SIDEBAR_COLLAPSED_KEY);
         if (raw === '1') {
           const sidebar = document.getElementById('app-sidebar');
-          if (sidebar) sidebar.classList.add('collapsed');
+          if (sidebar) {
+            sidebar.classList.add('collapsed');
+            _updateNavTooltips(true);
+          }
         }
       } catch (_) { /* ignore — default to expanded */ }
     }
