@@ -18,24 +18,37 @@ from aegisScout.utils.logger import get_logger
 logger = get_logger("outreach.assisted")
 
 
+def _safe_clipboard_copy(text: str) -> None:
+    try:
+        pyperclip.copy(text)
+    except Exception as e:
+        logger.warning(f"Clipboard copy unavailable (headless OS/CI environment): {e}")
+
+
 def send_assisted_message(lead: Lead, draft_message: str) -> bool:
     """
     Assisted Mode (Mod A) for Instagram DM:
       Copies message to clipboard and opens Instagram profile in browser.
     """
     try:
-        pyperclip.copy(draft_message)
+        _safe_clipboard_copy(draft_message)
         logger.info(f"Draft message copied to clipboard for {lead.business_name}")
 
         if lead.instagram_handle:
             profile_url = f"https://www.instagram.com/{lead.instagram_handle}/"
             logger.info(f"Opening Instagram profile: {profile_url}")
-            webbrowser.open(profile_url)
+            try:
+                webbrowser.open(profile_url)
+            except Exception as w_err:
+                logger.warning(f"Browser open warning: {w_err}")
         else:
             google_query = urllib.parse.quote(f"{lead.business_name} Instagram")
             google_url = f"https://www.google.com/search?q={google_query}"
             logger.warning(f"No instagram handle for {lead.business_name}. Opening Google search.")
-            webbrowser.open(google_url)
+            try:
+                webbrowser.open(google_url)
+            except Exception as w_err:
+                logger.warning(f"Browser open warning: {w_err}")
 
         return True
     except Exception as e:
@@ -59,12 +72,15 @@ def send_whatsapp_assisted(phone_number: str, message: str) -> Dict[str, Any]:
         elif not clean_phone.startswith("90") and len(clean_phone) == 10:
             clean_phone = "90" + clean_phone
 
-        pyperclip.copy(message)
+        _safe_clipboard_copy(message)
         encoded_msg = urllib.parse.quote(message)
         wa_url = f"https://wa.me/{clean_phone}?text={encoded_msg}"
 
         logger.info(f"Opening WhatsApp Web URL for {clean_phone}")
-        webbrowser.open(wa_url)
+        try:
+            webbrowser.open(wa_url)
+        except Exception as w_err:
+            logger.warning(f"Browser open warning: {w_err}")
 
         return {
             "success": True,
@@ -83,7 +99,7 @@ def send_linkedin_assisted(business_name: str, message: str, linkedin_url: Optio
       Copies outreach pitch to clipboard and opens LinkedIn Profile / Search page.
     """
     try:
-        pyperclip.copy(message)
+        _safe_clipboard_copy(message)
 
         if linkedin_url and "linkedin.com" in linkedin_url:
             target_url = linkedin_url
@@ -92,7 +108,10 @@ def send_linkedin_assisted(business_name: str, message: str, linkedin_url: Optio
             target_url = f"https://www.google.com/search?q={query}"
 
         logger.info(f"Opening LinkedIn target URL for {business_name}")
-        webbrowser.open(target_url)
+        try:
+            webbrowser.open(target_url)
+        except Exception as w_err:
+            logger.warning(f"Browser open warning: {w_err}")
 
         return {
             "success": True,
