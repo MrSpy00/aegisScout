@@ -173,31 +173,33 @@ class WebSearchDiscoveryProvider(BaseDiscoveryProvider):
         3. Backup Instagram search: '{sector} {location} instagram'
         4. (multi-word sectors) Quoted exact-match search
         """
-        logger.info(f"Starting web search discovery for '{sector}' in '{location}'...")
+        logger.info(f"Starting high-yield web search discovery for '{sector}' in '{location}'...")
         
-        # Query 1: general web search
-        q1 = f"{sector} {location}"
-        # Query 2: targeted instagram lookup
-        q2 = f"{sector} {location} site:instagram.com"
-        # Query 3: backup instagram lookup (helps when site: query gets blocked or filtered)
-        q3 = f"{sector} {location} instagram"
+        # High-yield query variations to uncover 100s of business websites & social profiles
+        queries = [
+            f"{sector} {location}",
+            f"{sector} {location} firmaları",
+            f"{sector} {location} merkezleri",
+            f"{sector} {location} iletişim",
+            f"{sector} {location} site:instagram.com",
+            f"{sector} {location} instagram",
+            f"{sector} {location} telefon",
+        ]
         
-        c1 = await self._search_query(q1, sector)
-        c2 = await self._search_query(q2, sector)
-        c3 = await self._search_query(q3, sector)
-        
-        extra = []
-        words = sector.split()
-        if len(words) >= 2:
-            q1_alt = f'"{sector}" {location}'
-            extra.extend(await self._search_query(q1_alt, sector))
+        if len(sector.split()) >= 2:
+            queries.append(f'"{sector}" {location}')
+
+        all_candidates = []
+        for q in queries:
+            c_list = await self._search_query(q, sector)
+            all_candidates.extend(c_list)
         
         # Merge and deduplicate candidates by website_url or instagram_handle
         seen_sites = set()
         seen_instas = set()
         merged = []
         
-        for c in c1 + c2 + c3 + extra:
+        for c in all_candidates:
             if c.instagram_handle:
                 if c.instagram_handle in seen_instas:
                     continue

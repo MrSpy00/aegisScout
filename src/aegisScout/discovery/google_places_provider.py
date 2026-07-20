@@ -39,9 +39,24 @@ class GooglePlacesDiscoveryProvider(BaseDiscoveryProvider):
         }
         
         candidates = []
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            response = await client.post(url, headers=headers, json=payload)
-            if response.status_code == 200:
+        next_page_token = None
+        
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            for page in range(3):  # Fetch up to 3 pages (max 60 results)
+                payload = {
+                    "textQuery": f"{sector} in {location}"
+                }
+                if next_page_token:
+                    payload["pageToken"] = next_page_token
+
+                response = await client.post(url, headers=headers, json=payload)
+                if response.status_code != 200:
+                    msg = f"Google Places API error (Code {response.status_code}): {response.text}"
+                    logger.error(msg)
+                    if page == 0:
+                        raise RuntimeError(msg)
+                    break
+                
                 data = response.json()
                 places = data.get("places", [])
                 for place in places:
@@ -77,9 +92,10 @@ class GooglePlacesDiscoveryProvider(BaseDiscoveryProvider):
                         source="google_places"
                     )
                     candidates.append(candidate)
-            else:
-                msg = f"Google Places API hata döndürdü (Kod: {response.status_code}): {response.text}"
-                logger.error(msg)
-                raise RuntimeError(msg)
+
+                next_page_token = data.get("nextPageToken")
+                if not next_page_token:
+                    break
             
+        logger.info(f"Google Places discovery finished: found {len(candidates)} candidates.")
         return candidates

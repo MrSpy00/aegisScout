@@ -18,70 +18,7 @@
   
   <style>
     /* 🎨 Legacy Theme Compatibility Layer (--bg-primary / --text-primary aliases) */
-    /* These 4 plain selectors complement the existing 12 `body.theme-*` themes. */
-    /* The :root and body.light defaults are the LIGHT theme. */
-    :root, body.light {
-      --bg-primary: #f8f9fa;
-      --bg-secondary: #ffffff;
-      --bg-sidebar: #1a1d23;
-      --text-primary: #212529;
-      --text-secondary: #6c757d;
-      --text-sidebar: #e9ecef;
-      --accent: #4f46e5;
-      --accent-hover: #4338ca;
-      --border: #dee2e6;
-      --success: #10b981;
-      --warning: #f59e0b;
-      --danger: #ef4444;
-    }
-    body.dark {
-      --bg-primary: #1a1d23;
-      --bg-secondary: #2d2d3a;
-      --bg-sidebar: #13151a;
-      --text-primary: #f3f4f6;
-      --text-secondary: #9ca3af;
-      --text-sidebar: #e9ecef;
-      --accent: #6366f1;
-      --accent-hover: #818cf8;
-      --border: #323645;
-      --success: #10b981;
-      --warning: #f59e0b;
-      --danger: #ef4444;
-    }
-    body.neon {
-      --bg-primary: #0d0d1a;
-      --bg-secondary: #1a1a2e;
-      --bg-sidebar: #0a0a12;
-      --text-primary: #e9ecef;
-      --text-secondary: #9ca3af;
-      --text-sidebar: #00ff88;
-      --accent: #00ff88;
-      --accent-hover: #00cc6a;
-      --border: #1f1f3a;
-      --success: #00ff88;
-      --warning: #fbbf24;
-      --danger: #ff007f;
-    }
-    body.midnight {
-      --bg-primary: #0f172a;
-      --bg-secondary: #1e293b;
-      --bg-sidebar: #0a1224;
-      --text-primary: #e2e8f0;
-      --text-secondary: #94a3b8;
-      --text-sidebar: #cbd5e1;
-      --accent: #38bdf8;
-      --accent-hover: #0ea5e9;
-      --border: #283f66;
-      --success: #10b981;
-      --warning: #f59e0b;
-      --danger: #ef4444;
-    }
-
-    /* Alias the new var names to the existing 12-theme system for full theme coverage. */
-    body.theme-neon, body.theme-emerald, body.theme-cyberpunk, body.theme-light,
-    body.theme-midnight, body.theme-amber, body.theme-amethyst, body.theme-rose,
-    body.theme-dracula, body.theme-solarized, body.theme-slate, body.theme-monochrome,
-    body.dark, body.neon, body.midnight, body.light {
+    :root, body {
       --bg-primary: var(--bg-base);
       --bg-secondary: var(--bg-card);
       --bg-sidebar: var(--bg-surface);
@@ -96,18 +33,18 @@
       --danger: var(--color-danger);
     }
 
-    /* 🎨 Core CSS Design System */
+    /* 🎨 Core CSS Design System — Default: Amethyst Purple */
     :root {
-      --bg-base: #0b0c10;
-      --bg-surface: #13141a;
-      --bg-card: #1b1d25;
-      --border-subtle: #262933;
-      --border-accent: #323645;
-      --text-main: #f3f4f6;
-      --text-muted: #9ca3af;
-      --color-brand: #3b82f6; /* Modern Vibrant Cobalt Blue */
-      --color-brand-hover: #1d4ed8;
-      --color-accent: #60a5fa;
+      --bg-base: #0e0517;
+      --bg-surface: #180c29;
+      --bg-card: #24143d;
+      --border-subtle: #351e57;
+      --border-accent: #482c75;
+      --text-main: #fae8ff;
+      --text-muted: #d8b4fe;
+      --color-brand: #a855f7;
+      --color-brand-hover: #9333ea;
+      --color-accent: #c084fc;
       --color-success: #10b981;
       --color-warning: #f59e0b;
       --color-danger: #ef4444;
@@ -3562,6 +3499,10 @@
 
     // Toggle automation confirmation checkbox box
     function toggleAutomationAlert() {
+      const themeVal = document.getElementById('cfg-theme') ? document.getElementById('cfg-theme').value : 'theme-amethyst';
+      const langVal = document.getElementById('cfg-lang') ? document.getElementById('cfg-lang').value : 'tr';
+      changeTheme(themeVal);
+      changeLang(langVal);
       const mode = document.getElementById('cfg-outreach-mode').value;
       const riskBox = document.getElementById('automation-risk-box');
       if (mode === 'full_auto') {
@@ -3682,6 +3623,10 @@
         _bridgeUnavailableError('Ayarları kaydetme');
         return;
       }
+      const themeVal = document.getElementById('cfg-theme') ? document.getElementById('cfg-theme').value : 'theme-amethyst';
+      const langVal = document.getElementById('cfg-lang') ? document.getElementById('cfg-lang').value : 'tr';
+      changeTheme(themeVal);
+      changeLang(langVal);
       const mode = document.getElementById('cfg-outreach-mode').value;
       const confirmRisk = document.getElementById('cfg-confirm-risk').checked;
 
@@ -3715,6 +3660,8 @@
         ['notify_email_smtp_port', 'cfg-smtp-port'],
         ['notify_email_imap_port', 'cfg-imap-port'],
         ['proxy_pool', 'cfg-proxy-pool'],
+        ['gui_theme', 'cfg-theme'],
+        ['gui_language', 'cfg-lang'],
       ];
 
       // Sensitive keys (only persist if user actually typed a new value)
@@ -5032,7 +4979,16 @@
     // 🌐 i18n Translation Dictionary
     const TRANSLATIONS = {
       tr: {
-        dashboard: "Dashboard",
+        dashboard: "Komuta Merkezi",
+        menu_dashboard: "Komuta Merkezi",
+        menu_leads: "Müşteri Keşfi",
+        menu_pipeline: "CRM & Satış Hunisi",
+        menu_campaigns: "Çok Kanallı Erişim",
+        menu_waterfall: "Derin Web Denetimi",
+        menu_history: "Görevler & Geçmiş",
+        menu_unibox: "AI RAG Asistanı",
+        menu_settings: "Ayarlar",
+        dashboard_h1: "Komuta Merkezi",
         leads: "Adaylar (Leads)",
         campaigns: "Kampanyalar",
         history: "Geçmiş",
@@ -5976,27 +5932,27 @@
 
       document.querySelectorAll('[data-i18n]').forEach(el => {
         const key = el.getAttribute('data-i18n');
-        if (lang[key]) {
+        const txt = (langObj && langObj[key] !== undefined) ? langObj[key] : fallbackObj[key];
+        if (txt !== undefined) {
           if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
-            el.placeholder = lang[key];
+            el.placeholder = txt;
           } else {
-            el.innerHTML = lang[key];
+            el.innerHTML = txt;
           }
         }
       });
 
-      // Also translate elements using data-i18n-title / data-i18n-placeholder
-      // for HTML attributes (title, placeholder) that don't get touched above.
       document.querySelectorAll('[data-i18n-title]').forEach(el => {
         const key = el.getAttribute('data-i18n-title');
-        if (lang[key]) el.setAttribute('title', lang[key]);
+        const txt = (langObj && langObj[key] !== undefined) ? langObj[key] : fallbackObj[key];
+        if (txt !== undefined) el.setAttribute('title', txt);
       });
       document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
         const key = el.getAttribute('data-i18n-placeholder');
-        if (lang[key]) el.setAttribute('placeholder', lang[key]);
+        const txt = (langObj && langObj[key] !== undefined) ? langObj[key] : fallbackObj[key];
+        if (txt !== undefined) el.setAttribute('placeholder', txt);
       });
 
-      // Update active language option select in UI
       const selectLang = document.getElementById('cfg-lang');
       if (selectLang) selectLang.value = currentLang;
 

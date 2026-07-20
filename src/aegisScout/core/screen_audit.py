@@ -27,33 +27,37 @@ SCREENSHOTS_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def capture_screenshot(url: str, output_path: Path) -> bool:
-    """Capture a screenshot of the given URL and save it to output_path using Playwright."""
+    """Capture a screenshot of the given URL and save it to output_path using Playwright with cross-platform flags."""
     logger.info(f"Capturing screenshot of {url} to {output_path}...")
     try:
         with sync_playwright() as p:
-            # Launch chromium browser
-            browser = p.chromium.launch(headless=True)
-            # Create context with a standard desktop viewport
+            # Cross-platform chromium launch flags
+            browser = p.chromium.launch(
+                headless=True,
+                args=[
+                    "--no-sandbox",
+                    "--disable-setuid-sandbox",
+                    "--disable-dev-shm-usage",
+                    "--disable-gpu",
+                ]
+            )
             context = browser.new_context(
                 viewport={"width": 1280, "height": 800},
                 user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
             )
             page = context.new_page()
             
-            # Go to URL with timeout
-            page.goto(url, wait_until="networkidle", timeout=30000)
-            
-            # Allow dynamic elements to settle
-            page.wait_for_timeout(2000)
+            # Go to URL with robust domcontentloaded condition & timeout
+            page.goto(url, wait_until="domcontentloaded", timeout=15000)
+            page.wait_for_timeout(1000)
             
             # Capture viewport screenshot
             page.screenshot(path=str(output_path), full_page=False)
-            
             browser.close()
             logger.info("Screenshot captured successfully.")
             return True
     except Exception as e:
-        logger.error(f"Failed to capture screenshot for {url}: {e}")
+        logger.error(f"Failed to capture screenshot for {url} via Playwright: {e}")
         return False
 
 

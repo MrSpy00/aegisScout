@@ -1105,6 +1105,17 @@ class GuiApi:
         except Exception as e:
             return {"error": str(e)}
 
+    def run_deep_osint_scan(self, lead_id: int):
+        """Execute async Deep OSINT scan for a target lead."""
+        import asyncio
+        try:
+            from aegisScout.core.deep_osint import DeepOSINTScanner
+            scanner = DeepOSINTScanner()
+            result = asyncio.run(scanner.scan_lead(lead_id))
+            return {"success": True, "osint": result}
+        except Exception as e:
+            return {"error": str(e)}
+
     # -------------------------------------------------------------------
     # SMTP Account APIs
     # -------------------------------------------------------------------

@@ -111,6 +111,10 @@ class AppSettings(BaseSettings):
     # --- Database override (empty = use default SQLite file in ./data) ---
     database_url: str = ""
 
+    # --- GUI & UI Preferences ---
+    gui_theme: str = "theme-amethyst"
+    gui_language: str = "tr"
+
     # --- Pydantic config ---
     model_config = SettingsConfigDict(
         env_file=get_env_path(),
