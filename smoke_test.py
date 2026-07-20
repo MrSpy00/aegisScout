@@ -141,7 +141,7 @@ results = {
     "linkedin_url": "https://www.linkedin.com/company/acme-corp",
     "tiktok_url": None,
     "facebook_url": "https://www.facebook.com/Acme-Corp",  # same slug
-    "twitter_url": "https://twitter.com/acme",  # same slug
+    "twitter_url": "https://twitter.com/acme_corp",  # same slug
     "telegram_url": "https://t.me/acme_corp",  # same slug
 }
 deduped = SocialDiscovery._dedup_by_business(results)

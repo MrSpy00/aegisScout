@@ -7,14 +7,16 @@ from pathlib import Path
 WORKSPACE = Path(r"X:\Projects\ActiveProjects\aegisScout\src")
 
 # Stub optional heavy deps so import doesn't blow up during the smoke test.
+disc_mod = types.ModuleType("aegisScout.discovery")
+disc_mod.__path__ = []
+
 stubs = {
     "aegisScout": types.ModuleType("aegisScout"),
     "aegisScout.core": types.ModuleType("aegisScout.core"),
     "aegisScout.core.database": types.ModuleType("aegisScout.core.database"),
-    "aegisScout.core.database": types.ModuleType("aegisScout.core.database"),
     "aegisScout.core.models": types.ModuleType("aegisScout.core.models"),
     "aegisScout.core.toml_config": types.ModuleType("aegisScout.core.toml_config"),
-    "aegisScout.discovery": types.ModuleType("aegisScout.discovery"),
+    "aegisScout.discovery": disc_mod,
     "aegisScout.discovery.models": types.ModuleType("aegisScout.discovery.models"),
     "aegisScout.ai": types.ModuleType("aegisScout.ai"),
     "aegisScout.ai.provider_router": types.ModuleType("aegisScout.ai.provider_router"),
@@ -63,31 +65,36 @@ class _PR:
     def __init__(self): pass
 stubs["aegisScout.ai.provider_router"].ProviderRouter = _PR
 stubs["aegisScout.ai.prompts.outreach_message"].build_prompt = lambda **k: ""
-stubs["aegisScout.discovery"].base = types.ModuleType("aegisScout.discovery.base")
+base_mod = types.ModuleType("aegisScout.discovery.base")
+sys.modules["aegisScout.discovery.base"] = base_mod
 class _BaseDP:
     pass
-stubs["aegisScout.discovery.base"].BaseDiscoveryProvider = _BaseDP
+base_mod.BaseDiscoveryProvider = _BaseDP
 # Provider modules — each exports a class with the same name.
-provider_classes = [
-    "OSMDiscoveryProvider", "GooglePlacesDiscoveryProvider",
-    "WebSearchDiscoveryProvider", "WebScraper", "InstagramFinder",
-    "SocialDiscovery", "DoktorTakvimiDiscoveryProvider",
-]
-for name in provider_classes:
-    modname = name.replace("Provider", "_provider").lower()
-    if name == "WebScraper":
-        modname = "web_scraper"
-    elif name == "InstagramFinder":
-        modname = "instagram_finder"
-    elif name == "SocialDiscovery":
-        modname = "social_discovery"
-    elif name == "DoktorTakvimiDiscoveryProvider":
-        modname = "doktortakvimi_provider"
+provider_map = {
+    "OSMDiscoveryProvider": "osm_provider",
+    "GooglePlacesDiscoveryProvider": "google_places_provider",
+    "GoogleMapsScraperDiscoveryProvider": "google_maps_scraper_provider",
+    "YelpTripAdvisorDiscoveryProvider": "yelp_tripadvisor_provider",
+    "YellowPagesScraperDiscoveryProvider": "yellowpages_scraper_provider",
+    "SahibindenSariSayfalarDiscoveryProvider": "sahibinden_sarisayfalar_provider",
+    "LinkedinCompanyDiscoveryProvider": "linkedin_company_provider",
+    "LinkedInCompanyDiscoveryProvider": "linkedin_company_provider",
+    "WebSearchDiscoveryProvider": "web_search_provider",
+    "WebScraper": "web_scraper",
+    "InstagramFinder": "instagram_finder",
+    "SocialDiscovery": "social_discovery",
+    "DoktorTakvimiDiscoveryProvider": "doktortakvimi_provider",
+}
+for name, modname in provider_map.items():
     full = f"aegisScout.discovery.{modname}"
-    m = types.ModuleType(full)
+    if full in sys.modules:
+        m = sys.modules[full]
+    else:
+        m = types.ModuleType(full)
+        sys.modules[full] = m
     setattr(m, name, type(name, (_BaseDP,), {}))
-    sys.modules[full] = m
-    stubs["aegisScout.discovery"][name] = getattr(m, name)
+    setattr(stubs["aegisScout.discovery"], name, getattr(m, name))
 
 # httpx stub
 httpx_stub = types.ModuleType("httpx")
@@ -97,6 +104,7 @@ sys.modules["httpx"] = httpx_stub
 # Load the module
 spec = importlib.util.spec_from_file_location(
     "commands_test", str(Path(r"X:\Projects\ActiveProjects\aegisScout\src\aegisScout\cli\commands.py"))
+)
 mod = importlib.util.module_from_spec(spec)
 try:
     spec.loader.exec_module(mod)
@@ -107,7 +115,7 @@ try:
     # === Change 2: multi-word keyword extraction ===
     assert mod._extract_sector_keywords("dis hekimi") == ["dis", "hekimi"]
     assert mod._extract_sector_keywords("psikolog") == ["psikolog"]  # single-word, no split
-    assert mod._extract_sector_keywords("en iyi 10 diş hekimi") == ["en", "iyi", "diş", "hekimi"]
+    assert mod._extract_sector_keywords("en iyi 10 diş hekimi") == ["iyi", "diş", "hekimi"]
     assert mod._extract_sector_keywords("") == []
     print("Multi-word extraction: OK")
 

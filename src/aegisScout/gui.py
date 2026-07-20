@@ -874,9 +874,9 @@ class GuiApi:
             from aegisScout.core.task_queue import TaskQueueManager
             tqm = TaskQueueManager.get_instance()
             tqm.add_task(task_id, task_name, task_coro)
-            return {"queued": True, "task_id": task_id}
+            return {"success": True, "queued": True, "task_id": task_id}
         except Exception as e:
-            return {"error": str(e)}
+            return {"success": False, "error": str(e)}
 
     def list_search_presets(self):
         try:
@@ -995,9 +995,9 @@ class GuiApi:
             from aegisScout.core.task_queue import TaskQueueManager
             tqm = TaskQueueManager.get_instance()
             tqm.add_task(task_id, task_name, task_coro)
-            return {"queued": True, "task_id": task_id}
+            return {"success": True, "queued": True, "task_id": task_id}
         except Exception as e:
-            return {"error": str(e)}
+            return {"success": False, "error": str(e)}
 
     def save_message_draft(self, lead_id, content):
         try:
@@ -1513,6 +1513,116 @@ class GuiApi:
     # -------------------------------------------------------------------
     # Settings — SANITIZED. This is the security boundary.
     # -------------------------------------------------------------------
+    
+    # -------------------------------------------------------------------
+    # Multichannel Outreach, Email Verification & Vision Audit Bridges
+    # -------------------------------------------------------------------
+    def send_whatsapp_assisted(self, lead_id):
+        try:
+            lead_id = int(lead_id)
+            with Session(engine) as session:
+                lead = session.get(Lead, lead_id)
+                if not lead:
+                    return {"error": "Aday bulunamadı."}
+                if not lead.phone:
+                    return {"error": "Telefon numarası bulunamadı."}
+
+                msg_stmt = select(Message).where(
+                    (Message.lead_id == lead.id) & (Message.status == "draft")
+                )
+                message = session.exec(msg_stmt).first()
+                draft = message.content if message else f"Merhaba {lead.business_name}, web sitenizi inceledik..."
+
+                from aegisScout.outreach.assisted_mode import send_whatsapp_assisted
+                res = send_whatsapp_assisted(lead.phone, draft)
+                if res.get("success"):
+                    if message:
+                        message.status = "sent"
+                        message.channel = "whatsapp_manual"
+                        message.sent_at = _utcnow()
+                        session.add(message)
+                    lead.status = "contacted"
+                    lead.updated_at = _utcnow()
+                    session.add(lead)
+                    session.commit()
+                return res
+        except Exception as e:
+            return {"error": str(e)}
+
+    def send_linkedin_assisted(self, lead_id):
+        try:
+            lead_id = int(lead_id)
+            with Session(engine) as session:
+                lead = session.get(Lead, lead_id)
+                if not lead:
+                    return {"error": "Aday bulunamadı."}
+
+                msg_stmt = select(Message).where(
+                    (Message.lead_id == lead.id) & (Message.status == "draft")
+                )
+                message = session.exec(msg_stmt).first()
+                draft = message.content if message else f"Merhaba {lead.business_name}, profilinizi inceledik..."
+
+                from aegisScout.outreach.assisted_mode import send_linkedin_assisted
+                res = send_linkedin_assisted(lead.business_name, draft, lead.website_url)
+                if res.get("success"):
+                    if message:
+                        message.status = "sent"
+                        message.channel = "linkedin_manual"
+                        message.sent_at = _utcnow()
+                        session.add(message)
+                    lead.status = "contacted"
+                    lead.updated_at = _utcnow()
+                    session.add(lead)
+                    session.commit()
+                return res
+        except Exception as e:
+            return {"error": str(e)}
+
+    def verify_email_local(self, email: str):
+        try:
+            from aegisScout.outreach.email_verifier import EmailVerifier
+            verifier = EmailVerifier(check_smtp=True, timeout=5.0)
+            return verifier.verify(email)
+        except Exception as e:
+            return {"error": str(e)}
+
+    def run_vision_audit(self, url: str):
+        try:
+            import asyncio
+            from aegisScout.ai.vision_audit import VisionAuditManager
+            mgr = VisionAuditManager()
+            loop = asyncio.new_event_loop()
+            res = loop.run_until_complete(mgr.audit_url(url))
+            loop.close()
+            return res
+        except Exception as e:
+            return {"error": str(e)}
+
+    def get_proxy_status(self):
+        try:
+            from aegisScout.utils.proxy_pool import ProxyPoolManager
+            pool = ProxyPoolManager.get_instance()
+            return {
+                "total_configured": len(pool.proxies),
+                "active_healthy": len(pool.active_proxies),
+                "proxies": pool.proxies
+            }
+        except Exception as e:
+            return {"error": str(e)}
+
+    def refresh_proxy_pool(self):
+        try:
+            import asyncio
+            from aegisScout.utils.proxy_pool import ProxyPoolManager
+            pool = ProxyPoolManager.get_instance()
+            loop = asyncio.new_event_loop()
+            res = loop.run_until_complete(pool.refresh_active_pool())
+            loop.close()
+            return {"success": True, "results": res}
+        except Exception as e:
+            return {"error": str(e)}
+
     def is_configured(self) -> dict:
         """
         Return ONLY booleans and safe non-sensitive configuration.

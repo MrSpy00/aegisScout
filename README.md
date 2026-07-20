@@ -129,7 +129,15 @@ Here are actual screenshots of the desktop application's main panels:
 - **İlerleme Takibi:** Çalışan görevler yüzde bazında ilerleme bildirir; tüm görevlerin durumu listelenebilir.
 - **İptal ve Duraklatma:** Çalışan veya bekleyen görevler güvenle iptal edilebilir veya duraklatılabilir.
 
+### 19. Gelişmiş Ürün Yol Haritası ve Platform Güncellemeleri (V3 Roadmap)
+- **AI Sağlayıcı Bağımsızlığı:** Cloud AI sağlayıcılar (Gemini, OpenAI, Claude, Groq, DeepSeek, Mistral, OpenRouter) birincil öncelikli kılınmış; Ollama isteğe bağlı yerel yedek seçeneği olarak yapılandırılmıştır.
+- **Sıfır Maliyetli Yerel E-Posta Doğrulayıcı (`email_verifier.py`):** Regex formatı, geçici (disposable) domain engelleme veritabanı, DNS MX kaydı sorgulama ve SMTP handshake simülasyonu (`HELO`, `MAIL FROM`, `RCPT TO`) ile e-posta göndermeden 4 katmanlı yerel doğrulama.
+- **Çok Kanallı WhatsApp & LinkedIn Erişimi (`assisted_mode.py`):** WhatsApp Web (`wa.me`) mesaj yönlendiricisi, panoya kopyalama ve LinkedIn şirket/profil erişim yardımcısı.
+- **Anti-Bot HTTP/SOCKS5 Proxy Havuzu (`proxy_pool.py`):** HTTP/SOCKS5 proxy rotasyonu, canlılık/gecikme testi (latency check) ve otomatik havuz yenileme.
+- **Açılır/Kapanır (Collapsible) Sol Menü & 9 Dilde Tam i18n Desteği:** `#sidebar-toggle-btn` butonu, daraltılmış mod araç ipuçları, 9 dilde (Türkçe, İngilizce, Almanca, İspanyolca, Fransızca, Arapça, Çince, Rusça, Hintçe) dinamik çeviri ve 12 temada renk kontrastı optimizasyonları.
+
 ---
+
 
 ## 🛠️ Kurulum ve Yapılandırma
 
