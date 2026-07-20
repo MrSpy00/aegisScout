@@ -153,9 +153,15 @@ class WebSearchDiscoveryProvider(BaseDiscoveryProvider):
                             candidate.instagram_url = f"https://instagram.com/{instagram_handle}"
                     
                     if snippet_text:
-                        phone_match = re.search(r"(\+?\d[\d\s-]{8,}\d)", snippet_text)
+                        phone_match = re.search(r"(\+?\d[\d\s\-\.]{8,}\d)", snippet_text)
                         if phone_match:
                             candidate.phone = phone_match.group(1).strip()
+                        email_match = re.search(
+                            r"([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})",
+                            snippet_text
+                        )
+                        if email_match:
+                            candidate.email = email_match.group(1).strip()
                             
                     candidates.append(candidate)
         except Exception as e:
@@ -184,10 +190,16 @@ class WebSearchDiscoveryProvider(BaseDiscoveryProvider):
             f"{sector} {location} site:instagram.com",
             f"{sector} {location} instagram",
             f"{sector} {location} telefon",
+            f"{sector} {location} fiyat",
+            f"{sector} hizmetleri {location}",
+            f"{sector} {location} adresi",
+            f"{sector} işletmeleri {location}",
+            f"{sector} {location} web sitesi",
         ]
         
         if len(sector.split()) >= 2:
             queries.append(f'"{sector}" {location}')
+            queries.append(f'"{sector}" {location} iletişim')
 
         all_candidates = []
         for q in queries:

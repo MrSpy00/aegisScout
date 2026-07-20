@@ -58,8 +58,8 @@ async def test_deep_osint_scanner(tmp_path):
     assert "social_links" in res
 
 
-def test_gui_api_deep_osint_scan(test_env):
-    """Test GuiApi run_deep_osint_scan endpoint."""
+def test_gui_api_deep_osint_scan(test_env, monkeypatch):
+    """Test GuiApi run_deep_osint_scan endpoint with mocked network."""
     with Session(test_env) as session:
         lead = Lead(
             business_name="Scout Berber",
@@ -73,6 +73,12 @@ def test_gui_api_deep_osint_scan(test_env):
         session.commit()
         lead_id = lead.id
 
+    async def mock_discover_all(*args, **kwargs):
+        from aegisScout.discovery.social_discovery import SocialProfiles
+        return SocialProfiles(facebook_url="https://facebook.com/scoutberber")
+
+    monkeypatch.setattr("aegisScout.discovery.social_discovery.SocialDiscovery.discover_all", mock_discover_all)
+
     api = GuiApi()
     res = api.run_deep_osint_scan(lead_id)
     assert res.get("success") is True
@@ -80,8 +86,13 @@ def test_gui_api_deep_osint_scan(test_env):
 
 
 @pytest.mark.asyncio
-async def test_web_search_high_yield():
-    """Test high-yield query expansion in WebSearchDiscoveryProvider."""
+async def test_web_search_high_yield(monkeypatch):
+    """Test high-yield query expansion in WebSearchDiscoveryProvider with mocked HTTP."""
+    async def mock_search_query(self, query, sector):
+        return []
+
+    monkeypatch.setattr("aegisScout.discovery.web_search_provider.WebSearchDiscoveryProvider._search_query", mock_search_query)
+
     provider = WebSearchDiscoveryProvider()
     candidates = await provider.search("berber", "Kadıköy")
     assert isinstance(candidates, list)

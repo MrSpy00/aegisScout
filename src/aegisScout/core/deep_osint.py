@@ -51,9 +51,12 @@ class DeepOSINTScanner:
             "has_analytics": False,
             "has_pixel": False,
             "has_viewport": False,
+            "has_tiktok_pixel": False,
+            "has_whatsapp_button": False,
             "emails": [],
             "phones": [],
             "social_links": [],
+            "tiktok_url": None,
             "http_status": None,
         }
 
@@ -77,10 +80,15 @@ class DeepOSINTScanner:
                     viewport = soup.find("meta", attrs={"name": "viewport"})
                     result["has_viewport"] = bool(viewport)
 
-                    # Tech Stack Detection
+                    # Tech Stack Detection — Extended
                     html_lower = html.lower()
                     if "wp-content" in html_lower or "wordpress" in html_lower:
-                        result["cms"] = "WordPress"
+                        if "elementor" in html_lower:
+                            result["cms"] = "WordPress (Elementor)"
+                        elif "divi" in html_lower:
+                            result["cms"] = "WordPress (Divi)"
+                        else:
+                            result["cms"] = "WordPress"
                     elif "shopify" in html_lower:
                         result["cms"] = "Shopify"
                     elif "wix.com" in html_lower or "wixstatic" in html_lower:
@@ -89,8 +97,24 @@ class DeepOSINTScanner:
                         result["cms"] = "Squarespace"
                     elif "webflow" in html_lower:
                         result["cms"] = "Webflow"
-                    elif "elementor" in html_lower:
-                        result["cms"] = "WordPress (Elementor)"
+                    elif "framer.com" in html_lower or "framer-" in html_lower:
+                        result["cms"] = "Framer"
+                    elif "ghost.io" in html_lower or "ghost/" in html_lower:
+                        result["cms"] = "Ghost"
+                    elif "hubspot" in html_lower:
+                        result["cms"] = "HubSpot"
+                    elif "joomla" in html_lower:
+                        result["cms"] = "Joomla"
+                    elif "drupal" in html_lower:
+                        result["cms"] = "Drupal"
+                    elif "magento" in html_lower:
+                        result["cms"] = "Magento"
+                    elif "prestashop" in html_lower:
+                        result["cms"] = "PrestaShop"
+                    elif "woocommerce" in html_lower:
+                        result["cms"] = "WooCommerce"
+                    elif "tilda" in html_lower:
+                        result["cms"] = "Tilda"
 
                     # Analytics & Pixel
                     if "google-analytics.com" in html_lower or "googletagmanager.com" in html_lower or "gtag" in html_lower:
@@ -99,6 +123,14 @@ class DeepOSINTScanner:
                     if "connect.facebook.net" in html_lower or "fbq(" in html_lower:
                         result["has_pixel"] = True
 
+                    # TikTok Pixel Detection
+                    if "analytics.tiktok.com" in html_lower or "ttq.track" in html_lower:
+                        result["has_tiktok_pixel"] = True
+                    
+                    # WhatsApp Button Detection
+                    if "wa.me" in html_lower or "api.whatsapp.com" in html_lower or "whatsapp" in html_lower:
+                        result["has_whatsapp_button"] = True
+
                     # Contact Info Extraction (Emails & Phones)
                     emails = set(re.findall(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}", html))
                     result["emails"] = list(emails)[:5]
@@ -106,13 +138,23 @@ class DeepOSINTScanner:
                     phones = set(re.findall(r"(?:\+?90|0)?\s*[2-5]\d{2}\s*\d{3}\s*\d{2}\s*\d{2}", html))
                     result["phones"] = list(phones)[:5]
 
-                    # Social Link Extraction
-                    social_domains = ["instagram.com", "facebook.com", "linkedin.com", "twitter.com", "x.com", "youtube.com"]
+                    # Social Link Extraction — Extended
+                    social_domains = [
+                        "instagram.com", "facebook.com", "linkedin.com",
+                        "twitter.com", "x.com", "youtube.com", "tiktok.com",
+                        "pinterest.com", "telegram.me", "t.me",
+                        "medium.com", "substack.com", "behance.net",
+                        "dribbble.com", "github.com",
+                    ]
                     for a in soup.find_all("a", href=True):
                         href = a["href"]
                         if any(sd in href.lower() for sd in social_domains):
                             result["social_links"].append(href)
-                    result["social_links"] = list(set(result["social_links"]))[:10]
+                    result["social_links"] = list(set(result["social_links"]))[:20]
+                    
+                    # Specifically extract TikTok URL if present
+                    tiktok_links = [l for l in result["social_links"] if "tiktok.com" in l]
+                    result["tiktok_url"] = tiktok_links[0] if tiktok_links else None
 
         except Exception as e:
             logger.warning(f"Error scanning website '{url}': {e}")
@@ -173,6 +215,10 @@ class DeepOSINTScanner:
         li_link = social_results.linkedin_url or "Yok"
         yt_link = social_results.youtube_url or "Yok"
 
+        has_tiktok_pixel = osint_data["web_audit"].get("has_tiktok_pixel", False)
+        has_whatsapp = osint_data["web_audit"].get("has_whatsapp_button", False)
+        tiktok_link = osint_data["social_discovery"].get("tiktok_url") or osint_data["web_audit"].get("tiktok_url") or "Yok"
+        
         summary = (
             f"🔍 DEEP OSINT İSTİHBARAT RAPORU:\n"
             f"- İşletme: {business_name}\n"
@@ -180,7 +226,9 @@ class DeepOSINTScanner:
             f"- Alan Adı Yaşı: {age_str}\n"
             f"- Google Analytics: {'Mevcut' if has_analytics else 'Eksik ❌'}\n"
             f"- Meta/FB Pixel: {'Mevcut' if has_pixel else 'Eksik ❌'}\n"
-            f"- Sosyal Medya İzcisi: FB: {fb_link} | LinkedIn: {li_link} | YouTube: {yt_link}\n"
+            f"- TikTok Pixel: {'Mevcut' if has_tiktok_pixel else 'Eksik ❌'}\n"
+            f"- WhatsApp Butonu: {'Mevcut ✅' if has_whatsapp else 'Eksik ❌'}\n"
+            f"- Sosyal Medya: FB: {fb_link} | LinkedIn: {li_link} | YouTube: {yt_link} | TikTok: {tiktok_link}\n"
         )
 
         # Save into Lead and ResearchNote DB tables

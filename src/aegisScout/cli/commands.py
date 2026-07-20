@@ -21,6 +21,12 @@ from aegisScout.discovery.google_maps_scraper_provider import GoogleMapsScraperD
 from aegisScout.discovery.yelp_tripadvisor_provider import YelpTripAdvisorDiscoveryProvider
 from aegisScout.discovery.sahibinden_sarisayfalar_provider import SahibindenSariSayfalarDiscoveryProvider
 from aegisScout.discovery.linkedin_company_provider import LinkedinCompanyDiscoveryProvider
+try:
+    from aegisScout.discovery.bing_search_provider import BingSearchDiscoveryProvider
+    _BING_AVAILABLE = True
+except ImportError:  # pragma: no cover
+    BingSearchDiscoveryProvider = None  # type: ignore[assignment]
+    _BING_AVAILABLE = False
 # (1) Register DoktorTakvimi provider — opt-in import so the file may not
 # exist on older installs. The class is appended to BASE_DISCOVERY_PROVIDERS
 # below and participates in the "all" / "doktortakvimi" provider_name modes.
@@ -107,6 +113,10 @@ BASE_DISCOVERY_PROVIDERS: list[tuple[str, type]] = [
     ("sahibinden_sarisayfalar", SahibindenSariSayfalarDiscoveryProvider),
     ("linkedin_company", LinkedinCompanyDiscoveryProvider),
 ]
+if _BING_AVAILABLE and BingSearchDiscoveryProvider is not None:
+    BASE_DISCOVERY_PROVIDERS.append(("bing_search", BingSearchDiscoveryProvider))
+else:
+    logger.info("Bing search provider not available; skipping registration.")
 if _DOKTORTAKVIMI_AVAILABLE and DoktorTakvimiDiscoveryProvider is not None:
     BASE_DISCOVERY_PROVIDERS.append(("doktortakvimi", DoktorTakvimiDiscoveryProvider))
 else:

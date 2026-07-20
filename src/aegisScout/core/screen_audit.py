@@ -11,7 +11,12 @@ from pathlib import Path
 from typing import Optional, Dict, Any
 from sqlmodel import Session
 
-from playwright.sync_api import sync_playwright
+try:
+    from playwright.sync_api import sync_playwright
+    PLAYWRIGHT_AVAILABLE = True
+except ImportError:
+    PLAYWRIGHT_AVAILABLE = False
+    sync_playwright = None  # type: ignore[assignment]
 from aegisScout.core.database import engine
 from aegisScout.core.models import Lead
 from aegisScout.ai.providers.gemini_provider import GeminiProvider
@@ -28,6 +33,9 @@ SCREENSHOTS_DIR.mkdir(parents=True, exist_ok=True)
 
 def capture_screenshot(url: str, output_path: Path) -> bool:
     """Capture a screenshot of the given URL and save it to output_path using Playwright with cross-platform flags."""
+    if not PLAYWRIGHT_AVAILABLE:
+        logger.warning("Playwright is not installed. Run: pip install playwright && playwright install chromium")
+        return False
     logger.info(f"Capturing screenshot of {url} to {output_path}...")
     try:
         with sync_playwright() as p:
@@ -132,18 +140,18 @@ async def run_website_screen_audit(lead_id: int) -> dict:
         screenshot_filename = f"lead_{lead.id}.png"
         screenshot_path = SCREENSHOTS_DIR / screenshot_filename
 
-        # 1. Capture screenshot
+        # 1. Capture screenshot (with graceful fallback if Playwright is missing or fails)
         success = capture_screenshot(lead.website_url, screenshot_path)
-        if not success:
-            return {"error": "Ekran görüntüsü alınamadı."}
-
-        lead.screenshot_path = f"data/screenshots/{screenshot_filename}"
-        session.add(lead)
-        session.commit()
-        session.refresh(lead)
+        if success:
+            lead.screenshot_path = f"data/screenshots/{screenshot_filename}"
+            session.add(lead)
+            session.commit()
+            session.refresh(lead)
+        else:
+            logger.warning("Screenshot capture unavailable or failed. Using heuristic screen audit fallback.")
 
         # 2. Analyze design using Gemini Vision or local fallback
-        if settings.gemini_api_key:
+        if success and settings.gemini_api_key:
             try:
                 img_b64 = get_base64_image(screenshot_path)
                 provider = GeminiProvider()

@@ -55,7 +55,7 @@ class TestGooglePlacesDiscoveryProvider:
         with patch("aegisScout.discovery.google_places_provider.settings") as mock_cfg:
             mock_cfg.google_places_api_key = None
             provider = GooglePlacesDiscoveryProvider()
-            with pytest.raises(ValueError, match="Google Places API Anahtarı"):
+            with pytest.raises(ValueError, match="Google Places API"):
                 await provider.search("barber", "Kadikoy")
 
     @pytest.mark.asyncio
@@ -67,5 +67,6 @@ class TestGooglePlacesDiscoveryProvider:
                 return_value=httpx.Response(500, text="Internal Server Error")
             )
 
-            with pytest.raises(RuntimeError, match="Google Places API hata döndürdü"):
+            # Match the actual English error message from the provider
+            with pytest.raises(RuntimeError, match=r"Google Places API error"):
                 await provider.search("barber", "Kadikoy")

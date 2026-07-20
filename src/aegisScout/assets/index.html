@@ -601,7 +601,7 @@
     }
 
     th {
-      background-color: var(--bg-primary);
+      background-color: var(--bg-base);
       border-bottom: 1px solid var(--border-subtle);
       color: var(--text-muted);
       font-size: 0.85rem;
@@ -620,7 +620,7 @@
     }
 
     tr:hover td {
-      background-color: var(--bg-primary);
+      background-color: rgba(var(--color-brand-rgb, 139, 92, 246), 0.07);
     }
 
     .badge {
@@ -1121,47 +1121,64 @@
     }
     .sidebar-toggle-btn:hover {
       background: var(--color-brand);
-      color: var(--bg-secondary);
+      color: #fff;
       border-color: var(--color-brand);
     }
     .sidebar.collapsed {
       width: 64px !important;
     }
+    /* Collapsed: hide text labels only, keep logo & icons */
     .sidebar.collapsed .brand {
-      padding-right: 36px;
+      padding: 12px 0;
+      justify-content: center;
+    }
+    .sidebar.collapsed .brand > div:not(:has(img)) {
+      display: none;
     }
     .sidebar.collapsed .brand-name,
-    .sidebar.collapsed .session-indicator,
+    .sidebar.collapsed .session-indicator {
+      display: none;
+    }
     .sidebar.collapsed .nav-item span[data-i18n] {
       opacity: 0;
       max-width: 0;
+      overflow: hidden;
       pointer-events: none;
+      display: none;
     }
     .sidebar.collapsed .nav-item {
       justify-content: center;
-      padding: 10px;
+      padding: 12px 10px;
+      gap: 0;
     }
     .sidebar.collapsed .nav-item svg {
       margin: 0;
+      flex-shrink: 0;
+    }
+    .sidebar.collapsed .brand-logo {
+      display: block !important;
+      margin: 0 auto;
+      width: 36px;
+      height: 36px;
     }
     .sidebar.collapsed .sidebar-toggle-btn {
       transform: rotate(180deg);
+      right: 50%;
+      transform: translateX(50%) rotate(180deg);
     }
     .sidebar:not(.collapsed) .sidebar-toggle-btn {
       transform: rotate(0deg);
     }
-    .sidebar.collapsed .brand > div {
-      align-items: center;
-    }
   </style>
   <script>
     // Apply saved theme on page load to prevent FOUC.
+    // Default is theme-amethyst (matches AppSettings.gui_theme).
     (function() {
       try {
-        var savedTheme = localStorage.getItem('aegis-theme') || 'theme-neon';
+        var savedTheme = localStorage.getItem('aegis-theme') || 'theme-amethyst';
         document.body.className = savedTheme;
       } catch (e) {
-        document.body.className = 'theme-neon';
+        document.body.className = 'theme-amethyst';
       }
     })();
   </script>
@@ -1258,7 +1275,7 @@
           </div>
           <div class="form-group">
             <label for="search-radius" data-i18n="lbl_search_radius">Yarıçap (km)</label>
-            <input type="number" id="search-radius" min="0" data-i18n-placeholder="ph_search_radius" placeholder="Boş = Sınırsız" value="10">
+            <input type="number" id="search-radius" min="0" data-i18n-placeholder="ph_search_radius" placeholder="Boş = Sınırsız (Şehir Sınırları)">
           </div>
           <div class="form-group">
             <label for="search-provider" data-i18n="lbl_search_provider">Veri Kaynağı</label>
@@ -3605,9 +3622,16 @@
         const langSelect = document.getElementById('cfg-lang');
         if (langSelect) langSelect.value = localLang;
 
-        const localTheme = safeLocalStorage.getItem('aegis-theme') || 'theme-neon';
+        // Apply theme from backend config, fallback to localStorage, then default
+        const backendTheme = (cfg && cfg.gui_theme) ? cfg.gui_theme : null;
+        const localTheme = backendTheme || safeLocalStorage.getItem('aegis-theme') || 'theme-amethyst';
         const themeSelect = document.getElementById('cfg-theme');
         if (themeSelect) themeSelect.value = localTheme;
+        // Actually apply the theme so UI reflects saved choice
+        changeTheme(localTheme);
+
+        // Re-apply current language translations after settings load
+        try { applyLanguage(currentLang || localLang); } catch (_) {}
 
         toggleAutomationAlert();
         loadSessions();
@@ -5096,15 +5120,36 @@
         info_smtp_user_desc: "SMTP sunucusunda oturum açmak için kullanılacak e-posta adresi.",
         info_smtp_pass_desc: "SMTP sunucusu e-posta şifresi (veya Gmail için özel Uygulama Şifresi).",
         info_cfg_lang_desc: "Uygulama dilini Türkçe veya İngilizce olarak değiştirin.",
-        info_cfg_theme_desc: "Arayüzün görünümünü ve renk şemasını değiştirin."
+        info_cfg_theme_desc: "Arayüzün görünümünü ve renk şemasını değiştirin.",
+        sidebar_toggle_title: "Menüyü Daralt / Genişlet",
+        lbl_search_radius: "Yarıçap (km)",
+        ph_search_radius: "Boş = Sınırsız (Şehir Sınırları)",
+        lbl_search_provider: "Veri Kaynağı",
+        lbl_search_location: "Konum / Bölge",
+        lbl_search_sector: "Sektör Anahtar Kelimesi"
       },
       en: {
         dashboard: "Dashboard",
+        menu_dashboard: "Command Center",
+        menu_leads: "Lead Discovery",
+        menu_pipeline: "CRM & Sales Pipeline",
+        menu_campaigns: "Multi-Channel Outreach",
+        menu_waterfall: "Deep Web Audit",
+        menu_history: "Tasks & History",
+        menu_unibox: "AI RAG Assistant",
+        menu_settings: "Settings",
+        dashboard_h1: "Command Center",
         leads: "Leads",
         campaigns: "Campaigns",
         history: "History",
         sessions: "Sessions",
         settings: "Settings",
+        sidebar_toggle_title: "Collapse / Expand Menu",
+        lbl_search_radius: "Radius (km)",
+        ph_search_radius: "Empty = Unlimited (City Boundaries)",
+        lbl_search_provider: "Data Source",
+        lbl_search_location: "Location / Region",
+        lbl_search_sector: "Sector Keyword",
         
         dashboard_title: "Dashboard",
         dashboard_subtitle: "Start business discovery scans and track overall status statistics.",
@@ -6072,9 +6117,10 @@
     // Robust bridge initialization - handles both early and late pywebviewready
     function _initApp() {
       // Apply saved language and theme on startup
+      // Default theme is theme-amethyst (matches AppSettings.gui_theme)
       const savedLang = safeLocalStorage.getItem('aegis-lang') || 'tr';
       applyLanguage(savedLang);
-      const savedTheme = safeLocalStorage.getItem('aegis-theme') || 'theme-neon';
+      const savedTheme = safeLocalStorage.getItem('aegis-theme') || 'theme-amethyst';
       changeTheme(savedTheme);
 
       // 🧭 Restore sidebar collapsed/expanded state from previous session
