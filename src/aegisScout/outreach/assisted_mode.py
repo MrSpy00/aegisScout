@@ -18,20 +18,13 @@ from aegisScout.utils.logger import get_logger
 logger = get_logger("outreach.assisted")
 
 
-def _safe_clipboard_copy(text: str) -> None:
-    try:
-        pyperclip.copy(text)
-    except Exception as e:
-        logger.warning(f"Clipboard copy unavailable (headless OS/CI environment): {e}")
-
-
 def send_assisted_message(lead: Lead, draft_message: str) -> bool:
     """
     Assisted Mode (Mod A) for Instagram DM:
       Copies message to clipboard and opens Instagram profile in browser.
     """
     try:
-        _safe_clipboard_copy(draft_message)
+        pyperclip.copy(draft_message)
         logger.info(f"Draft message copied to clipboard for {lead.business_name}")
 
         if lead.instagram_handle:
@@ -72,7 +65,11 @@ def send_whatsapp_assisted(phone_number: str, message: str) -> Dict[str, Any]:
         elif not clean_phone.startswith("90") and len(clean_phone) == 10:
             clean_phone = "90" + clean_phone
 
-        _safe_clipboard_copy(message)
+        try:
+            pyperclip.copy(message)
+        except Exception as clip_err:
+            logger.warning(f"Clipboard copy warning: {clip_err}")
+
         encoded_msg = urllib.parse.quote(message)
         wa_url = f"https://wa.me/{clean_phone}?text={encoded_msg}"
 
@@ -99,7 +96,10 @@ def send_linkedin_assisted(business_name: str, message: str, linkedin_url: Optio
       Copies outreach pitch to clipboard and opens LinkedIn Profile / Search page.
     """
     try:
-        _safe_clipboard_copy(message)
+        try:
+            pyperclip.copy(message)
+        except Exception as clip_err:
+            logger.warning(f"Clipboard copy warning: {clip_err}")
 
         if linkedin_url and "linkedin.com" in linkedin_url:
             target_url = linkedin_url
