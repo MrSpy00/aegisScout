@@ -9,7 +9,10 @@ or token value.
 
 import json
 import re
-import toml
+try:
+    import tomllib as toml_module
+except ImportError:
+    import toml as toml_module
 import pytest
 
 
@@ -130,14 +133,16 @@ def test_gui_set_config_value_writes_toml_non_sensitive():
         orig_config_file = toml_config.CONFIG_FILE
         orig_config_data = dict(toml_config.config_data)
         toml_config.CONFIG_FILE = cfg_file
-        toml_config.config_data = toml.load(toml_config.CONFIG_FILE) if hasattr(toml_config, "toml") else {"outreach": {"language": "tr"}}
+        with open(toml_config.CONFIG_FILE, "rb") as f:
+            toml_config.config_data = toml_module.load(f)
         try:
             api = GuiApi()
             res = api.set_config_value("outreach.tone", "casual")
             assert res.get("success") is True, res
             assert res.get("target") == "config.toml"
             # Reload to verify persistence
-            reloaded = toml.load(cfg_file)
+            with open(cfg_file, "rb") as f:
+                reloaded = toml_module.load(f)
             assert reloaded["outreach"]["tone"] == "casual"
         finally:
             toml_config.CONFIG_FILE = orig_config_file
