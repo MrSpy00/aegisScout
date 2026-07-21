@@ -99,6 +99,10 @@ class AppSettings(BaseSettings):
     # --- Ollama model ---
     ollama_model: str = "llama3.2:3b"
 
+    # --- GUI Theme & Language ---
+    gui_theme: str = "theme-amethyst"
+    gui_language: str = "tr"
+
     # --- General / runtime ---
     outreach_mode: str = "assisted"        # "assisted" | "full_auto"
     max_daily_outreach: int = 15

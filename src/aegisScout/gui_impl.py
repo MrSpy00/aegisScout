@@ -82,6 +82,10 @@ _TOML_KEYS = {
     "notifications.telegram_enabled": ("notifications", "telegram_enabled"),
     "notifications.email_enabled": ("notifications", "email_enabled"),
     "app.show_console": ("app", "show_console"),
+    "app.gui_theme": ("app", "gui_theme"),
+    "app.gui_language": ("app", "gui_language"),
+    "gui_theme": ("app", "gui_theme"),
+    "gui_language": ("app", "gui_language"),
 }
 
 # Sensitive keys — must be persisted to .env, never to config.toml.

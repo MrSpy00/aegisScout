@@ -1834,7 +1834,7 @@
 
         <!-- Google Places & Discovery Config -->
         <div style="display: flex; flex-direction: column; gap: 16px;">
-          <h3 style="font-family: var(--font-display); font-size: 1rem; border-bottom: 1px solid var(--border-subtle); padding-bottom: 8px; color: var(--color-accent);" data-i18n="settings_section_google">2. Google ve Arama Servisleri</h3>
+          <h3 style="font-family: var(--font-display); font-size: 1rem; border-bottom: 1px solid var(--border-subtle); padding-bottom: 8px; color: var(--color-accent);" data-i18n="settings_section_google">3. Google ve Arama Servisleri</h3>
           <div class="form-row">
             <div class="form-group">
               <label for="cfg-google-places-key"><span data-i18n="lbl_google_places_key">Google Places API Anahtarı</span> <span class="info-icon" onclick="showInfoModal(getTranslation('lbl_google_places_key'), getTranslation('info_google_places_key_desc'))">!</span></label>
@@ -1859,7 +1859,7 @@
 
         <!-- Instagram Automation Config -->
         <div style="display: flex; flex-direction: column; gap: 16px;">
-          <h3 style="font-family: var(--font-display); font-size: 1rem; border-bottom: 1px solid var(--border-subtle); padding-bottom: 8px; color: var(--color-accent);" data-i18n="settings_section_ig">3. Instagram Otomasyonu (Mod B)</h3>
+          <h3 style="font-family: var(--font-display); font-size: 1rem; border-bottom: 1px solid var(--border-subtle); padding-bottom: 8px; color: var(--color-accent);" data-i18n="settings_section_ig">4. Instagram Otomasyonu (Mod B)</h3>
           <div class="form-row">
             <div class="form-group">
               <label for="cfg-ig-username"><span data-i18n="lbl_ig_username">Instagram Kullanıcı Adı</span> <span class="info-icon" onclick="showInfoModal(getTranslation('lbl_ig_username'), getTranslation('info_ig_username_desc'))">!</span></label>
@@ -1917,7 +1917,7 @@
 
         <!-- Notifications SMTP/Telegram Config -->
         <div style="display: flex; flex-direction: column; gap: 16px;">
-          <h3 style="font-family: var(--font-display); font-size: 1rem; border-bottom: 1px solid var(--border-subtle); padding-bottom: 8px; color: var(--color-accent);" data-i18n="settings_section_notif">4. Bildirim Kanalları (SMTP / Telegram)</h3>
+          <h3 style="font-family: var(--font-display); font-size: 1rem; border-bottom: 1px solid var(--border-subtle); padding-bottom: 8px; color: var(--color-accent);" data-i18n="settings_section_notif">5. Bildirim Kanalları (SMTP / Telegram)</h3>
           <div class="form-row">
             <div class="form-group">
               <label for="cfg-tg-token"><span data-i18n="lbl_tg_token">Telegram Bot Token</span> <span class="info-icon" onclick="showInfoModal(getTranslation('lbl_tg_token'), getTranslation('info_tg_token_desc'))">!</span></label>
@@ -1978,7 +1978,7 @@
 
         <!-- Proxy, LinkedIn & Scraper APIs Config -->
         <div style="display: flex; flex-direction: column; gap: 16px;">
-          <h3 style="font-family: var(--font-display); font-size: 1rem; border-bottom: 1px solid var(--border-subtle); padding-bottom: 8px; color: var(--color-accent);">4b. Proxy Havuzu &amp; Kazıma API Ayarları</h3>
+          <h3 style="font-family: var(--font-display); font-size: 1rem; border-bottom: 1px solid var(--border-subtle); padding-bottom: 8px; color: var(--color-accent);">6. Proxy Havuzu &amp; Kazıma API Ayarları</h3>
           <div class="form-row">
             <div class="form-group" style="grid-column: span 2; width: 100%;">
               <label for="cfg-proxy-pool"><span>Proxy Havuzu (Proxy Pool)</span></label>
@@ -2017,24 +2017,22 @@
               </div>
             </div>
             <div class="form-group" style="grid-column: span 2;">
-              <label for="cfg-linkedin-cookie"><span>LinkedIn Session Cookie (li_at)</span></label>
-              <div class="input-wrapper">
-                <input type="password" id="cfg-linkedin-cookie">
-                <button type="button" class="toggle-password-btn" onclick="togglePasswordVisibility('cfg-linkedin-cookie', this)">👁️</button>
+              <div class="form-group" style="grid-column: span 2;">
+                <label for="cfg-linkedin-cookie"><span>LinkedIn Session Cookie (li_at)</span></label>
+                <div class="input-wrapper">
+                  <input type="password" id="cfg-linkedin-cookie">
+                  <button type="button" class="toggle-password-btn" onclick="togglePasswordVisibility('cfg-linkedin-cookie', this)">👁️</button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
+          <!-- Action Button -->
+          <div style="margin-top: 12px;">
+            <button class="btn" onclick="saveSettings()" data-i18n="btn_save_settings">Ayarları Kaydet</button>
           </div>
         </div>
-
-        <!-- Action Button -->
-        <div>
-          <button class="btn" onclick="saveSettings()" data-i18n="btn_save_settings">Ayarları Kaydet</button>
-        </div>
       </div>
-    </div>
 
     <!-- 📁 Sessions Panel -->
     <div id="panel-sessions" class="panel">
@@ -2217,43 +2215,44 @@
     </div>
   </div>
 
-  <!-- 📥 Unified Inbox & AI RAG Assistant Panel -->
-  <div id="panel-unibox" class="panel" style="width: 100%; max-width: 1400px; margin: 0 auto; box-sizing: border-box;">
-    <div class="unibox-wrapper">
+  <!-- 💬 Unified Inbox & AI RAG Assistant Panel -->
+  <div id="panel-unibox" class="panel" style="width: 100%; box-sizing: border-box; flex-direction: column;">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
       <div>
-        <h1 style="font-family: var(--font-display);" data-i18n="unibox_h1">AI RAG Asistanı & Ortak Gelen Kutusu (Unified Inbox)</h1>
+        <h1 style="font-family: var(--font-display);" data-i18n="unibox_h1">AI RAG Asistanı &amp; Ortak Gelen Kutusu (Unified Inbox)</h1>
         <p class="subtitle" data-i18n="unibox_subtitle">E-posta, WhatsApp ve LinkedIn üzerinden gelen tüm yanıtları tek bir ekrandan yönetin.</p>
       </div>
       <button class="btn btn-secondary" onclick="loadUnibox()" style="padding: 6px 16px; font-size: 0.85rem; height: 36px;" data-i18n="btn_refresh_unibox">🔄 Yenile / Eşitle</button>
-      <!-- Quick AI RAG Assistant Bar -->
-      <div style="background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 12px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 8px;">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span style="font-weight: 600; font-size: 0.85rem; color: var(--color-accent);">🤖 AI RAG Asistanı Soruları</span>
-          <span style="font-size: 0.75rem; color: var(--text-muted);">Yerel Bilgi Tabanı + LLM</span>
-        </div>
-        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-          <button class="btn btn-secondary" style="font-size:0.75rem; padding:4px 10px; height:28px;" onclick="sendRagQuickQuestion('Adayların en çok ilgi gösterdiği teklif nedir?')">💡 En Çok İlgi Gören Teklifler</button>
-          <button class="btn btn-secondary" style="font-size:0.75rem; padding:4px 10px; height:28px;" onclick="sendRagQuickQuestion('En yüksek dönüşüm sağlayan sektörler hangileri?')">📊 Yüksek Dönüşümlü Sektörler</button>
-          <button class="btn btn-secondary" style="font-size:0.75rem; padding:4px 10px; height:28px;" onclick="sendRagQuickQuestion('E-posta yanıt oranlarımı artırmak için stratejiler öner.')">✉️ Yanıt Oranı Stratejileri</button>
-        </div>
-        <div style="display: flex; gap: 8px; margin-top: 4px;">
-          <input type="text" id="rag-query-input" placeholder="Yapay zeka asistanına bir soru sorun..." style="flex-grow: 1; height: 36px; padding: 0 12px; border-radius: 8px; background: var(--bg-base); border: 1px solid var(--border-subtle); color: var(--text-main); font-size: 0.85rem;" onkeydown="if(event.key==='Enter') triggerRagQuery()">
-          <button class="btn btn-secondary" onclick="triggerRagQuery()" style="height: 36px; padding: 0 16px; font-size: 0.85rem; background: var(--color-brand); color: white;">Sor</button>
-        </div>
-      </div>
+    </div>
 
-    <div style="display: flex; gap: 16px; height: calc(100vh - 280px); background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 12px; overflow: hidden; padding: 12px;">
+    <!-- Quick AI RAG Assistant Bar -->
+    <div style="background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 12px; margin-bottom: 16px; display: flex; flex-direction: column; gap: 8px;">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <span style="font-weight: 600; font-size: 0.85rem; color: var(--color-accent);">🤖 AI RAG Asistanı Soruları</span>
+        <span style="font-size: 0.75rem; color: var(--text-muted);">Yerel Bilgi Tabanı + LLM</span>
+      </div>
+      <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+        <button class="btn btn-secondary" style="font-size:0.75rem; padding:4px 10px; height:28px;" onclick="sendRagQuickQuestion('Adayların en çok ilgi gösterdiği teklif nedir?')">💡 En Çok İlgi Gören Teklifler</button>
+        <button class="btn btn-secondary" style="font-size:0.75rem; padding:4px 10px; height:28px;" onclick="sendRagQuickQuestion('En yüksek dönüşüm sağlayan sektörler hangileri?')">📊 Yüksek Dönüşümlü Sektörler</button>
+        <button class="btn btn-secondary" style="font-size:0.75rem; padding:4px 10px; height:28px;" onclick="sendRagQuickQuestion('E-posta yanıt oranlarımı artırmak için stratejiler öner.')">✉️ Yanıt Oranı Stratejileri</button>
+      </div>
+      <div style="display: flex; gap: 8px; margin-top: 4px;">
+        <input type="text" id="rag-query-input" placeholder="Yapay zeka asistanına bir soru sorun..." style="flex-grow: 1; height: 36px; padding: 0 12px; border-radius: 8px; background: var(--bg-base); border: 1px solid var(--border-subtle); color: var(--text-main); font-size: 0.85rem;" onkeydown="if(event.key==='Enter') triggerRagQuery()">
+        <button class="btn btn-secondary" onclick="triggerRagQuery()" style="height: 36px; padding: 0 16px; font-size: 0.85rem; background: var(--color-brand); color: white;">Sor</button>
+      </div>
+    </div>
+
+    <div style="display: flex; gap: 16px; min-height: calc(100vh - 280px); background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 12px; overflow: hidden; padding: 12px;">
       <!-- Left Pane: Leads List -->
-      <div style="width: 300px; border-right: 1px solid var(--border-subtle); display: flex; flex-direction: column; gap: 8px; padding-right: 12px; overflow-y: auto;" id="unibox-leads-list">
+      <div style="width: 300px; min-width: 250px; border-right: 1px solid var(--border-subtle); display: flex; flex-direction: column; gap: 8px; padding-right: 12px; overflow-y: auto;" id="unibox-leads-list">
         <p style="color: var(--text-muted); font-size: 0.85rem; text-align: center; margin-top: 20px;">Sohbet geçmişi olan adaylar burada listelenir.</p>
       </div>
       
       <!-- Right Pane: Message Thread & Reply Input -->
       <div style="flex-grow: 1; display: flex; flex-direction: column; height: 100%;">
         <!-- Thread View -->
-        <div id="unibox-thread-view" style="flex-grow: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 12px; background: rgba(0,0,0,0.15); border-radius: 8px; margin-bottom: 12px;">
-          <div style="text-align: center; color: var(--text-muted); margin-top: 100px;">Soldaki listeden bir aday seçerek sohbeti görüntüleyin.</div>
+        <div id="unibox-thread-view" style="flex-grow: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 12px; background: rgba(0,0,0,0.15); border-radius: 8px; margin-bottom: 12px; min-height: 250px;">
+          <div style="text-align: center; color: var(--text-muted); margin-top: 100px;">Soldaki listeden bir aday seçerek sohbeti görüntüleyin veya yukarıdan yapay zeka asistanına soru sorun.</div>
         </div>
         
         <!-- Reply Input Container -->
@@ -2272,7 +2271,6 @@
           </div>
         </div>
       </div>
-    </div>
     </div>
   </div>
 
@@ -3305,7 +3303,10 @@ function handleThemeChange(theme) {
         const notes = res.notes;
         const messages = res.messages;
 
-        // Smart fallback draft generator if AI message draft is empty
+        // Find draft message or generate smart fallback draft
+        let draftMessage = "";
+        (messages || []).forEach(m => { if (m.status === 'draft') draftMessage = cleanDraftText(m.content); });
+
         if (!draftMessage) {
           const sName = escapeHtml(lead.business_name || 'İşletme');
           const sSector = lead.sector ? escapeHtml(lead.sector) : 'sektörünüzdeki';
@@ -6569,7 +6570,13 @@ function handleThemeChange(theme) {
        🚀 aegisScout B2B Growth Platform V2 - JS LOGIC
        ══════════════════════════════════════════════ */
     let uniboxSelectedLeadId = null;
-    let currentWaterfallConfig = [];
+    let currentWaterfallConfig = [
+      { step_id: 'osm_discovery', name: 'OpenStreetMap (OSM) Temel Keşif', description: 'Şehir ve konum bazlı işletme arama', enabled: true },
+      { step_id: 'website_scrape', name: 'Web Sitesi & İletişim Kazıma', description: 'E-posta, telefon ve adres tespiti', enabled: true },
+      { step_id: 'social_discovery', name: 'Sosyal Medya OSINT Taraması', description: 'Instagram, LinkedIn, YouTube tespiti', enabled: true },
+      { step_id: 'email_verification', name: 'E-Posta MX & SMTP Doğrulama', description: 'Giriş kutusu doğrulama', enabled: true },
+      { step_id: 'ai_scoring', name: 'AI Öncelik Skorlama & Hook', description: 'Yapay zeka analiz ve kişiselleştirme', enabled: true }
+    ];
 
     // --- 🛡️ Local Email Verifier Trigger ---
     function triggerEmailVerify(email, leadId) {
@@ -6819,10 +6826,14 @@ function handleThemeChange(theme) {
 
     // --- ⚡ Waterfall enrichment Config Logic ---
     function loadWaterfallConfig() {
+      renderWaterfallConfigUi();
       if (!_isBridgeReady()) return;
       _apiCall(() => window.pywebview.api.get_waterfall_config(), { action: 'Şelale ayarlarını yükle' }).then(config => {
-        if (!config || config.error) return;
-        currentWaterfallConfig = config;
+        if (config && Array.isArray(config) && config.length > 0) {
+          currentWaterfallConfig = config;
+        }
+        renderWaterfallConfigUi();
+      }).catch(() => {
         renderWaterfallConfigUi();
       });
     }
