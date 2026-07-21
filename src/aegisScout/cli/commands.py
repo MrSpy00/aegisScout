@@ -107,8 +107,10 @@ def _split_multi_value(value: str) -> list[str]:
 # ---------------------------------------------------------------------------
 from aegisScout.discovery.doktorsitesi_provider import DoktorSitesiDiscoveryProvider
 from aegisScout.discovery.serpapi_provider import SerpApiMapsDiscoveryProvider, SerpApiLocalPackDiscoveryProvider
+from aegisScout.discovery.photon_provider import PhotonDiscoveryProvider
 
 BASE_DISCOVERY_PROVIDERS: list[tuple[str, type]] = [
+    ("photon", PhotonDiscoveryProvider),
     ("osm", OSMDiscoveryProvider),
     ("web_search", WebSearchDiscoveryProvider),
     ("serpapi_maps", SerpApiMapsDiscoveryProvider),

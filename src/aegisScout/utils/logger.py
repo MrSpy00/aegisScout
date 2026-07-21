@@ -60,9 +60,13 @@ def _set_logs_dir(path: Path) -> None:
 # Formatter + handlers
 # ---------------------------------------------------------------------------
 
-# Main formatter including Thread Name for async/multithreaded tracking
-formatter = logging.Formatter(
-    fmt="%(asctime)s [%(levelname)s] [%(threadName)s] %(name)s: %(message)s",
+# Determine default log level from environment or default to DEBUG/INFO
+_env_level = os.environ.get("AEGISSCout_LOG_LEVEL", "INFO").upper()
+DEFAULT_LOG_LEVEL = getattr(logging, _env_level, logging.INFO)
+
+# Maximum detail formatter including timestamp with milliseconds, Level, Thread, Module:Line, and Message
+detailed_formatter = logging.Formatter(
+    fmt="%(asctime)s.%(msecs)03d [%(levelname)s] [%(threadName)s] [%(filename)s:%(lineno)d] %(name)s: %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S"
 )
 
@@ -75,21 +79,21 @@ def create_rotating_handler(filename: str, level: int) -> TimedRotatingFileHandl
         backupCount=30,
         encoding="utf-8"
     )
-    handler.setFormatter(formatter)
+    handler.setFormatter(detailed_formatter)
     handler.setLevel(level)
     return handler
 
 
 # Rotating file handlers
-main_handler = create_rotating_handler("aegisScout.log", logging.INFO)
-discovery_handler = create_rotating_handler("discovery.log", logging.INFO)
-outreach_handler = create_rotating_handler("outreach.log", logging.INFO)
+main_handler = create_rotating_handler("aegisScout.log", logging.DEBUG)
+discovery_handler = create_rotating_handler("discovery.log", logging.DEBUG)
+outreach_handler = create_rotating_handler("outreach.log", logging.DEBUG)
 errors_handler = create_rotating_handler("errors.log", logging.WARNING)
 
-# Console Handler (to display errors/warnings on CLI)
+# Console Handler (to display errors/warnings/info on CLI with maximum detail)
 console_handler = logging.StreamHandler(sys.stdout)
-console_handler.setFormatter(formatter)
-console_handler.setLevel(logging.INFO)
+console_handler.setFormatter(detailed_formatter)
+console_handler.setLevel(DEFAULT_LOG_LEVEL)
 
 
 # Logger namespace routing filter
@@ -223,9 +227,26 @@ root_logger.addHandler(console_handler)
 root_logger.addHandler(session_handler)
 
 
+import time
+from contextlib import contextmanager
+
+@contextmanager
+def log_execution_time(logger: logging.Logger, task_name: str):
+    """Context manager to measure and log execution time of code blocks."""
+    start_time = time.perf_counter()
+    logger.debug(f"Starting execution: '{task_name}'...")
+    try:
+        yield
+    finally:
+        elapsed = (time.perf_counter() - start_time) * 1000
+        logger.info(f"Completed execution: '{task_name}' in {elapsed:.2f}ms")
+
+
 def get_logger(name: str):
     """
     Returns a logger prefixed with aegisScout.
     E.g. get_logger("discovery.osm") -> logger named 'aegisScout.discovery.osm'
     """
-    return logging.getLogger(f"aegisScout.{name}")
+    logger = logging.getLogger(f"aegisScout.{name}")
+    logger.setLevel(DEFAULT_LOG_LEVEL)
+    return logger

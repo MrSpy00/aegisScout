@@ -27,10 +27,12 @@ Here are actual screenshots of the desktop application's main panels:
 ## 📌 Temel Özellikler
 
 ### 1. İşletme Keşif Motoru & OSINT Dizin Kazıyıcıları (Discovery Engine)
-- **OpenStreetMap (OSM) Entegrasyonu (Ücretsiz & Limitsiz):** Overpass API aracılığıyla belirlenen bölge ve sektörlerdeki işletmeleri tarar. Gelişmiş sektör eşleştirme kuralları sayesinde gürültü verileri filtreler.
-- **Sağlık & Uzman Dizin OSINT Derin Çıkarımı (DoktorSitesi & DoktorTakvimi):** "İstanbul psikolog" veya "diş hekimi" gibi aramalarda dizin indeks URL'lerini kaydetmek yerine dizin sayfalarını derinlemesine tarayarak gerçek bireysel uzman isimlerini, fotoğraflarını, telefon numaralarını, adreslerini ve biyografilerini ayıklar.
-- **EmailOSINT & Sosyal Profil Avatarları:** `api.emailosint.org`, Gravatar ve Unavatar entegrasyonu sayesinde ters e-posta araştırması ve dairesel sosyal profil resmi çözünürlüğü sunar.
-- **Tarama Derinliği Seçenekleri:** Keşif turları başlatılırken Hızlı (20 sonuç), Orta (50 sonuç), Detaylı (200+ sonuç) ve Derin OSINT seçenekleri ile çalıştırılabilir.
+- **Sıfır Keyli Photon Geocoding Motoru (`photon_provider.py`):** Komoot Photon API (`photon.komoot.io`) üzerinden sıfır yapılandırma ve yetkilendirmesiz OpenStreetMap canlı geocoding ve POI araması sunar.
+- **ICANN RDAP & Cloudflare DoH Teknik Domain Denetimi (`domain_audit.py`):** Alan adı kayıt tarihini, WHOIS registrar bilgisini, Cloudflare DNS-over-HTTPS (`1.1.1.1`) ile MX e-posta altyapısını (Google Workspace, Microsoft 365, cPanel, ProtonMail) ve SPF/DMARC güvenlik politikalarını sıfır key ile sorgular.
+- **Debounce Geçici E-Posta & MX Doğrulama (`contact_validator.py`):** Taranan e-postaların kullan-at/geçici mail adresi olup olmadığını ve MX kayıt geçerliliğini test eder.
+- **Sıfır Keyli Medya & Logo Çözümleyici (`media_resolver.py`):** Google Favicon API (`s2/favicons`) ile 128x128 kurumsal logoları, Unavatar ile çoklu sosyal profil resimlerini ve UI-Avatars ile renkli baş harf ikonlarını anahtarsız üretir.
+- **Jina Reader AI & DuckDuckGo Anlık Bilgi (`jina_reader.py`):** `r.jina.ai` entegrasyonu ile web sitelerini 0.5 saniyede LLM'e hazır temiz Markdown'a dönüştürür; DuckDuckGo API ile işletme hakkında arka plan bilgisi çeker.
+- **Maksimum Detaylı CMD & Dosya Loglama Sistemi (`logger.py`):** Milisaniye hassasiyetli zaman damgaları, izleme seviyeleri, dosya/satır numaraları (`[filename:lineno]`), iş parçacığı ID'leri ve `log_execution_time` context manager ile maksimum detaylı loglama sunar.
 - **SerpApi Google Maps & Local Pack Entegrasyonu (API & Ücretsiz Düşüş):** `serpapi_maps` ve `serpapi_local` motorları ile Google Haritalar ve Local 3-Pack verilerini anti-bot korumalarına takılmadan çeker. API anahtarı bulunmadığında otomatik olarak ücretsiz web kazıyıcılara düşerek kesintisiz keşif sunar.
 - **Google Yorum Analizi & AI Kanca (Outreach Hook):** Müşteri yorumlarını analiz edip kişiselleştirilmiş AI iletişim kancaları üretir.
 - **Google Places API Entegrasyonu (Gelişmiş/Opsiyonel):** Essentials API field mask özelliğini kullanarak işletme puanı, yorum sayıları ve adres verilerini ek ücretler oluşturmadan çeker.
