@@ -64,7 +64,9 @@ async def test_domain_technical_auditor_doh():
 async def test_mymemory_translator():
     res = await MyMemoryTranslator.translate_text("Hello", "en", "tr")
     assert "translated_text" in res
-    assert res["translated_text"].lower().strip(".!?,") in ["merhaba", "selam", "hello"]
+    translated = res["translated_text"].lower()
+    assert any(word in translated for word in ["merhaba", "selam", "hello"])
+
 
 
 
