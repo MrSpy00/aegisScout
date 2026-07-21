@@ -21,4 +21,6 @@ class LeadCandidate(BaseModel):
     email: Optional[str] = None
     rating: Optional[float] = None
     review_count: Optional[int] = None
+    profile_image_url: Optional[str] = None
+    outreach_hook: Optional[str] = None
     source: str

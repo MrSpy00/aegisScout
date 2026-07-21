@@ -106,10 +106,13 @@ def _split_multi_value(value: str) -> list[str]:
 # (e.g. Google Places) are kept out of this list and added conditionally.
 # ---------------------------------------------------------------------------
 from aegisScout.discovery.doktorsitesi_provider import DoktorSitesiDiscoveryProvider
+from aegisScout.discovery.serpapi_provider import SerpApiMapsDiscoveryProvider, SerpApiLocalPackDiscoveryProvider
 
 BASE_DISCOVERY_PROVIDERS: list[tuple[str, type]] = [
     ("osm", OSMDiscoveryProvider),
     ("web_search", WebSearchDiscoveryProvider),
+    ("serpapi_maps", SerpApiMapsDiscoveryProvider),
+    ("serpapi_local", SerpApiLocalPackDiscoveryProvider),
     ("doktorsitesi", DoktorSitesiDiscoveryProvider),
     ("google_maps_scraper", GoogleMapsScraperDiscoveryProvider),
     ("yelp_tripadvisor", YelpTripAdvisorDiscoveryProvider),

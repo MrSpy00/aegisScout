@@ -31,6 +31,8 @@ Here are actual screenshots of the desktop application's main panels:
 - **Sağlık & Uzman Dizin OSINT Derin Çıkarımı (DoktorSitesi & DoktorTakvimi):** "İstanbul psikolog" veya "diş hekimi" gibi aramalarda dizin indeks URL'lerini kaydetmek yerine dizin sayfalarını derinlemesine tarayarak gerçek bireysel uzman isimlerini, fotoğraflarını, telefon numaralarını, adreslerini ve biyografilerini ayıklar.
 - **EmailOSINT & Sosyal Profil Avatarları:** `api.emailosint.org`, Gravatar ve Unavatar entegrasyonu sayesinde ters e-posta araştırması ve dairesel sosyal profil resmi çözünürlüğü sunar.
 - **Tarama Derinliği Seçenekleri:** Keşif turları başlatılırken Hızlı (20 sonuç), Orta (50 sonuç), Detaylı (200+ sonuç) ve Derin OSINT seçenekleri ile çalıştırılabilir.
+- **SerpApi Google Maps & Local Pack Entegrasyonu (API & Ücretsiz Düşüş):** `serpapi_maps` ve `serpapi_local` motorları ile Google Haritalar ve Local 3-Pack verilerini anti-bot korumalarına takılmadan çeker. API anahtarı bulunmadığında otomatik olarak ücretsiz web kazıyıcılara düşerek kesintisiz keşif sunar.
+- **Google Yorum Analizi & AI Kanca (Outreach Hook):** Müşteri yorumlarını analiz edip kişiselleştirilmiş AI iletişim kancaları üretir.
 - **Google Places API Entegrasyonu (Gelişmiş/Opsiyonel):** Essentials API field mask özelliğini kullanarak işletme puanı, yorum sayıları ve adres verilerini ek ücretler oluşturmadan çeker.
 
 ### 2. Akıllı Araştırma, Web Scraping ve Görsel Denetim (Vision-Audit)
