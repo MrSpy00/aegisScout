@@ -157,3 +157,72 @@ class DomainTechnicalAuditor:
                 logger.warning(f"Cloudflare DoH DNS query failed for {clean}: {e}")
 
         return result
+
+    @staticmethod
+    async def get_ip_geolocation(domain_or_ip: str) -> Dict[str, Any]:
+        """
+        Query IP-API.com for domain/IP hosting provider, server location, ISP, and ASN.
+        %100 Free, Zero API Key required.
+        """
+        clean = extract_clean_domain(domain_or_ip) or domain_or_ip.strip()
+        if not clean:
+            return {"error": "Invalid domain or IP"}
+
+        logger.info(f"Querying IP-API Geolocation for '{clean}'...")
+        endpoint = f"http://ip-api.com/json/{clean}"
+        result = {
+            "query": clean,
+            "status": "fail",
+            "country": None,
+            "city": None,
+            "isp": None,
+            "org": None,
+            "as": None,
+            "hosting": False,
+        }
+
+        with log_execution_time(logger, f"IP-API Geolocation ({clean})"):
+            try:
+                async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+                    resp = await client.get(endpoint)
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        if data.get("status") == "success":
+                            result.update({
+                                "status": "success",
+                                "country": data.get("country"),
+                                "country_code": data.get("countryCode"),
+                                "city": data.get("city"),
+                                "isp": data.get("isp"),
+                                "org": data.get("org"),
+                                "as": data.get("as"),
+                                "lat": data.get("lat"),
+                                "lon": data.get("lon"),
+                                "hosting": data.get("hosting", False),
+                            })
+                            logger.info(f"IP-API resolved '{clean}' -> ISP: {result['isp']}, Location: {result['city']}, {result['country']}")
+            except Exception as e:
+                logger.warning(f"IP-API Geolocation lookup failed for {clean}: {e}")
+
+        return result
+
+    @staticmethod
+    async def audit_domain_full(domain: str) -> Dict[str, Any]:
+        """
+        Run complete technical domain audit combining RDAP WHOIS, Cloudflare DoH, and IP-API Geolocation.
+        """
+        clean = extract_clean_domain(domain)
+        if not clean:
+            return {"error": "Invalid domain"}
+
+        whois_info = await DomainTechnicalAuditor.get_rdap_whois(clean)
+        dns_info = await DomainTechnicalAuditor.get_dns_infrastructure(clean)
+        geo_info = await DomainTechnicalAuditor.get_ip_geolocation(clean)
+
+        return {
+            "domain": clean,
+            "whois": whois_info,
+            "dns": dns_info,
+            "hosting_geo": geo_info,
+        }
+

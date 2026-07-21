@@ -3046,12 +3046,16 @@ def set_console_visibility(visible: bool):
         hwnd = ctypes.windll.kernel32.GetConsoleWindow()
         logger.info(f"set_console_visibility: visible={visible}, hwnd={hwnd}")
         if hwnd:
-            ctypes.windll.user32.ShowWindow(hwnd, 5 if visible else 0)
-            logger.info(f"ShowWindow called with state={5 if visible else 0}")
+            # SW_SHOWNA = 8: Displays the window in its current state without activating or stealing focus.
+            # SW_HIDE = 0: Hides the window.
+            state = 8 if visible else 0
+            ctypes.windll.user32.ShowWindow(hwnd, state)
+            logger.info(f"ShowWindow called with state={state} (SW_SHOWNA / SW_HIDE)")
         else:
             logger.warning("GetConsoleWindow returned NULL (no console associated with this process).")
     except Exception as e:
         logger.error(f"Failed to set console visibility to {visible}: {e}")
+
 
 
 def close_console_window():

@@ -60,9 +60,9 @@ def _set_logs_dir(path: Path) -> None:
 # Formatter + handlers
 # ---------------------------------------------------------------------------
 
-# Determine default log level from environment or default to DEBUG/INFO
-_env_level = os.environ.get("AEGISSCout_LOG_LEVEL", "INFO").upper()
-DEFAULT_LOG_LEVEL = getattr(logging, _env_level, logging.INFO)
+# Determine default log level from environment or default to DEBUG
+_env_level = os.environ.get("AEGISSCout_LOG_LEVEL", "DEBUG").upper()
+DEFAULT_LOG_LEVEL = getattr(logging, _env_level, logging.DEBUG)
 
 # Maximum detail formatter including timestamp with milliseconds, Level, Thread, Module:Line, and Message
 detailed_formatter = logging.Formatter(
@@ -90,10 +90,10 @@ discovery_handler = create_rotating_handler("discovery.log", logging.DEBUG)
 outreach_handler = create_rotating_handler("outreach.log", logging.DEBUG)
 errors_handler = create_rotating_handler("errors.log", logging.WARNING)
 
-# Console Handler (to display errors/warnings/info on CLI with maximum detail)
+# Console Handler (to display errors/warnings/info/debug on CLI with maximum detail)
 console_handler = logging.StreamHandler(sys.stdout)
 console_handler.setFormatter(detailed_formatter)
-console_handler.setLevel(DEFAULT_LOG_LEVEL)
+console_handler.setLevel(logging.DEBUG)
 
 
 # Logger namespace routing filter
@@ -218,7 +218,7 @@ session_handler = SessionLogHandler(LOGS_DIR)
 root_logger = logging.getLogger("aegisScout")
 root_logger.setLevel(logging.DEBUG)
 
-# Ensure console handler displays all logs to CMD terminal with maximum details
+# Ensure console handler displays all logs to CMD terminal with maximum detail
 console_handler.setLevel(logging.DEBUG)
 
 # Attach all handlers (filtering logic is managed inside handlers)
@@ -251,5 +251,6 @@ def get_logger(name: str):
     E.g. get_logger("discovery.osm") -> logger named 'aegisScout.discovery.osm'
     """
     logger = logging.getLogger(f"aegisScout.{name}")
-    logger.setLevel(DEFAULT_LOG_LEVEL)
+    logger.setLevel(logging.DEBUG)
     return logger
+

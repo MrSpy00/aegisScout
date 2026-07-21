@@ -2921,6 +2921,81 @@ class GuiApi:
         except Exception as e:
             return {"error": str(e)}
 
+    # -------------------------------------------------------------------
+    # Zero-Config Keyless API Services Bridge Methods
+    # -------------------------------------------------------------------
+    def audit_domain_zero_key(self, domain: str):
+        try:
+            from aegisScout.enrichment.domain_audit import DomainTechnicalAuditor
+            return asyncio.run(DomainTechnicalAuditor.audit_domain_full(domain))
+        except Exception as e:
+            logger.exception(f"audit_domain_zero_key failed: {e}")
+            return {"error": str(e)}
+
+    def verify_email_zero_key(self, email: str):
+        try:
+            from aegisScout.enrichment.contact_validator import ContactValidator
+            return asyncio.run(ContactValidator.validate_email_full(email))
+        except Exception as e:
+            logger.exception(f"verify_email_zero_key failed: {e}")
+            return {"error": str(e)}
+
+    def resolve_media_zero_key(self, business_name: str, domain: str = None):
+        try:
+            from aegisScout.enrichment.media_resolver import ZeroConfigMediaResolver
+            logo = ZeroConfigMediaResolver.get_domain_logo_url(domain) if domain else None
+            unavatar = ZeroConfigMediaResolver.get_unavatar_url(domain) if domain else None
+            initials = ZeroConfigMediaResolver.get_initials_avatar_url(business_name)
+            best_avatar = ZeroConfigMediaResolver.resolve_best_avatar(business_name, domain)
+            screenshot = ZeroConfigMediaResolver.get_web_screenshot_thumbnail(domain) if domain else None
+
+            return {
+                "business_name": business_name,
+                "domain": domain,
+                "google_favicon_url": logo,
+                "unavatar_url": unavatar,
+                "initials_avatar_url": initials,
+                "best_avatar_url": best_avatar,
+                "screenshot_url": screenshot,
+            }
+        except Exception as e:
+            logger.exception(f"resolve_media_zero_key failed: {e}")
+            return {"error": str(e)}
+
+    def read_jina_markdown(self, url: str):
+        try:
+            from aegisScout.ai.jina_reader import JinaReaderAI
+            content = asyncio.run(JinaReaderAI.read_url_markdown(url))
+            return {"url": url, "markdown": content or ""}
+        except Exception as e:
+            logger.exception(f"read_jina_markdown failed: {e}")
+            return {"error": str(e)}
+
+    def translate_text_zero_key(self, text: str, source_lang: str = "en", target_lang: str = "tr"):
+        try:
+            from aegisScout.ai.translation_service import MyMemoryTranslator
+            return asyncio.run(MyMemoryTranslator.translate_text(text, source_lang, target_lang))
+        except Exception as e:
+            logger.exception(f"translate_text_zero_key failed: {e}")
+            return {"error": str(e)}
+
+    def reverse_geocode_zero_key(self, latitude: float, longitude: float):
+        try:
+            from aegisScout.discovery.location_provider import ZeroConfigLocationProvider
+            return asyncio.run(ZeroConfigLocationProvider.reverse_geocode_client(latitude, longitude))
+        except Exception as e:
+            logger.exception(f"reverse_geocode_zero_key failed: {e}")
+            return {"error": str(e)}
+
+    def get_ip_info_zero_key(self, ip_address: str = None):
+        try:
+            from aegisScout.discovery.location_provider import ZeroConfigLocationProvider
+            return asyncio.run(ZeroConfigLocationProvider.get_ip_country(ip_address))
+        except Exception as e:
+            logger.exception(f"get_ip_info_zero_key failed: {e}")
+            return {"error": str(e)}
+
+
 
 def set_console_visibility(visible: bool):
     if sys.platform != "win32":
@@ -2929,12 +3004,16 @@ def set_console_visibility(visible: bool):
         hwnd = ctypes.windll.kernel32.GetConsoleWindow()
         logger.info(f"set_console_visibility: visible={visible}, hwnd={hwnd}")
         if hwnd:
-            ctypes.windll.user32.ShowWindow(hwnd, 5 if visible else 0)
-            logger.info(f"ShowWindow called with state={5 if visible else 0}")
+            # SW_SHOWNA = 8: Displays the window in its current state without activating or stealing focus.
+            # SW_HIDE = 0: Hides the window.
+            state = 8 if visible else 0
+            ctypes.windll.user32.ShowWindow(hwnd, state)
+            logger.info(f"ShowWindow called with state={state} (SW_SHOWNA / SW_HIDE)")
         else:
             logger.warning("GetConsoleWindow returned NULL (no console associated with this process).")
     except Exception as e:
         logger.error(f"Failed to set console visibility to {visible}: {e}")
+
 
 
 def close_console_window():

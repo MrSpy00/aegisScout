@@ -65,6 +65,62 @@ class ZeroConfigMediaResolver:
         return f"https://image.thum.io/get/width/{width}/crop/{crop}/{raw_url}"
 
     @staticmethod
+    async def get_microlink_summary(url: str) -> dict:
+        """
+        Fetch webpage OpenGraph metadata, logo, description, and screenshot via Microlink Free API.
+        %100 Free, Zero API key required.
+        """
+        import httpx
+        from aegisScout.utils.logger import log_execution_time
+
+        if not url:
+            return {}
+
+        clean_url = url.strip()
+        if not clean_url.startswith("http://") and not clean_url.startswith("https://"):
+            clean_url = "https://" + clean_url
+
+        endpoint = f"https://api.microlink.io?url={urllib.parse.quote(clean_url)}"
+        logger.info(f"Fetching Microlink summary for '{clean_url}'...")
+
+        result = {
+            "title": None,
+            "description": None,
+            "logo": None,
+            "image": None,
+            "publisher": None,
+        }
+
+        with log_execution_time(logger, f"Microlink Snapshot ({clean_url})"):
+            try:
+                async with httpx.AsyncClient(timeout=10.0) as client:
+                    resp = await client.get(endpoint)
+                    if resp.status_code == 200:
+                        body = resp.json()
+                        data = body.get("data", {})
+                        result["title"] = data.get("title")
+                        result["description"] = data.get("description")
+                        result["publisher"] = data.get("publisher")
+                        
+                        logo_data = data.get("logo")
+                        if isinstance(logo_data, dict):
+                            result["logo"] = logo_data.get("url")
+                        elif isinstance(logo_data, str):
+                            result["logo"] = logo_data
+
+                        image_data = data.get("image")
+                        if isinstance(image_data, dict):
+                            result["image"] = image_data.get("url")
+                        elif isinstance(image_data, str):
+                            result["image"] = image_data
+
+                        logger.info(f"Microlink snapshot retrieved for '{clean_url}': Title='{result['title']}'")
+            except Exception as e:
+                logger.warning(f"Microlink fetch failed for {clean_url}: {e}")
+
+        return result
+
+    @staticmethod
     def resolve_best_avatar(
         business_name: str,
         domain_or_url: Optional[str] = None,
@@ -85,3 +141,4 @@ class ZeroConfigMediaResolver:
                 return logo
 
         return ZeroConfigMediaResolver.get_initials_avatar_url(business_name)
+
