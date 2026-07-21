@@ -3138,8 +3138,8 @@ def start_gui():
         show = True
     set_console_visibility(show)
     icon_path = _get_icon_path()
-    is_frozen = getattr(sys, "frozen", False)
-    debug_mode = False if is_frozen else show
+    debug_env = os.environ.get("AEGISSCout_DEBUG", "0").lower()
+    debug_mode = debug_env in ("1", "true", "yes")
 
     try:
         _start_window(GuiApi(), icon_path, debug_mode)

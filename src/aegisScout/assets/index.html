@@ -863,6 +863,8 @@
     .modal-overlay:not(.show) {
       display: none !important;
       pointer-events: none !important;
+      visibility: hidden !important;
+      opacity: 0 !important;
     }
 
     .modal-overlay.show {
@@ -2559,12 +2561,8 @@ function applyLanguage(lang) {
           }
         } catch (_) { btn.innerHTML = prevHTML; }
         
-        // Background buttons (like discovery and lead research) are managed by separate threads
-        // and have explicit callbacks (finishDiscovery, finishResearch) to re-enable them.
-        // For other buttons, they should be enabled (disabled = false) once the busy operation settles.
-        const isBackgroundBtn = btn.id && (btn.id === 'btn-start-discovery' || btn.id.startsWith('btn-research-'));
-        btn.disabled = isBackgroundBtn ? true : false;
-        
+        // Re-enable button when operation settles
+        btn.disabled = false;
         btn.removeAttribute('aria-busy');
         _busyButtons.delete(btn);
       };
