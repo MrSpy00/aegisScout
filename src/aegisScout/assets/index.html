@@ -857,11 +857,18 @@
       align-items: center;
       justify-content: center;
       opacity: 0;
+      pointer-events: none;
+    }
+
+    .modal-overlay:not(.show) {
+      display: none !important;
+      pointer-events: none !important;
     }
 
     .modal-overlay.show {
-      display: flex;
+      display: flex !important;
       opacity: 1;
+      pointer-events: auto !important;
     }
 
     .modal-card {
@@ -2462,15 +2469,19 @@ function applyLanguage(lang) {
     let _scrollListenerAdded = false;
 
     function _isBridgeReady() {
-      return !!(window.pywebview && window.pywebview.api);
+      if (typeof window !== 'undefined' && window.pywebview && window.pywebview.api) {
+        window.pywebviewReady = true;
+        return true;
+      }
+      return false;
     }
 
     // Fire a user-visible error when the bridge is missing — never silent.
     function _bridgeUnavailableError(actionName) {
       const msg = (actionName || 'Bu işlem')
-        + ' gerçekleştirilemedi: Python köprüsü hazır değil. '
-        + 'Lütfen uygulamayı yeniden başlatın veya `aegisScout.log` dosyasını kontrol edin.';
-      try { showToast(msg, 'error', 'Köprü Hatası', 6000); } catch (_) {}
+        + ' gerçekleştirilemedi: Python köprüsü henüz hazır değil. '
+        + 'Lütfen 1-2 saniye bekleyip tekrar deneyin veya uygulamayı yeniden başlatın.';
+      try { showToast(msg, 'warning', 'Köprü Hazırlanıyor', 4000); } catch (_) {}
       try { console.error('[aegisScout bridge unavailable]', actionName); } catch (_) {}
     }
 
@@ -2478,8 +2489,17 @@ function applyLanguage(lang) {
     // Returns a new Promise so `await`/`then` chains keep working.
     function _apiCall(promiseFactory, errContext) {
       if (!_isBridgeReady()) {
-        _bridgeUnavailableError(errContext && errContext.action);
-        return Promise.reject(new Error('pywebview bridge not ready'));
+        // Quick dynamic retry if bridge is mid-injection
+        return new Promise((resolve, reject) => {
+          setTimeout(() => {
+            if (_isBridgeReady()) {
+              try { resolve(promiseFactory()); } catch (e) { reject(e); }
+            } else {
+              _bridgeUnavailableError(errContext && errContext.action);
+              reject(new Error('pywebview bridge not ready'));
+            }
+          }, 100);
+        });
       }
       try {
         const p = promiseFactory();
@@ -6380,28 +6400,32 @@ function handleThemeChange(theme) {
       try { _forceCloseAllModals(); } catch (_) {}
 
       // Check if pywebview API is available before calling it
-      window.pywebviewReady = _isBridgeReady();
-      if (window.pywebviewReady) {
-        loadStats();
-        loadSessions();
-        loadHistory();
-        loadCampaigns();
-        loadAndApplyUiState();
+      let initialized = false;
+      const runLoaders = () => {
+        if (initialized) return;
+        initialized = true;
+        window.pywebviewReady = true;
+        try { loadStats(); } catch (_) {}
+        try { loadSessions(); } catch (_) {}
+        try { loadHistory(); } catch (_) {}
+        try { loadCampaigns(); } catch (_) {}
+        try { loadAndApplyUiState(); } catch (_) {}
+      };
+
+      if (_isBridgeReady()) {
+        runLoaders();
       } else {
-        // Bridge not ready yet — will retry once pywebviewready fires.
-        // Show a non-blocking warning toast so user knows UI is in read-only mode.
-        setTimeout(() => {
-          if (!window.pywebviewReady) {
-            try {
-              showToast(
-                'Python köprüsü henüz hazır değil. Sayfayı yenilemeyi veya uygulamayı yeniden başlatmayı deneyin.',
-                'warning',
-                'Köprü Bekleniyor',
-                5000
-              );
-            } catch (_) {}
+        // Continuous polling for pywebview bridge injection (up to 5 seconds)
+        let pollCount = 0;
+        const pollTimer = setInterval(() => {
+          pollCount++;
+          if (_isBridgeReady()) {
+            clearInterval(pollTimer);
+            runLoaders();
+          } else if (pollCount >= 50) {
+            clearInterval(pollTimer);
           }
-        }, 3000);
+        }, 100);
       }
 
       // Add listeners to search inputs and filter select inputs to auto-save UI state

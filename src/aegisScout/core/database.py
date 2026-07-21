@@ -312,9 +312,9 @@ def _run_migrations(session: Session, db_logger) -> None:
 
     # Create Compound Indexes for fast queries
     indexes = [
-        ("idx_leads_status_score", "CREATE INDEX IF NOT EXISTS idx_leads_status_score ON leads (status, score);"),
-        ("idx_leads_created", "CREATE INDEX IF NOT EXISTS idx_leads_created ON leads (created_at);"),
-        ("idx_leads_domain", "CREATE INDEX IF NOT EXISTS idx_leads_domain ON leads (domain);"),
+        ("idx_leads_status_score", "CREATE INDEX IF NOT EXISTS idx_leads_status_score ON leads (status, website_quality_score);"),
+        ("idx_leads_created", "CREATE INDEX IF NOT EXISTS idx_leads_created ON leads (discovered_at);"),
+        ("idx_leads_domain", "CREATE INDEX IF NOT EXISTS idx_leads_domain ON leads (website_url);"),
         ("idx_leads_phone", "CREATE INDEX IF NOT EXISTS idx_leads_phone ON leads (phone);"),
     ]
     for idx_name, idx_sql in indexes:
@@ -327,7 +327,7 @@ def _run_migrations(session: Session, db_logger) -> None:
 
 
 def deduplicate_leads(session: Session) -> int:
-    """Intelligent lead deduplication based on domain, business name, and phone."""
+    """Intelligent lead deduplication based on domain/website, business name, and phone."""
     from aegisScout.core.models import Lead
     from sqlmodel import select
 
@@ -340,7 +340,8 @@ def deduplicate_leads(session: Session) -> int:
     for lead in leads:
         if not lead.id:
             continue
-        domain_key = lead.domain.strip().lower() if lead.domain else None
+        url_val = getattr(lead, "website_url", None) or getattr(lead, "domain", None)
+        domain_key = url_val.strip().lower() if url_val else None
         name_key = lead.business_name.strip().lower() if lead.business_name else None
         phone_key = lead.phone.strip() if lead.phone else None
 
@@ -362,8 +363,11 @@ def deduplicate_leads(session: Session) -> int:
                     primary_lead.phone = lead.phone
                 if not primary_lead.website_url and lead.website_url:
                     primary_lead.website_url = lead.website_url
-                if (lead.score or 0) > (primary_lead.score or 0):
-                    primary_lead.score = lead.score
+                
+                score_lead = getattr(lead, "score", 0) or 0
+                score_primary = getattr(primary_lead, "score", 0) or 0
+                if score_lead > score_primary:
+                    primary_lead.score = score_lead
                 session.delete(lead)
                 merged_count += 1
                 continue

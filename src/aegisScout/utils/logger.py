@@ -214,9 +214,12 @@ class SessionLogHandler(logging.Handler):
 # Initialize session handler
 session_handler = SessionLogHandler(LOGS_DIR)
 
-# Main Logger Setup
+# Main Logger Setup — maximum detailed logging enabled
 root_logger = logging.getLogger("aegisScout")
-root_logger.setLevel(logging.INFO)
+root_logger.setLevel(logging.DEBUG)
+
+# Ensure console handler displays all logs to CMD terminal with maximum details
+console_handler.setLevel(logging.DEBUG)
 
 # Attach all handlers (filtering logic is managed inside handlers)
 root_logger.addHandler(main_handler)
