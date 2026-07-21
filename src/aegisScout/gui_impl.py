@@ -199,7 +199,18 @@ class GuiApi:
     # -------------------------------------------------------------------
     # Leads (unchanged)
     # -------------------------------------------------------------------
-    def get_leads(self, status=None, search_log_id=None, has_website="", has_instagram="", has_phone=""):
+    def get_leads(
+        self,
+        status=None,
+        search_log_id=None,
+        has_website="",
+        has_instagram="",
+        has_phone="",
+        sort_by="id",
+        sort_dir="desc",
+        *args,
+        **kwargs
+    ):
         try:
             with Session(engine) as session:
                 stmt = select(Lead).where(Lead.session_id == self._active_session_id)
@@ -222,16 +233,35 @@ class GuiApi:
                     stmt = stmt.where((Lead.phone.is_(None)) | (Lead.phone == ""))
 
                 if search_log_id:
-                    log = session.get(ActivityLog, int(search_log_id))
-                    if log:
-                        t_start = log.timestamp - timedelta(seconds=5)
-                        t_end = log.timestamp + timedelta(seconds=5)
-                        stmt = stmt.where(
-                            Lead.discovered_at >= t_start,
-                            Lead.discovered_at <= t_end
-                        )
+                    try:
+                        log_id_int = int(search_log_id)
+                        log = session.get(ActivityLog, log_id_int)
+                        if log:
+                            t_start = log.timestamp - timedelta(seconds=5)
+                            t_end = log.timestamp + timedelta(seconds=5)
+                            stmt = stmt.where(
+                                Lead.discovered_at >= t_start,
+                                Lead.discovered_at <= t_end
+                            )
+                    except (ValueError, TypeError):
+                        pass
 
-                stmt = stmt.order_by(Lead.id.desc())
+                # Dynamic column sorting
+                col_map = {
+                    "business_name": Lead.business_name,
+                    "sector": Lead.sector,
+                    "address": Lead.address,
+                    "status": Lead.status,
+                    "priority_score": Lead.priority_score,
+                    "rating": Lead.rating,
+                    "id": Lead.id,
+                }
+                sort_col = col_map.get(sort_by, Lead.id)
+                if str(sort_dir).lower() == "asc":
+                    stmt = stmt.order_by(sort_col.asc())
+                else:
+                    stmt = stmt.order_by(sort_col.desc())
+
                 leads = session.exec(stmt).all()
 
                 res = []
@@ -826,7 +856,17 @@ class GuiApi:
         except Exception as e:
             return {"error": str(e)}
 
-    def discover_leads(self, sector, location, radius, provider):
+    def discover_leads(
+        self,
+        sector,
+        location,
+        radius,
+        provider="all",
+        scan_depth="medium",
+        max_results=0,
+        *args,
+        **kwargs
+    ):
         try:
             parsed_radius = self._resolve_radius(radius)
             if parsed_radius == 0:
@@ -1270,6 +1310,24 @@ class GuiApi:
             return {"success": True, "details": res}
         except Exception as e:
             return {"error": str(e)}
+
+    def query_rag_assistant(self, question: str, *args, **kwargs):
+        try:
+            from aegisScout.ai import ask_llm
+            from aegisScout.ai.local_rag import query_knowledge_base
+            context_docs = query_knowledge_base(question, top_k=3)
+            context_text = "\n".join(context_docs) if context_docs else "Ek bilgi yok."
+            
+            prompt = (
+                f"Sen aegisScout satış otomasyonu ve B2B müşteri keşfi RAG asistanısın.\n"
+                f"Soru: {question}\n\n"
+                f"Bilgi Tabanı Bağlamı:\n{context_text}\n\n"
+                f"Lütfen kullanıcıya profesyonel, yapıcı ve detaylı Türkçe yanıt ver."
+            )
+            answer = ask_llm(prompt)
+            return {"success": True, "answer": answer, "context": context_text}
+        except Exception as e:
+            return {"success": False, "error": str(e), "answer": f"Yapay zeka asistan yanıtı üretirken bir hata oluştu: {str(e)}"}
 
     def check_imap_replies_bridge(self):
         try:

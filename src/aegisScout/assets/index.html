@@ -1359,10 +1359,14 @@
           <div class="form-group">
             <label for="search-scan-depth" data-i18n="lbl_scan_depth">Tarama Derinliği</label>
             <select id="search-scan-depth">
-              <option value="rapid" data-i18n="opt_depth_rapid">⚡ Hızlı (İlk 20 Sonuç)</option>
-              <option value="medium" selected data-i18n="opt_depth_medium">🔍 Orta (50 Sonuç, 3 Kaynak)</option>
-              <option value="deep" data-i18n="opt_depth_deep">🔬 Kapsamlı (200+ Sonuç, Tüm Kaynaklar)</option>
+              <option value="rapid">⚡ Hızlı (Temel Arama)</option>
+              <option value="medium" selected>🔍 Dengeli (Standart OSINT)</option>
+              <option value="deep">🔬 Kapsamlı (Tüm Derin Web &amp; Biyografi)</option>
             </select>
+          </div>
+          <div class="form-group">
+            <label for="search-max-results" data-i18n="lbl_max_results">Maksimum Sonuç Sınırı</label>
+            <input type="number" id="search-max-results" placeholder="Boş / 0 = Sınırsız" min="0" step="10">
           </div>
         </div>
         <div class="form-row">
@@ -1676,43 +1680,59 @@
         <p class="subtitle" data-i18n="settings_subtitle">API anahtarlarını, otomasyon ayarlarını ve bildirim kanallarını yapılandırın.</p>
       </div>
 
-      <!-- Language & Theme Settings -->
-      <div class="stat-card" style="gap: 20px; max-width: 800px; margin-bottom: 0;">
-        <h2 style="font-family: var(--font-display); font-size: 1.1rem; color: var(--color-accent);" data-i18n="settings_section_ui">Arayüz Ayarları</h2>
-        <div class="form-row">
-          <div class="form-group">
-            <label data-i18n="lbl_language">Arayüz Dili / Interface Language</label>
-            <select id="cfg-language" onchange="handleLanguageChange(this.value)">
-              <option value="tr">🇹🇷 Türkçe</option>
-              <option value="en">🇬🇧 English</option>
-            </select>
+      <div class="stat-card" style="gap: 24px; max-width: 800px;">
+        <h2 style="font-family: var(--font-display); font-size: 1.3rem;" data-i18n="settings_sec_env">Uygulama Yapılandırması</h2>
+        
+        <!-- UI & Theme Config Section -->
+        <div style="display: flex; flex-direction: column; gap: 16px;">
+          <h3 style="font-family: var(--font-display); font-size: 1rem; border-bottom: 1px solid var(--border-subtle); padding-bottom: 8px; color: var(--color-accent);" data-i18n="settings_section_ui">1. Arayüz &amp; Tema Ayarları</h3>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="cfg-lang"><span data-i18n="lbl_cfg_lang">Arayüz Dili (Language)</span> <span class="info-icon" onclick="showInfoModal(getTranslation('lbl_cfg_lang'), getTranslation('info_cfg_lang_desc'))">!</span></label>
+              <select id="cfg-lang" onchange="changeLang(this.value)">
+                <option value="tr">🇹🇷 Türkçe</option>
+                <option value="en">🇬🇧 English</option>
+                <option value="de">🇩🇪 Deutsch (German)</option>
+                <option value="fr">🇫🇷 Français (French)</option>
+                <option value="es">🇪🇸 Español (Spanish)</option>
+                <option value="ar">🇸🇦 العربية (Arabic)</option>
+                <option value="zh">🇨🇳 中文 (Chinese)</option>
+                <option value="ru">🇷🇺 Русский (Russian)</option>
+                <option value="hi">🇮🇳 हिन्दी (Hindi)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="cfg-theme"><span data-i18n="lbl_cfg_theme">Arayüz Teması (Theme)</span> <span class="info-icon" onclick="showInfoModal(getTranslation('lbl_cfg_theme'), getTranslation('info_cfg_theme_desc'))">!</span></label>
+              <select id="cfg-theme" onchange="changeTheme(this.value)">
+                <option value="theme-amethyst">💜 Amethyst Purple (Varsayılan)</option>
+                <option value="theme-neon">💙 Neon Dark</option>
+                <option value="theme-emerald">💚 Emerald Forest</option>
+                <option value="theme-cyberpunk">🌸 Cyberpunk High-Contrast</option>
+                <option value="theme-midnight">🌊 Midnight Ocean</option>
+                <option value="theme-amber">🟡 Amber Gold</option>
+                <option value="theme-rose">🌹 Crimson Rose</option>
+                <option value="theme-dracula">🧛 Dracula Vampire</option>
+                <option value="theme-solarized">☀️ Solarized Dark</option>
+                <option value="theme-slate">🔷 Nordic Slate</option>
+                <option value="theme-monochrome">⬛ Monochrome Dark</option>
+                <option value="theme-light">☀️ aegis Light Mode</option>
+              </select>
+            </div>
           </div>
-          <div class="form-group">
-            <label data-i18n="lbl_theme">Tema / Theme</label>
-            <select id="cfg-theme" onchange="handleThemeChange(this.value)">
-              <option value="theme-amethyst">💜 Amethyst (Varsayılan)</option>
-              <option value="theme-neon">💙 Neon Dark</option>
-              <option value="theme-emerald">💚 Emerald Forest</option>
-              <option value="theme-cyberpunk">🌸 Cyberpunk</option>
-              <option value="theme-midnight">🌊 Midnight Blue</option>
-              <option value="theme-amber">🟡 Amber Gold</option>
-              <option value="theme-rose">🌹 Rose</option>
-              <option value="theme-dracula">🧛 Dracula</option>
-              <option value="theme-solarized">☀️ Solarized Dark</option>
-              <option value="theme-slate">🔷 Slate</option>
-              <option value="theme-light">☀️ Light Mode</option>
-              <option value="theme-monochrome">⬛ Monochrome</option>
-            </select>
+          <div class="form-row" style="margin-top: 4px;">
+            <div class="form-group">
+              <label for="cfg-show-console"><span data-i18n="lbl_cfg_show_console">Geliştirici Konsolu (CMD)</span> <span class="info-icon" onclick="showInfoModal(getTranslation('lbl_cfg_show_console'), getTranslation('info_cfg_show_console_desc'))">!</span></label>
+              <select id="cfg-show-console" onchange="safeSetConfigValue('app.show_console', this.value === 'true')">
+                <option value="true">Açık (Log Takibi İçin)</option>
+                <option value="false">Kapalı (Sadece Arayüz)</option>
+              </select>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div class="stat-card" style="gap: 24px; max-width: 800px;">
-        <h2 style="font-family: var(--font-display); font-size: 1.3rem;" data-i18n="settings_sec_env">Uygulama Yapılandırması (.env)</h2>
-        
         <!-- LLM Config Section -->
-        <div style="display: flex; flex-direction: column; gap: 16px;">
-          <h3 style="font-family: var(--font-display); font-size: 1rem; border-bottom: 1px solid var(--border-subtle); padding-bottom: 8px; color: var(--color-accent);" data-i18n="settings_section_llm">1. LLM / Yapay Zeka Ayarları</h3>
+        <div style="display: flex; flex-direction: column; gap: 16px; margin-top: 12px;">
+          <h3 style="font-family: var(--font-display); font-size: 1rem; border-bottom: 1px solid var(--border-subtle); padding-bottom: 8px; color: var(--color-accent);" data-i18n="settings_section_llm">2. LLM / Yapay Zeka Ayarları</h3>
           <div class="form-row">
             <div class="form-group">
               <label for="cfg-primary-llm"><span data-i18n="lbl_primary_llm">Birincil LLM Sağlayıcı</span> <span class="info-icon" onclick="showInfoModal(getTranslation('lbl_primary_llm'), getTranslation('info_primary_llm_desc'))">!</span></label>
@@ -2006,54 +2026,6 @@
           </div>
         </div>
 
-        <!-- UI Settings Config -->
-        <div style="display: flex; flex-direction: column; gap: 16px;">
-          <h3 style="font-family: var(--font-display); font-size: 1rem; border-bottom: 1px solid var(--border-subtle); padding-bottom: 8px; color: var(--color-accent);" data-i18n="settings_section_ui">5. Arayüz Ayarları</h3>
-          <div class="form-row">
-            <div class="form-group">
-              <label for="cfg-lang"><span data-i18n="lbl_cfg_lang">Arayüz Dili (Language)</span> <span class="info-icon" onclick="showInfoModal(getTranslation('lbl_cfg_lang'), getTranslation('info_cfg_lang_desc'))">!</span></label>
-              <select id="cfg-lang" onchange="changeLang(this.value)">
-                <option value="tr">Türkçe</option>
-                <option value="en">English</option>
-                <option value="ar">العربية (Arabic)</option>
-                <option value="zh">中文 (Chinese)</option>
-                <option value="ru">Русский (Russian)</option>
-                <option value="de">Deutsch (German)</option>
-                <option value="hi">हिन्दी (Hindi)</option>
-                <option value="fr">Français (French)</option>
-                <option value="es">Español (Spanish)</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label for="cfg-theme"><span data-i18n="lbl_cfg_theme">Arayüz Teması (Theme)</span> <span class="info-icon" onclick="showInfoModal(getTranslation('lbl_cfg_theme'), getTranslation('info_cfg_theme_desc'))">!</span></label>
-              <select id="cfg-theme" onchange="changeTheme(this.value)">
-                <option value="theme-amethyst">Amethyst Purple (Varsayılan)</option>
-                <option value="theme-neon">Neon Dark</option>
-                <option value="theme-emerald">Emerald Forest</option>
-                <option value="theme-cyberpunk">Cyberpunk High-Contrast</option>
-                <option value="theme-midnight">Midnight Ocean</option>
-                <option value="theme-amber">Amber Gold</option>
-                <option value="theme-rose">Crimson Rose</option>
-                <option value="theme-dracula">Dracula Vampire</option>
-                <option value="theme-solarized">Solarized Dark</option>
-                <option value="theme-slate">Nordic Slate</option>
-                <option value="theme-monochrome">Monochrome Dark</option>
-                <option value="theme-light">aegis Light Mode</option>
-              </select>
-            </div>
-          </div>
-          <div class="form-row" style="margin-top: 12px;">
-            <div class="form-group">
-              <label for="cfg-show-console"><span data-i18n="lbl_cfg_show_console">Geliştirici Konsolu (CMD)</span> <span class="info-icon" onclick="showInfoModal(getTranslation('lbl_cfg_show_console'), getTranslation('info_cfg_show_console_desc'))">!</span></label>
-              <select id="cfg-show-console" onchange="safeSetConfigValue('app.show_console', this.value === 'true')">
-                <option value="true">Açık (Log Takibi İçin)</option>
-                <option value="false">Kapalı (Sadece Arayüz)</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label><span data-i18n="lbl_open_logs">Log Dosyaları (Logs)</span></label>
-              <button class="btn btn-secondary" onclick="safeOpenLogsFolder()" style="margin-top: 4px; padding: 10px 16px; font-size: 0.85rem;" data-i18n="btn_open_logs">Log Klasörünü Aç</button>
-            </div>
           </div>
         </div>
 
@@ -2254,9 +2226,24 @@
         <p class="subtitle" data-i18n="unibox_subtitle">E-posta, WhatsApp ve LinkedIn üzerinden gelen tüm yanıtları tek bir ekrandan yönetin.</p>
       </div>
       <button class="btn btn-secondary" onclick="loadUnibox()" style="padding: 6px 16px; font-size: 0.85rem; height: 36px;" data-i18n="btn_refresh_unibox">🔄 Yenile / Eşitle</button>
-    </div>
+      <!-- Quick AI RAG Assistant Bar -->
+      <div style="background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 12px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 8px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-weight: 600; font-size: 0.85rem; color: var(--color-accent);">🤖 AI RAG Asistanı Soruları</span>
+          <span style="font-size: 0.75rem; color: var(--text-muted);">Yerel Bilgi Tabanı + LLM</span>
+        </div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <button class="btn btn-secondary" style="font-size:0.75rem; padding:4px 10px; height:28px;" onclick="sendRagQuickQuestion('Adayların en çok ilgi gösterdiği teklif nedir?')">💡 En Çok İlgi Gören Teklifler</button>
+          <button class="btn btn-secondary" style="font-size:0.75rem; padding:4px 10px; height:28px;" onclick="sendRagQuickQuestion('En yüksek dönüşüm sağlayan sektörler hangileri?')">📊 Yüksek Dönüşümlü Sektörler</button>
+          <button class="btn btn-secondary" style="font-size:0.75rem; padding:4px 10px; height:28px;" onclick="sendRagQuickQuestion('E-posta yanıt oranlarımı artırmak için stratejiler öner.')">✉️ Yanıt Oranı Stratejileri</button>
+        </div>
+        <div style="display: flex; gap: 8px; margin-top: 4px;">
+          <input type="text" id="rag-query-input" placeholder="Yapay zeka asistanına bir soru sorun..." style="flex-grow: 1; height: 36px; padding: 0 12px; border-radius: 8px; background: var(--bg-base); border: 1px solid var(--border-subtle); color: var(--text-main); font-size: 0.85rem;" onkeydown="if(event.key==='Enter') triggerRagQuery()">
+          <button class="btn btn-secondary" onclick="triggerRagQuery()" style="height: 36px; padding: 0 16px; font-size: 0.85rem; background: var(--color-brand); color: white;">Sor</button>
+        </div>
+      </div>
 
-    <div style="display: flex; gap: 16px; height: calc(100vh - 200px); background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 12px; overflow: hidden; padding: 12px;">
+    <div style="display: flex; gap: 16px; height: calc(100vh - 280px); background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 12px; overflow: hidden; padding: 12px;">
       <!-- Left Pane: Leads List -->
       <div style="width: 300px; border-right: 1px solid var(--border-subtle); display: flex; flex-direction: column; gap: 8px; padding-right: 12px; overflow-y: auto;" id="unibox-leads-list">
         <p style="color: var(--text-muted); font-size: 0.85rem; text-align: center; margin-top: 20px;">Sohbet geçmişi olan adaylar burada listelenir.</p>
@@ -2290,28 +2277,28 @@
   </div>
 
   <!-- ⚡ Deep Web Audit & Waterfall Enrichment Panel -->
-  <div id="panel-waterfall" class="panel" style="width: 100%; max-width: 1400px; margin: 0 auto; min-height: calc(100vh - 80px); flex-direction: column; box-sizing: border-box;">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+  <div id="panel-waterfall" class="panel" style="width: 100%; max-width: 1200px; margin: 0 auto; min-height: calc(100vh - 80px); flex-direction: column; box-sizing: border-box; align-self: center;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 12px;">
       <div>
-        <h1 style="font-family: var(--font-display);" data-i18n="waterfall_h1">Derin Web Denetimi & Şelale Akış Editörü</h1>
+        <h1 style="font-family: var(--font-display);" data-i18n="waterfall_h1">Derin Web Denetimi &amp; Şelale Akış Editörü</h1>
         <p class="subtitle" data-i18n="waterfall_subtitle">Veri toplama, zenginleştirme ve doğrulama adımlarının sıralamasını ve kurallarını özelleştirin.</p>
       </div>
-      <button class="btn btn-secondary" onclick="saveWaterfallConfigUi()" style="padding: 6px 16px; font-size: 0.85rem; height: 36px; background-color: var(--color-success); color: white;" data-i18n="btn_save_waterfall">💾 Kaydet</button>
+      <button class="btn btn-secondary" onclick="saveWaterfallConfigUi()" style="padding: 8px 20px; font-size: 0.9rem; height: 40px; background-color: var(--color-success); color: white;" data-i18n="btn_save_waterfall">💾 Kaydet</button>
     </div>
 
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; height: calc(100vh - 200px); overflow-y: auto;">
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; min-height: calc(100vh - 220px); align-items: start;">
       <!-- Left: Config Form -->
-      <div style="background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 16px;">
-        <h3>Akış Adımları</h3>
+      <div style="background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
+        <h3 style="font-family: var(--font-display); color: var(--color-accent); margin-bottom: 4px;">⚡ Akış Adımları</h3>
         <div id="waterfall-steps-list" style="display: flex; flex-direction: column; gap: 12px;">
           <!-- Rendered by JS -->
         </div>
       </div>
       
       <!-- Right: Flow Visualisation -->
-      <div style="background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; position: relative;">
-        <h3>Aktif Şelale Şeması</h3>
-        <div id="waterfall-flow-visual" style="display: flex; flex-direction: column; align-items: center; gap: 12px; width: 100%; max-width: 320px; margin-top: 20px;">
+      <div style="background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 16px; padding: 20px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 16px; position: relative; min-height: 400px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
+        <h3 style="font-family: var(--font-display); color: var(--color-accent); margin-bottom: 4px;">🌊 Aktif Şelale Şeması</h3>
+        <div id="waterfall-flow-visual" style="display: flex; flex-direction: column; align-items: center; gap: 12px; width: 100%; max-width: 360px; margin-top: 10px;">
           <!-- Rendered dynamically by JS -->
         </div>
       </div>
@@ -2935,6 +2922,7 @@ function applyLanguage(lang) {
       const radius = document.getElementById('search-radius').value;
       const provider = document.getElementById('search-provider').value;
       const scanDepth = document.getElementById('search-scan-depth') ? document.getElementById('search-scan-depth').value : 'medium';
+      const maxResults = document.getElementById('search-max-results') ? (parseInt(document.getElementById('search-max-results').value) || 0) : 0;
       const composedLocation = [location, city, region, country].filter(Boolean).join('\n');
 
       if (!sector || !location) {
@@ -2953,11 +2941,11 @@ function applyLanguage(lang) {
       document.getElementById('discovery-btn-text').innerText = "Keşfediliyor...";
       document.getElementById('discovery-loader').classList.remove('hidden');
 
-      updateDiscoveryProgress("Talep alındı, keşif başlatılıyor... (Derinlik: " + scanDepth + ")");
+      updateDiscoveryProgress("Talep alındı, keşif başlatılıyor... (Derinlik: " + scanDepth + ", Sınır: " + (maxResults ? maxResults : 'Sınırsız') + ")");
 
       const startBtn = document.getElementById('btn-start-discovery');
       const promise = _apiCall(
-        () => window.pywebview.api.discover_leads(sector, composedLocation, radius, provider, scanDepth),
+        () => window.pywebview.api.discover_leads(sector, composedLocation, radius, provider, scanDepth, maxResults),
         { action: 'Keşif başlat' }
       );
       // Hard-disable while in-flight (defence in depth) — async finishDiscovery
@@ -3282,6 +3270,21 @@ function handleThemeChange(theme) {
       renderMoreLeads();
     }
 
+    function toggleLeadDetailExpand() {
+      const detailView = document.getElementById('lead-detail-view');
+      const splitLeft = document.querySelector('#panel-candidates .split-left');
+      if (!detailView) return;
+      if (detailView.classList.contains('expanded')) {
+        detailView.classList.remove('expanded');
+        detailView.style.flex = '1';
+        if (splitLeft) splitLeft.style.display = 'flex';
+      } else {
+        detailView.classList.add('expanded');
+        detailView.style.flex = '2';
+        if (splitLeft) splitLeft.style.display = 'none';
+      }
+    }
+
     // Select and view detailed Lead info
     function selectLead(leadId) {
       if (!_isBridgeReady()) {
@@ -3302,19 +3305,29 @@ function handleThemeChange(theme) {
         const notes = res.notes;
         const messages = res.messages;
 
-        // Find draft message
-        let draftMessage = "";
-        messages.forEach(m => { if (m.status === 'draft') draftMessage = cleanDraftText(m.content); });
+        // Smart fallback draft generator if AI message draft is empty
+        if (!draftMessage) {
+          const sName = escapeHtml(lead.business_name || 'İşletme');
+          const sSector = lead.sector ? escapeHtml(lead.sector) : 'sektörünüzdeki';
+          const sHook = lead.outreach_hook ? ` "${escapeHtml(lead.outreach_hook)}"` : '';
+          draftMessage = `Merhaba ${sName} Ekibi 👋\n\n${sSector} alanındaki dijital varlığınızı inceledik.${sHook} İşletmenizin müşteri kazanım süreçlerini ve dönüşüm oranlarını artıracak özel otomasyon çözümlerimiz hakkında 5 dakikalık kısa bir görüşme yapmak isteriz.\n\nDetaylı bilgi için yanıt verebilir veya doğrudan iletişim kurabilirsiniz.\nİyi çalışmalar!`;
+        }
 
-        // Safe URL helpers
+        // Safe URL & Contact helpers
         const safeWebUrl = lead.website_url || null;
         const safeIgUrl  = lead.instagram_url || null;
         const webLink    = safeWebUrl
-          ? `<a href="${escapeHtml(safeWebUrl)}" target="_blank" style="color: var(--color-accent);">${escapeHtml(safeWebUrl)}</a>`
+          ? `<a href="${escapeHtml(safeWebUrl)}" target="_blank" rel="noopener noreferrer" style="color: var(--color-accent); font-weight:600;">${escapeHtml(safeWebUrl)}</a>`
           : '<span style="color:var(--text-muted)">-</span>';
         const igLink     = safeIgUrl
-          ? `<a href="${escapeHtml(safeIgUrl)}" target="_blank" style="color: var(--color-accent);">@${escapeHtml(lead.instagram_handle)}</a>`
+          ? `<a href="${escapeHtml(safeIgUrl)}" target="_blank" rel="noopener noreferrer" style="color: var(--color-accent); font-weight:600;">@${escapeHtml(lead.instagram_handle || 'instagram')}</a>`
           : '<span style="color:var(--text-muted)">-</span>';
+        const phoneLink  = lead.phone
+          ? `<a href="tel:${escapeHtml(lead.phone.replace(/\s+/g, ''))}" style="color: var(--color-accent); font-weight:600; text-decoration: underline;">📞 ${escapeHtml(lead.phone)}</a>`
+          : '<span style="color:var(--text-muted)">-</span>';
+        const emailLink  = lead.email
+          ? `<a href="mailto:${escapeHtml(lead.email)}" style="color: var(--color-accent); font-weight:600; text-decoration: underline;">✉️ ${escapeHtml(lead.email)}</a>`
+          : '<span style="color:var(--text-muted)">Bulunamadı</span>';
 
         // Build the multi-platform social grid. Each chip shows an icon + handle.
         const socialChips = [
@@ -3326,26 +3339,11 @@ function handleThemeChange(theme) {
           { key: 'twitter',   label: 'X/Twitter', url: lead.twitter_url,  handle: lead.twitter_url,  bg: '#1d1d1d' },
         ];
 
-    function toggleLeadDetailExpand() {
-      const detailView = document.getElementById('lead-detail-view');
-      const splitLeft = document.querySelector('#panel-candidates .split-left');
-      if (!detailView) return;
-      if (detailView.classList.contains('expanded')) {
-        detailView.classList.remove('expanded');
-        detailView.style.flex = '1';
-        if (splitLeft) splitLeft.style.display = 'flex';
-      } else {
-        detailView.classList.add('expanded');
-        detailView.style.flex = '2';
-        if (splitLeft) splitLeft.style.display = 'none';
-      }
-    }
-
         const socialGridHtml = socialChips.map(chip => {
           if (chip.url) {
             return `<div class="social-chip is-active">
               <span class="social-icon" style="background:${chip.bg};">${escapeHtml(chip.label.charAt(0))}</span>
-              <a href="${escapeHtml(chip.url)}" target="_blank" title="${escapeHtml(chip.url)}">${escapeHtml(chip.label)}</a>
+              <a href="${escapeHtml(chip.url)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(chip.url)}">${escapeHtml(chip.label)}</a>
             </div>`;
           }
           return `<div class="social-chip is-inactive">
@@ -3397,8 +3395,8 @@ function handleThemeChange(theme) {
             <h3 style="margin-top:0; font-size:0.95rem; border-bottom:1px solid var(--border-subtle); padding-bottom:8px; color:var(--text-main);">📌 İletişim &amp; Adres Bilgileri</h3>
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; font-size:0.85rem; color:var(--text-main);">
               <div><b style="color:var(--text-muted);">Adres:</b> <br>${escapeHtml(lead.address || '-')}</div>
-              <div><b style="color:var(--text-muted);">Telefon:</b> <br>${escapeHtml(lead.phone || '-')}</div>
-              <div><b style="color:var(--text-muted);">E-Posta:</b> <br>${escapeHtml(lead.email || 'Bulunamadı')}</div>
+              <div><b style="color:var(--text-muted);">Telefon:</b> <br>${phoneLink}</div>
+              <div><b style="color:var(--text-muted);">E-Posta:</b> <br>${emailLink}</div>
               <div><b style="color:var(--text-muted);">Web Sitesi:</b> <br>${webLink}</div>
               <div><b style="color:var(--text-muted);">Instagram:</b> <br>${igLink}</div>
               <div><b style="color:var(--text-muted);">Veri Kaynağı:</b> <br><span style="text-transform:uppercase; font-size:0.75rem; font-weight:bold; color:var(--color-accent);">${escapeHtml(lead.raw_source || 'OSINT')}</span></div>
@@ -3502,9 +3500,6 @@ function handleThemeChange(theme) {
           <div class="detail-section" style="background:var(--bg-surface); border:1px solid var(--border-subtle); border-radius:12px; padding:16px;">
             <h3 style="margin-top:0; font-size:0.95rem; border-bottom:1px solid var(--border-subtle); padding-bottom:8px; color:var(--text-main);">📝 Araştırma Notları Geçmişi</h3>
             <div style="display:flex; flex-direction:column; gap:8px;">${notesHtml}</div>
-          </div>
-        `;
-            <div style="display: flex; flex-direction: column; gap: 8px;">${notesHtml}</div>
           </div>
 
           <div class="detail-section">
@@ -3841,6 +3836,11 @@ function handleThemeChange(theme) {
         safe('cfg-imap-port', cfg.notify_email_imap_port, 993);
         safe('cfg-proxy-pool', cfg.proxy_pool, '');
         safe('cfg-show-console', cfg.show_console ? 'true' : 'false', 'true');
+
+        const activeTheme = document.body.className.split(' ').find(c => c.startsWith('theme-')) || safeLocalStorage.getItem('aegis-theme') || 'theme-amethyst';
+        const activeLang = currentLanguage || safeLocalStorage.getItem('aegis-language') || 'tr';
+        safe('cfg-theme', activeTheme, 'theme-amethyst');
+        safe('cfg-lang', activeLang, 'tr');
 
         // Sensitive fields: CLEAR (we never get them back). User must re-type to change.
         const sensitiveIds = [
@@ -6760,6 +6760,60 @@ function handleThemeChange(theme) {
         } else {
           showToast("Gönderim hatası: " + (res ? res.error : "Bilinmeyen hata"), "error");
         }
+      });
+    }
+
+    function sendRagQuickQuestion(question) {
+      document.getElementById('rag-query-input').value = question;
+      triggerRagQuery();
+    }
+
+    function triggerRagQuery() {
+      const input = document.getElementById('rag-query-input');
+      const question = input ? input.value.trim() : '';
+      if (!question) return;
+      
+      const threadDiv = document.getElementById('unibox-thread-view');
+      const userBubble = document.createElement('div');
+      userBubble.className = 'unibox-msg-bubble outbound';
+      userBubble.style.alignSelf = 'flex-end';
+      userBubble.style.background = 'var(--color-brand)';
+      userBubble.style.color = 'white';
+      userBubble.style.borderRadius = '12px 12px 0 12px';
+      userBubble.style.padding = '10px 14px';
+      userBubble.style.maxWidth = '80%';
+      userBubble.innerHTML = `
+        <div style="font-size:0.7rem; opacity:0.8; margin-bottom:4px; font-weight:600;">SİZ (AI RAG Sorusı)</div>
+        <div>${escapeHtml(question)}</div>
+      `;
+      threadDiv.appendChild(userBubble);
+      threadDiv.scrollTop = threadDiv.scrollHeight;
+      input.value = '';
+
+      showToast("Yapay zeka asistanı yanıtlıyor...", "info");
+      _apiCall(() => window.pywebview.api.query_rag_assistant(question), { action: 'AI RAG Sorusunu İşle' }).then(res => {
+        const aiBubble = document.createElement('div');
+        aiBubble.className = 'unibox-msg-bubble inbound';
+        aiBubble.style.alignSelf = 'flex-start';
+        aiBubble.style.background = 'var(--bg-surface)';
+        aiBubble.style.border = '1px solid var(--border-subtle)';
+        aiBubble.style.color = 'var(--text-main)';
+        aiBubble.style.borderRadius = '12px 12px 12px 0';
+        aiBubble.style.padding = '10px 14px';
+        aiBubble.style.maxWidth = '85%';
+        if (res && res.answer) {
+          aiBubble.innerHTML = `
+            <div style="font-size:0.7rem; color:var(--color-accent); margin-bottom:4px; font-weight:700;">🤖 AI RAG ASİSTANI</div>
+            <div style="white-space:pre-wrap; font-size:0.85rem; line-height:1.5;">${escapeHtml(res.answer)}</div>
+          `;
+        } else {
+          aiBubble.innerHTML = `
+            <div style="font-size:0.7rem; color:var(--color-danger); margin-bottom:4px; font-weight:700;">🤖 AI RAG ASİSTANI</div>
+            <div style="font-size:0.85rem;">${escapeHtml(res ? (res.error || 'Yanıt alınamadı') : 'Servis yanıt vermedi.')}</div>
+          `;
+        }
+        threadDiv.appendChild(aiBubble);
+        threadDiv.scrollTop = threadDiv.scrollHeight;
       });
     }
 
