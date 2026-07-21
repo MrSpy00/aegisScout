@@ -25,7 +25,9 @@ SPEC_FILE = ROOT / "scripts" / "build_exe.spec"
 DIST_DIR  = ROOT / "dist"
 BUILD_DIR = ROOT / "build"
 
-# dist/ icinde korunacak dosya/klasorler (normal build'de)
+import stat
+import time
+
 _PRESERVE_PATHS = [
     ".env",
     "config",
@@ -34,29 +36,60 @@ _PRESERVE_PATHS = [
 ]
 
 
+def _kill_running_exe():
+    """Attempt to terminate any running aegisScout.exe process before build."""
+    if sys.platform == "win32":
+        try:
+            subprocess.run(["taskkill", "/F", "/IM", "aegisScout.exe"], capture_output=True, text=True)
+            time.sleep(0.5)
+        except Exception:
+            pass
+
+
+def _safe_remove(path: Path):
+    """Safely remove a file or directory with permission handling and retries."""
+    if not path.exists():
+        return
+    try:
+        if path.is_file() or path.is_symlink():
+            try:
+                path.chmod(stat.S_IWRITE)
+            except Exception:
+                pass
+            path.unlink()
+        elif path.is_dir():
+            shutil.rmtree(path, ignore_errors=True)
+    except PermissionError as pe:
+        print(f"  [UYARI] {path.name} kilitli veya silinemedi ({pe}), build sırasında üzerine yazılacak.")
+    except Exception as e:
+        print(f"  [UYARI] {path.name} silinirken hata: {e}")
+
+
 def _clean_build_artifacts(clean_mode: bool = False):
     """
-    Build oncesi temizlik.
+    Build öncesi temizlik.
     
     clean_mode=True  : dist/ TAMAMEN silinir (user data dahil)
-    clean_mode=False : dist/ icinde sadece PyInstaller ciktisi (.exe, _internal/)
+    clean_mode=False : dist/ içinde sadece PyInstaller çıktısı (.exe, _internal/)
                         silinir; .env, config/, data/, logs/ korunur
     """
+    _kill_running_exe()
+
     if clean_mode:
         if DIST_DIR.exists():
-            shutil.rmtree(DIST_DIR)
-            print(f"[CLEAN] dist/ tamamen temizlendi.")
+            _safe_remove(DIST_DIR)
+            print(f"[CLEAN] dist/ temizlendi.")
         if BUILD_DIR.exists():
-            shutil.rmtree(BUILD_DIR)
-            print(f"[CLEAN] build/ tamamen temizlendi.")
+            _safe_remove(BUILD_DIR)
+            print(f"[CLEAN] build/ temizlendi.")
         for spec_file in ROOT.glob("*.spec"):
-            spec_file.unlink()
-        print("[CLEAN] Temiz build modu: her sey silindi.")
+            if spec_file.name != "build_exe.spec":
+                _safe_remove(spec_file)
+        print("[CLEAN] Temiz build modu tamamlandı.")
         return
 
-    # Normal mod: dist/ icindeki PyInstaller ciktisini sil, kullanici verilerini koru
+    # Normal mod: dist/ içindeki PyInstaller çıktısını sil, kullanıcı verilerini koru
     if DIST_DIR.exists():
-        # Silinecek ogeler: .exe, _internal/, her sey ama PRESERVE haric
         for item in DIST_DIR.iterdir():
             should_preserve = False
             for preserve in _PRESERVE_PATHS:
@@ -67,23 +100,23 @@ def _clean_build_artifacts(clean_mode: bool = False):
                 print(f"  [KORUNDU] {item.name}")
                 continue
             if item.is_dir():
-                shutil.rmtree(item)
+                _safe_remove(item)
                 print(f"  [SILINDI] {item.name}/")
             else:
-                item.unlink()
+                _safe_remove(item)
                 print(f"  [SILINDI] {item.name}")
     else:
-        print("  dist/ henuz mevcut degil, yeni olusturulacak.")
+        print("  dist/ henüz mevcut değil, yeni oluşturulacak.")
 
-    # build/ tamamen sil (her zaman guvenli, PyInstaller gecici dosyasi)
+    # build/ tamamen sil (her zaman güvenli, PyInstaller geçici dosyası)
     if BUILD_DIR.exists():
-        shutil.rmtree(BUILD_DIR)
-        print(f"  [SILINDI] build/ (PyInstaller gecici)")
+        _safe_remove(BUILD_DIR)
+        print(f"  [SILINDI] build/ (PyInstaller geçici)")
 
-    # Root'taki .spec dosyalarini sil
+    # Root'taki ekstra .spec dosyalarını sil (build_exe.spec koru)
     for spec_file in ROOT.glob("*.spec"):
-        spec_file.unlink()
-        print(f"  [SILINDI] {spec_file.name}")
+        if spec_file.name != "build_exe.spec" and (ROOT / "scripts" / spec_file.name).exists():
+            _safe_remove(spec_file)
 
 
 def _find_py311() -> Path | None:

@@ -28,6 +28,9 @@ set /p "BUILD_MODE=Choice [1/2] (Enter = 1): "
 if "%BUILD_MODE%"=="" set "BUILD_MODE=1"
 echo.
 
+:: ---- Terminate running aegisScout.exe if active ----
+taskkill /f /im aegisScout.exe 2>nul
+
 if "%BUILD_MODE%"=="2" (
     echo [PREP] TEMIZ BUILD - all old files will be deleted
     echo.

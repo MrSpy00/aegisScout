@@ -25,7 +25,7 @@ a = Analysis(
     ] if x is not None],
     hiddenimports=[
         # Core dependencies
-        'clr', 'cffi',
+        'clr', 'cffi', 'httpx',
         # SQLAlchemy / typing (typing_extensions MUST be here, NOT in excludes)
         'typing_extensions',
         'sqlalchemy', 'sqlalchemy.sql.default_comparator',
@@ -40,6 +40,10 @@ a = Analysis(
         'cryptography', 'cryptography.fernet',
         # HTML/parsing
         'bs4', 'soupsieve',
+        # aegisScout discovery & OSINT providers
+        'aegisScout.discovery.doktorsitesi_provider',
+        'aegisScout.discovery.osint_framework',
+        'aegisScout.discovery.doktortakvimi_provider',
     ],
     hookspath=[],
     hooksconfig={},
