@@ -92,24 +92,24 @@ def test_gui_is_configured_does_not_leak_secrets(monkeypatch):
         assert k in snapshot, f"Missing expected key: {k}"
 
 
-def test_gui_save_settings_rejects_secret_keys():
+def test_gui_save_settings_accepts_secret_keys():
     """
-    Even if the JS layer tries to bulk-send secret-bearing keys via the old
-    save_settings(payload) API, the Python side must refuse them and
-    return an error.
+    When the user enters secret API keys in Settings, save_settings must accept them
+    and save them directly to .env with success: True.
     """
     from aegisScout.gui import GuiApi
+
     api = GuiApi()
-    bad_payload = {
+    payload = {
         "deepseek_api_key": "sk-leak",
         "openai_api_key": "sk-leak2",
-        "llm_primary_provider": "openai",  # this is OK
+        "llm_primary_provider": "openai",
     }
-    result = api.save_settings(bad_payload)
-    assert result.get("success") is False
-    assert "Refused sensitive keys" in result.get("error", "")
-    assert "deepseek_api_key" in result.get("error", "")
-    assert "openai_api_key" in result.get("error", "")
+    result = api.save_settings(payload)
+    assert result.get("success") is True
+    applied_keys = [item["key"] for item in result.get("applied", [])]
+    assert "deepseek_api_key" in applied_keys
+    assert "openai_api_key" in applied_keys
 
 
 def test_gui_set_config_value_writes_toml_non_sensitive():

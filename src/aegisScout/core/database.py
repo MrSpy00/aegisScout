@@ -91,7 +91,10 @@ def _register_sqlite_pragmas(engine) -> None:
             cursor.execute("PRAGMA foreign_keys=ON")
             cursor.execute("PRAGMA journal_mode=WAL")
             cursor.execute("PRAGMA synchronous=NORMAL")
-            cursor.execute("PRAGMA busy_timeout=5000")
+            cursor.execute("PRAGMA busy_timeout=30000")
+            cursor.execute("PRAGMA cache_size=-64000")
+            cursor.execute("PRAGMA temp_store=MEMORY")
+            cursor.execute("PRAGMA mmap_size=268435456")
             
             # SQLCipher support setup
             try:
@@ -287,6 +290,11 @@ def _run_migrations(session: Session, db_logger) -> None:
         ("leads", "outreach_hook", "TEXT"),
         ("leads", "email_verification_status", "TEXT"),
         ("leads", "email_verification_details", "TEXT"),
+        ("leads", "profile_image_url", "TEXT"),
+        ("leads", "osint_data", "TEXT"),
+        ("leads", "scan_depth", "TEXT DEFAULT 'medium'"),
+        ("leads", "phone_carrier", "TEXT"),
+        ("leads", "phone_type", "TEXT"),
     ]
 
     for table, column, col_def in migrations:

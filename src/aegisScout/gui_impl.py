@@ -29,7 +29,7 @@ from sqlalchemy import func
 
 from aegisScout.core.config import settings
 from aegisScout.core import database as db_module
-from aegisScout.core.database import init_db
+from aegisScout.core.database import init_db, sqlite_retry_on_lock
 
 class _EngineProxy:
     def __getattr__(self, name):
@@ -118,6 +118,9 @@ _ENV_KEYS = {
     "zenrows_api_key",
     "crawlbase_api_key",
     "apify_api_key",
+    "emailosint_api_key",
+    "serper_api_key",
+    "serpapi_api_key",
     "linkedin_session_cookie",
     "ollama_model",
     "outreach_mode",
@@ -1755,8 +1758,16 @@ class GuiApi:
         if not isinstance(key, str) or not key.strip():
             return {"error": "key must be a non-empty string"}
 
-        # Sensitive key — write to .env via Settings singleton.
-        if key in _ENV_KEYS:
+        key = key.strip()
+
+        # Alias normalization
+        if key == "gui_theme":
+            key = "app.gui_theme"
+        elif key == "gui_language":
+            key = "app.gui_language"
+
+        # Sensitive key or API key — write to .env via Settings singleton.
+        if key in _ENV_KEYS or any(k in key.lower() for k in ("api_key", "token", "password", "secret")):
             try:
                 env_path = Path(get_env_path())
                 if env_path.exists() and env_path.is_dir():
@@ -1801,9 +1812,6 @@ class GuiApi:
         if key in _TOML_KEYS:
             section, toml_key = _TOML_KEYS[key]
             try:
-                # Use the toml_config module's CONFIG_FILE so test fixtures
-                # (which monkey-patch it) are respected and we never write
-                # outside the user's real config dir.
                 from aegisScout.core import toml_config as _toml_cfg
                 cfg_path = Path(_toml_cfg.CONFIG_FILE)
                 if cfg_path.exists():
@@ -1833,8 +1841,6 @@ class GuiApi:
                 if section not in config_data or not isinstance(config_data[section], dict):
                     config_data[section] = {}
                 config_data[section][toml_key] = data[section][toml_key]
-                # Best-effort: keep the toml_config module's cache in sync so
-                # subsequent reads via that module see the new value.
                 if hasattr(_toml_cfg, "config_data") and isinstance(_toml_cfg.config_data, dict):
                     if section not in _toml_cfg.config_data or not isinstance(_toml_cfg.config_data[section], dict):
                         _toml_cfg.config_data[section] = {}
@@ -1847,43 +1853,19 @@ class GuiApi:
                 return {"error": str(e)}
 
         return {
-            "error": f"Unknown config key: '{key}'. Sensitive keys (passwords/tokens/api_keys) "
-                     "must be set via login_instagram() or by editing .env directly."
+            "error": f"Unknown config key: '{key}'."
         }
 
     def save_settings(self, new_settings) -> dict:
         """
-        DEPRECATED bulk setter. Kept for backward compat. Refuses any sensitive
-        key. Use `set_config_value()` per key instead, or
-        `login_instagram()` for credentials.
+        Bulk setter for settings. Route keys appropriately to .env or config.toml.
         """
         if not isinstance(new_settings, dict):
             return {"error": "new_settings must be a dict"}
-        refused = []
         results = []
         for key, val in new_settings.items():
-            # Block any key that could carry a secret
-            lk = key.lower()
-            if any(
-                needle in lk
-                for needle in ("api_key", "password", "token", "secret", "encryption_key")
-            ):
-                refused.append(key)
-                continue
-            if key in _ENV_KEYS:
-                refused.append(key)
-                continue
             res = self.set_config_value(key, val)
             results.append({"key": key, **res})
-        if refused:
-            return {
-                "success": False,
-                "error": (
-                    f"Refused sensitive keys: {refused}. Use login_instagram() or "
-                    "edit .env directly for secrets."
-                ),
-                "applied": results,
-            }
         return {"success": True, "applied": results}
 
     # -------------------------------------------------------------------
@@ -2513,26 +2495,28 @@ class GuiApi:
         except Exception as e:
             return {"error": str(e)}
 
+    @sqlite_retry_on_lock()
     def delete_lead(self, lead_id):
         try:
             lead_id = int(lead_id)
             with Session(engine) as session:
-                lead = session.get(Lead, lead_id)
-                if not lead:
-                    return {"error": "Aday bulunamadı."}
+                with session.no_autoflush:
+                    lead = session.get(Lead, lead_id)
+                    if not lead:
+                        return {"error": "Aday bulunamadı."}
+                    b_name = lead.business_name or f"Lead-{lead_id}"
+                    session.execute(text("DELETE FROM research_notes WHERE lead_id = :lid"), {"lid": lead_id})
+                    session.execute(text("DELETE FROM messages WHERE lead_id = :lid"), {"lid": lead_id})
+                    session.delete(lead)
 
-                session.execute(text("DELETE FROM research_notes WHERE lead_id = :lid"), {"lid": lead_id})
-                session.execute(text("DELETE FROM messages WHERE lead_id = :lid"), {"lid": lead_id})
-                session.delete(lead)
-
-                log = ActivityLog(
-                    action="lead_delete",
-                    details=f"Aday silindi: {lead.business_name}",
-                    session_id=self._active_session_id,
-                )
-                session.add(log)
-                session.commit()
-                return {"success": True}
+                    log = ActivityLog(
+                        action="lead_delete",
+                        details=f"Aday silindi: {b_name}",
+                        session_id=self._active_session_id,
+                    )
+                    session.add(log)
+                    session.commit()
+                    return {"success": True}
         except Exception as e:
             return {"error": str(e)}
 
@@ -2850,71 +2834,75 @@ class GuiApi:
         except Exception as e:
             return {"error": str(e)}
 
+    @sqlite_retry_on_lock()
     def clear_all_leads(self):
         try:
             with Session(engine) as session:
-                session.execute(
-                    text("DELETE FROM research_notes WHERE lead_id IN (SELECT id FROM leads WHERE session_id = :sid)"),
-                    {"sid": self._active_session_id},
-                )
-                session.execute(
-                    text("DELETE FROM messages WHERE lead_id IN (SELECT id FROM leads WHERE session_id = :sid)"),
-                    {"sid": self._active_session_id},
-                )
-                session.execute(
-                    text("DELETE FROM leads WHERE session_id = :sid"),
-                    {"sid": self._active_session_id},
-                )
+                with session.no_autoflush:
+                    session.execute(
+                        text("DELETE FROM research_notes WHERE lead_id IN (SELECT id FROM leads WHERE session_id = :sid)"),
+                        {"sid": self._active_session_id},
+                    )
+                    session.execute(
+                        text("DELETE FROM messages WHERE lead_id IN (SELECT id FROM leads WHERE session_id = :sid)"),
+                        {"sid": self._active_session_id},
+                    )
+                    session.execute(
+                        text("DELETE FROM leads WHERE session_id = :sid"),
+                        {"sid": self._active_session_id},
+                    )
 
-                log = ActivityLog(
-                    action="leads_clear_all",
-                    details="Tüm adaylar temizlendi.",
-                    session_id=self._active_session_id,
-                )
-                session.add(log)
-                session.commit()
-                return {"success": True}
+                    log = ActivityLog(
+                        action="leads_clear_all",
+                        details="Tüm adaylar temizlendi.",
+                        session_id=self._active_session_id,
+                    )
+                    session.add(log)
+                    session.commit()
+                    return {"success": True}
         except Exception as e:
             return {"error": str(e)}
 
+    @sqlite_retry_on_lock()
     def clear_leads_by_filter(self, status=None, sector=None):
         try:
             with Session(engine) as session:
-                subquery_conds = ["session_id = :sid"]
-                params = {"sid": self._active_session_id}
+                with session.no_autoflush:
+                    subquery_conds = ["session_id = :sid"]
+                    params = {"sid": self._active_session_id}
 
-                if status and status != "all":
-                    subquery_conds.append("status = :status")
-                    params["status"] = status
-                if sector and sector.strip() != "":
-                    subquery_conds.append("sector = :sector")
-                    params["sector"] = sector.strip()
+                    if status and status != "all":
+                        subquery_conds.append("status = :status")
+                        params["status"] = status
+                    if sector and sector.strip() != "":
+                        subquery_conds.append("sector = :sector")
+                        params["sector"] = sector.strip()
 
-                cond_str = " AND ".join(subquery_conds)
+                    cond_str = " AND ".join(subquery_conds)
 
-                session.execute(
-                    text(f"DELETE FROM research_notes WHERE lead_id IN (SELECT id FROM leads WHERE {cond_str})"),
-                    params,
-                )
-                session.execute(
-                    text(f"DELETE FROM messages WHERE lead_id IN (SELECT id FROM leads WHERE {cond_str})"),
-                    params,
-                )
+                    session.execute(
+                        text(f"DELETE FROM research_notes WHERE lead_id IN (SELECT id FROM leads WHERE {cond_str})"),
+                        params,
+                    )
+                    session.execute(
+                        text(f"DELETE FROM messages WHERE lead_id IN (SELECT id FROM leads WHERE {cond_str})"),
+                        params,
+                    )
 
-                result = session.execute(
-                    text(f"DELETE FROM leads WHERE {cond_str}"),
-                    params,
-                )
-                deleted_count = result.rowcount
+                    result = session.execute(
+                        text(f"DELETE FROM leads WHERE {cond_str}"),
+                        params,
+                    )
+                    deleted_count = result.rowcount
 
-                log = ActivityLog(
-                    action="leads_clear_filter",
-                    details=f"Filtreli adaylar temizlendi (Durum: {status or 'Tümü'}, Sektör: {sector or 'Tümü'}, Silinen: {deleted_count}).",
-                    session_id=self._active_session_id,
-                )
-                session.add(log)
-                session.commit()
-                return {"success": True, "deleted_count": deleted_count}
+                    log = ActivityLog(
+                        action="leads_clear_filter",
+                        details=f"Filtreli adaylar temizlendi (Durum: {status or 'Tümü'}, Sektör: {sector or 'Tümü'}, Silinen: {deleted_count}).",
+                        session_id=self._active_session_id,
+                    )
+                    session.add(log)
+                    session.commit()
+                    return {"success": True, "deleted_count": deleted_count}
         except Exception as e:
             return {"error": str(e)}
 

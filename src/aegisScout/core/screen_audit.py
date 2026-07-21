@@ -166,6 +166,9 @@ async def run_website_screen_audit(lead_id: int) -> dict:
         screenshot_path = SCREENSHOTS_DIR / screenshot_filename
 
         # 1. Capture screenshot (with graceful fallback if Playwright is missing or fails)
+        if not PLAYWRIGHT_AVAILABLE:
+            return {"error": "Playwright modülü yüklü değil. Lütfen 'pip install playwright' ve 'playwright install chromium' komutlarını çalıştırın."}
+
         import asyncio
         success = await asyncio.to_thread(_capture_screenshot_sync, lead.website_url, screenshot_path)
         if success:

@@ -26,17 +26,24 @@ Here are actual screenshots of the desktop application's main panels:
 
 ## 📌 Temel Özellikler
 
-### 1. İşletme Keşif Motoru (Discovery Engine)
+### 1. İşletme Keşif Motoru & OSINT Dizin Kazıyıcıları (Discovery Engine)
 - **OpenStreetMap (OSM) Entegrasyonu (Ücretsiz & Limitsiz):** Overpass API aracılığıyla belirlenen bölge ve sektörlerdeki işletmeleri tarar. Gelişmiş sektör eşleştirme kuralları sayesinde gürültü verileri filtreler.
+- **Sağlık & Uzman Dizin OSINT Derin Çıkarımı (DoktorSitesi & DoktorTakvimi):** "İstanbul psikolog" veya "diş hekimi" gibi aramalarda dizin indeks URL'lerini kaydetmek yerine dizin sayfalarını derinlemesine tarayarak gerçek bireysel uzman isimlerini, fotoğraflarını, telefon numaralarını, adreslerini ve biyografilerini ayıklar.
+- **EmailOSINT & Sosyal Profil Avatarları:** `api.emailosint.org`, Gravatar ve Unavatar entegrasyonu sayesinde ters e-posta araştırması ve dairesel sosyal profil resmi çözünürlüğü sunar.
+- **Tarama Derinliği Seçenekleri:** Keşif turları başlatılırken Hızlı (20 sonuç), Orta (50 sonuç), Detaylı (200+ sonuç) ve Derin OSINT seçenekleri ile çalıştırılabilir.
 - **Google Places API Entegrasyonu (Gelişmiş/Opsiyonel):** Essentials API field mask özelliğini kullanarak işletme puanı, yorum sayıları ve adres verilerini ek ücretler oluşturmadan çeker.
 
-### 2. Akıllı Araştırma ve Web Scraping Modülü
+### 2. Akıllı Araştırma, Web Scraping ve Görsel Denetim (Vision-Audit)
 - Bulunan işletmelerin web sitelerini derinlemesine tarar.
+- Playwright ve HTTP Web-Shot API yedeklemeleri sayesinde web sitelerinin ekran görüntülerini (Screen-Audit) kesintisiz kaydeder.
 - Viewport mobil uyumluluğu, SSL sertifikası geçerliliği ve SEO meta etiketlerinin varlığı üzerinden **100 üzerinden otomatik Web Sitesi Kalite Skoru** hesaplar.
 - Web sitesi üzerinden Instagram kullanıcı adlarını, telefon numaralarını ve iletişim e-postalarını tespit eder.
-- Google Custom Search API'sini kullanarak kazınan Instagram hesaplarının doğruluğunu web aramalarıyla çapraz doğrular.
 
-### 3. Çoklu LLM Sağlayıcı Altyapısı (LLM Router)
+### 3. Çoklu API Key Rotasyonu ve SQLite WAL Mode Veritabanı
+- **Çoklu API Key Rotasyonu:** Gemini, Serper, OpenAI gibi sağlayıcılarda virgülle ayrılmış birden fazla API anahtarı girildiğinde her istekte otomatik rotasyon yaparak kota ve oran limitlerini korur.
+- **SQLite WAL Mode & Otomatik Kilit Önleme:** `PRAGMA journal_mode=WAL;` ve 30s kilit zamanaşımı ile tekli ve toplu silme işlemlerinde (`detaylı sil`, `tümünü sil`) kilitlenme ve autoflush hataları tamamen engellenmiştir.
+
+### 4. Çoklu LLM Sağlayıcı Altyapısı (LLM Router)
 - **Desteklenen Yapay Zeka Modelleri:**
   - **OpenRouter API** (Onlarca açık kaynaklı ve ticari modele erişim)
   - **Google Gemini API** (Yerel Gemini 2.5 Flash desteğiyle yüksek hızlı analiz)

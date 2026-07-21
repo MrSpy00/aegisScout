@@ -1030,6 +1030,33 @@
       transform: translateX(20px);
     }
     /* Unibox styling */
+    /* AI RAG / Unibox Panel centering */
+    #panel-unibox {
+      height: calc(100vh - 80px);
+      max-height: calc(100vh - 80px);
+    }
+    .unibox-wrapper {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      max-width: 900px;
+      margin: 0 auto;
+      width: 100%;
+    }
+    .unibox-chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .unibox-chat-input-area {
+      padding: 16px 20px;
+      border-top: 1px solid var(--border-subtle);
+      background: var(--bg-surface);
+      border-radius: 0 0 16px 16px;
+    }
     .unibox-lead-item {
       padding: 10px 12px;
       border-radius: 8px;
@@ -1156,20 +1183,44 @@
       margin: 0;
       flex-shrink: 0;
     }
-    .sidebar.collapsed .brand-logo {
-      display: block !important;
-      margin: 0 auto;
-      width: 32px;
-      height: 32px;
-      cursor: pointer;
+    /* Tooltip on collapsed nav items */
+    .sidebar.collapsed .nav-item::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      left: 72px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-main);
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      white-space: nowrap;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.18s;
+      z-index: 100;
     }
+    .sidebar.collapsed .nav-item:hover::after {
+      opacity: 1;
+    }
+    /* Ensure sidebar toggle btn stays visible & centered when collapsed */
     .sidebar.collapsed .sidebar-toggle-btn {
-      transform: rotate(180deg);
-      right: 50%;
-      transform: translateX(50%) rotate(180deg);
+      left: 50% !important;
+      right: auto !important;
+      top: 10px !important;
+      transform: translateX(-50%) !important;
     }
-    .sidebar:not(.collapsed) .sidebar-toggle-btn {
-      transform: rotate(0deg);
+    .sidebar.collapsed .brand {
+      margin-top: 44px !important;
+      padding: 8px 0 !important;
+      justify-content: center !important;
+    }
+    .sidebar.collapsed .brand img {
+      width: 32px !important;
+      height: 32px !important;
+      margin: 0 auto !important;
     }
   </style>
   <script>
@@ -1198,35 +1249,35 @@
       </div>
     </div>
         <ul class="nav-links">
-      <li class="nav-item active" onclick="switchTab('dashboard', this)" data-tab="dashboard">
+      <li class="nav-item active" onclick="switchTab('dashboard', this)" data-tab="dashboard" data-tooltip="Dashboard">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
         <span data-i18n="menu_dashboard">Dashboard</span>
       </li>
-      <li class="nav-item" onclick="switchTab('leads', this)" data-tab="leads">
+      <li class="nav-item" onclick="switchTab('leads', this)" data-tab="leads" data-tooltip="Adaylar">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         <span data-i18n="menu_leads">Müşteri Keşfi</span>
       </li>
-      <li class="nav-item" onclick="switchTab('pipeline', this)" data-tab="pipeline">
+      <li class="nav-item" onclick="switchTab('pipeline', this)" data-tab="pipeline" data-tooltip="CRM Hunisi">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12H3m18-6H3m18 12H3"/></svg>
         <span data-i18n="menu_pipeline">CRM & Satış Hunisi</span>
       </li>
-      <li class="nav-item" onclick="switchTab('campaigns', this)" data-tab="campaigns">
+      <li class="nav-item" onclick="switchTab('campaigns', this)" data-tab="campaigns" data-tooltip="Kampanyalar">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
         <span data-i18n="menu_campaigns">Çok Kanallı Erişim</span>
       </li>
-      <li class="nav-item" onclick="switchTab('waterfall', this)" data-tab="waterfall">
+      <li class="nav-item" onclick="switchTab('waterfall', this)" data-tab="waterfall" data-tooltip="Derin Web">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
         <span data-i18n="menu_waterfall">Derin Web Denetimi</span>
       </li>
-      <li class="nav-item" onclick="switchTab('history', this)" data-tab="history">
+      <li class="nav-item" onclick="switchTab('history', this)" data-tab="history" data-tooltip="Geçmiş">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/></svg>
         <span data-i18n="menu_history">Görevler & Geçmiş</span>
       </li>
-      <li class="nav-item" onclick="switchTab('unibox', this)" data-tab="unibox">
+      <li class="nav-item" onclick="switchTab('unibox', this)" data-tab="unibox" data-tooltip="AI RAG">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
         <span data-i18n="menu_unibox">AI RAG Asistanı</span>
       </li>
-      <li class="nav-item" onclick="switchTab('settings', this)" data-tab="settings">
+      <li class="nav-item" onclick="switchTab('settings', this)" data-tab="settings" data-tooltip="Ayarlar">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
         <span data-i18n="menu_settings">Ayarlar</span>
       </li>
@@ -1286,6 +1337,14 @@
               <option value="osm" data-i18n="opt_provider_osm">OpenStreetMap (Ücretsiz / OSM)</option>
               <option value="web_search" data-i18n="opt_provider_web">Web Arama (DDG Scraper / Web Search)</option>
               <option value="google_places" data-i18n="opt_provider_google">Google Places (API Anahtarlı)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="search-scan-depth" data-i18n="lbl_scan_depth">Tarama Derinliği</label>
+            <select id="search-scan-depth">
+              <option value="rapid" data-i18n="opt_depth_rapid">⚡ Hızlı (İlk 20 Sonuç)</option>
+              <option value="medium" selected data-i18n="opt_depth_medium">🔍 Orta (50 Sonuç, 3 Kaynak)</option>
+              <option value="deep" data-i18n="opt_depth_deep">🔬 Kapsamlı (200+ Sonuç, Tüm Kaynaklar)</option>
             </select>
           </div>
         </div>
@@ -1361,8 +1420,8 @@
     <!-- 👤 Leads Panel -->
     <div id="panel-leads" class="panel">
       <div>
-        <h1>Adaylar (Leads)</h1>
-        <p class="subtitle">Keşfedilmiş olan işletmeleri ve yapay zeka analizlerini inceleyin.</p>
+        <h1 data-i18n="leads_h1">Adaylar (Leads)</h1>
+        <p class="subtitle" data-i18n="leads_subtitle">Keşfedilmiş olan işletmeleri ve yapay zeka analizlerini inceleyin.</p>
       </div>
 
       <div class="split-layout">
@@ -1404,11 +1463,11 @@
             <table>
               <thead>
                 <tr>
-                  <th>İşletme Adı</th>
-                  <th>Sektör</th>
-                  <th>Konum</th>
-                  <th>Web</th>
-                  <th>Durum</th>
+                  <th onclick="sortLeads('business_name')" style="cursor:pointer;user-select:none;" data-i18n="th_business_name">İşletme Adı <span id="sort-indicator-business_name"></span></th>
+                  <th onclick="sortLeads('sector')" style="cursor:pointer;user-select:none;" data-i18n="th_sector">Sektör <span id="sort-indicator-sector"></span></th>
+                  <th onclick="sortLeads('address')" style="cursor:pointer;user-select:none;" data-i18n="th_location">Konum <span id="sort-indicator-address"></span></th>
+                  <th data-i18n="th_web">Web</th>
+                  <th onclick="sortLeads('status')" style="cursor:pointer;user-select:none;" data-i18n="th_status">Durum <span id="sort-indicator-status"></span></th>
                 </tr>
               </thead>
               <tbody id="leads-table-body">
@@ -1598,6 +1657,37 @@
       <div>
         <h1 data-i18n="settings_title">Ayarlar</h1>
         <p class="subtitle" data-i18n="settings_subtitle">API anahtarlarını, otomasyon ayarlarını ve bildirim kanallarını yapılandırın.</p>
+      </div>
+
+      <!-- Language & Theme Settings -->
+      <div class="stat-card" style="gap: 20px; max-width: 800px; margin-bottom: 0;">
+        <h2 style="font-family: var(--font-display); font-size: 1.1rem; color: var(--color-accent);" data-i18n="settings_section_ui">Arayüz Ayarları</h2>
+        <div class="form-row">
+          <div class="form-group">
+            <label data-i18n="lbl_language">Arayüz Dili / Interface Language</label>
+            <select id="cfg-language" onchange="handleLanguageChange(this.value)">
+              <option value="tr">🇹🇷 Türkçe</option>
+              <option value="en">🇬🇧 English</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label data-i18n="lbl_theme">Tema / Theme</label>
+            <select id="cfg-theme" onchange="handleThemeChange(this.value)">
+              <option value="theme-amethyst">💜 Amethyst (Varsayılan)</option>
+              <option value="theme-neon">💙 Neon Dark</option>
+              <option value="theme-emerald">💚 Emerald Forest</option>
+              <option value="theme-cyberpunk">🌸 Cyberpunk</option>
+              <option value="theme-midnight">🌊 Midnight Blue</option>
+              <option value="theme-amber">🟡 Amber Gold</option>
+              <option value="theme-rose">🌹 Rose</option>
+              <option value="theme-dracula">🧛 Dracula</option>
+              <option value="theme-solarized">☀️ Solarized Dark</option>
+              <option value="theme-slate">🔷 Slate</option>
+              <option value="theme-light">☀️ Light Mode</option>
+              <option value="theme-monochrome">⬛ Monochrome</option>
+            </select>
+          </div>
+        </div>
       </div>
 
       <div class="stat-card" style="gap: 24px; max-width: 800px;">
@@ -2138,26 +2228,27 @@
     </div>
   </div>
 
-  <!-- 📥 Unified Inbox Panel -->
-  <div id="panel-unibox" class="panel">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+  <!-- 📥 Unified Inbox & AI RAG Assistant Panel -->
+  <div id="panel-unibox" class="panel" style="width: 100%; max-width: 1400px; margin: 0 auto; box-sizing: border-box;">
+    <div class="unibox-wrapper">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
       <div>
-        <h1 style="font-family: var(--font-display);">Ortak Gelen Kutusu (Unified Inbox)</h1>
-        <p class="subtitle">E-posta, WhatsApp ve LinkedIn üzerinden gelen tüm yanıtları tek bir ekrandan yönetin.</p>
+        <h1 style="font-family: var(--font-display);" data-i18n="unibox_h1">AI RAG Asistanı & Ortak Gelen Kutusu (Unified Inbox)</h1>
+        <p class="subtitle" data-i18n="unibox_subtitle">E-posta, WhatsApp ve LinkedIn üzerinden gelen tüm yanıtları tek bir ekrandan yönetin.</p>
       </div>
-      <button class="btn btn-secondary" onclick="loadUnibox()" style="padding: 6px 12px; font-size: 0.8rem; height: 36px;">🔄 Yenile / Eşitle</button>
+      <button class="btn btn-secondary" onclick="loadUnibox()" style="padding: 6px 16px; font-size: 0.85rem; height: 36px;" data-i18n="btn_refresh_unibox">🔄 Yenile / Eşitle</button>
     </div>
 
     <div style="display: flex; gap: 16px; height: calc(100vh - 200px); background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 12px; overflow: hidden; padding: 12px;">
       <!-- Left Pane: Leads List -->
-      <div style="width: 280px; border-right: 1px solid var(--border-subtle); display: flex; flex-direction: column; gap: 8px; padding-right: 12px; overflow-y: auto;" id="unibox-leads-list">
+      <div style="width: 300px; border-right: 1px solid var(--border-subtle); display: flex; flex-direction: column; gap: 8px; padding-right: 12px; overflow-y: auto;" id="unibox-leads-list">
         <p style="color: var(--text-muted); font-size: 0.85rem; text-align: center; margin-top: 20px;">Sohbet geçmişi olan adaylar burada listelenir.</p>
       </div>
       
       <!-- Right Pane: Message Thread & Reply Input -->
       <div style="flex-grow: 1; display: flex; flex-direction: column; height: 100%;">
         <!-- Thread View -->
-        <div id="unibox-thread-view" style="flex-grow: 1; overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 12px; background: rgba(0,0,0,0.1); border-radius: 8px; margin-bottom: 12px;">
+        <div id="unibox-thread-view" style="flex-grow: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 12px; background: rgba(0,0,0,0.15); border-radius: 8px; margin-bottom: 12px;">
           <div style="text-align: center; color: var(--text-muted); margin-top: 100px;">Soldaki listeden bir aday seçerek sohbeti görüntüleyin.</div>
         </div>
         
@@ -2178,16 +2269,17 @@
         </div>
       </div>
     </div>
+    </div>
   </div>
 
-  <!-- ⚡ Waterfall Enrichment Panel -->
-  <div id="panel-waterfall" class="panel">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+  <!-- ⚡ Deep Web Audit & Waterfall Enrichment Panel -->
+  <div id="panel-waterfall" class="panel" style="width: 100%; max-width: 1400px; margin: 0 auto; height: calc(100vh - 80px); display: flex; flex-direction: column; box-sizing: border-box;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
       <div>
-        <h1 style="font-family: var(--font-display);">Dinamik Şelale Akış Editörü (Waterfall Enrichment)</h1>
-        <p class="subtitle">Veri toplama, zenginleştirme ve doğrulama adımlarının sıralamasını ve kurallarını özelleştirin.</p>
+        <h1 style="font-family: var(--font-display);" data-i18n="waterfall_h1">Derin Web Denetimi & Şelale Akış Editörü</h1>
+        <p class="subtitle" data-i18n="waterfall_subtitle">Veri toplama, zenginleştirme ve doğrulama adımlarının sıralamasını ve kurallarını özelleştirin.</p>
       </div>
-      <button class="btn btn-secondary" onclick="saveWaterfallConfigUi()" style="padding: 6px 16px; font-size: 0.8rem; height: 36px; background-color: var(--color-success); color: white;">💾 Kaydet</button>
+      <button class="btn btn-secondary" onclick="saveWaterfallConfigUi()" style="padding: 6px 16px; font-size: 0.85rem; height: 36px; background-color: var(--color-success); color: white;" data-i18n="btn_save_waterfall">💾 Kaydet</button>
     </div>
 
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; height: calc(100vh - 200px); overflow-y: auto;">
@@ -2276,6 +2368,284 @@
 
   <!-- ⚙️ JavaScript Application Bridge logic -->
   <script>
+
+// ============================================================
+// 🌍 i18n Translation System
+// ============================================================
+const TRANSLATIONS = {
+  tr: {
+    // Navigation
+    menu_dashboard: 'Dashboard',
+    menu_leads: 'Müşteri Keşfi',
+    menu_pipeline: 'CRM & Satış Hunisi',
+    menu_campaigns: 'Çok Kanallı Erişim',
+    menu_waterfall: 'Derin Web Denetimi',
+    menu_history: 'Görevler & Geçmiş',
+    menu_unibox: 'AI RAG Asistanı',
+    menu_settings: 'Ayarlar',
+    sidebar_toggle_title: 'Menüyü Daralt/Genişlet',
+    // Dashboard
+    dashboard_h1: 'Dashboard',
+    dashboard_subtitle_text: 'Müşteri keşif turları başlatın ve genel durum istatistiklerini takip edin.',
+    stat_new_discovered: 'Yeni Keşfedilen',
+    stat_ai_ready: 'AI Analizi Hazır',
+    stat_contacted: 'İletişime Geçilen',
+    stat_replied: 'Geri Dönüş Yapan',
+    discovery_form_title: 'Yeni Keşif Başlat',
+    lbl_search_sector: 'Sektör / Anahtar Kelimeler',
+    lbl_search_location: 'Konum / Şehir / Bölge / Ülke',
+    lbl_search_radius: 'Yarıçap (km)',
+    lbl_search_provider: 'Veri Kaynağı',
+    lbl_scan_depth: 'Tarama Derinliği',
+    lbl_search_country: 'Ülke(ler)',
+    lbl_search_city: 'Şehir(ler)',
+    lbl_search_region: 'Bölge / İlçe',
+    lbl_search_notes: 'Taslak Notu',
+    lbl_search_preset_name: 'Taslak / Preset Adı',
+    lbl_search_preset_select: 'Kayıtlı Taslaklar',
+    lbl_search_draft_select: 'Kayıtlı Arama Taslakları',
+    btn_save_preset: 'Preset Kaydet',
+    btn_save_draft: 'Taslak Kaydet',
+    btn_load_preset: 'Preset Yükle',
+    btn_load_draft: 'Taslak Yükle',
+    btn_start_discovery: 'Keşfi Başlat',
+    lbl_discovery_progress: 'Keşif İlerleme Durumu',
+    opt_provider_all: 'Tüm Kaynaklar (Önerilen)',
+    opt_provider_osm: 'OpenStreetMap (Ücretsiz)',
+    opt_provider_web: 'Web Arama (DDG Scraper)',
+    opt_provider_google: 'Google Places (API Anahtarlı)',
+    opt_depth_rapid: '⚡ Hızlı (İlk 20 Sonuç)',
+    opt_depth_medium: '🔍 Orta (50 Sonuç, 3 Kaynak)',
+    opt_depth_deep: '🔬 Kapsamlı (200+ Sonuç, Tüm Kaynaklar)',
+    ph_search_sector: 'kuaför\nmimar\ndiş kliniği',
+    ph_search_location: 'Kadıköy\nİstanbul\nTürkiye',
+    ph_search_radius: 'Boş = Sınırsız (Şehir Sınırları)',
+    ph_search_country: 'Türkiye\nAlmanya',
+    ph_search_city: 'İstanbul\nBerlin',
+    ph_search_region: 'Marmara\nKadıköy',
+    ph_search_notes: 'Örneğin: premium odak, yeni açılan işletmeler...',
+    ph_search_preset_name: 'Örneğin: İstanbul kuaför taraması',
+    opt_select_preset: 'Yüklenecek taslak seçin',
+    opt_select_draft: 'Taslak seçin',
+    // Leads
+    leads_h1: 'Adaylar (Leads)',
+    leads_subtitle: 'Keşfedilmiş olan işletmeleri ve yapay zeka analizlerini inceleyin.',
+    th_business_name: 'İşletme Adı',
+    th_sector: 'Sektör',
+    th_location: 'Konum',
+    th_web: 'Web',
+    th_status: 'Durum',
+    // Settings
+    settings_title: 'Ayarlar',
+    settings_subtitle: 'API anahtarlarını, otomasyon ayarlarını ve bildirim kanallarını yapılandırın.',
+    settings_sec_env: 'Uygulama Yapılandırması (.env)',
+    settings_section_llm: '1. LLM / Yapay Zeka Ayarları',
+    settings_section_google: '2. Google ve Arama Servisleri',
+    settings_section_ig: '3. Instagram Otomasyonu (Mod B)',
+    settings_section_notif: '4. Bildirim Kanalları (SMTP / Telegram)',
+    lbl_primary_llm: 'Birincil LLM Sağlayıcı',
+    lbl_fallback_llm: 'Yedek (Fallback) Sağlayıcı',
+    lbl_deepseek_key: 'DeepSeek API Anahtarı',
+    lbl_openai_key: 'OpenAI API Anahtarı',
+    lbl_anthropic_key: 'Anthropic API Anahtarı',
+    lbl_openrouter_key: 'OpenRouter API Anahtarı',
+    lbl_gemini_key: 'Gemini API Anahtarı',
+    lbl_groq_key: 'Groq API Anahtarı',
+    lbl_mistral_key: 'Mistral API Anahtarı',
+    lbl_ollama_url: 'Ollama Base URL (Yerel)',
+    lbl_google_places_key: 'Google Places API Anahtarı',
+    lbl_google_search_key: 'Google Custom Search API Anahtarı',
+    lbl_google_search_cx: 'Google Custom Search CX',
+    lbl_ig_username: 'Instagram Kullanıcı Adı',
+    lbl_ig_password: 'Instagram Şifresi',
+    lbl_ig_encryption_key: 'Oturum Şifreleme Anahtarı',
+    lbl_outreach_mode: 'Erişim Modu',
+    lbl_max_outreach: 'Günlük Maksimum Mesaj Limiti',
+    lbl_tg_token: 'Telegram Bot Token',
+    opt_assisted: 'Assisted Mod A (Clipboard & Tarayıcı - Güvenli)',
+    opt_full_auto: 'Mod B (Tam Otomasyon - Riskli)',
+    opt_none: 'Yok',
+    automation_risk_text: '⚠️ UYARI: Tam otomasyon modunun etkinleştirilmesi Instagram Kullanım Koşulları\'nı (ToS) ihlal eder. Hesabınızın kısıtlanması veya kapatılması riskini anlıyor musunuz?',
+    automation_confirm_label: 'Riskleri anladım, tam otomasyonu etkinleştirmek istiyorum.',
+    // Info modal descriptions
+    info_primary_llm_desc: 'Araştırma ve metin üretimi için kullanılacak birincil yapay zeka sağlayıcısı. DeepSeek önerilir (maliyet/kalite oranı).',
+    info_fallback_llm_desc: 'Birincil sağlayıcı başarısız olduğunda kullanılacak yedek sağlayıcı.',
+    info_deepseek_key_desc: 'DeepSeek API anahtarını platform.deepseek.com adresinden alabilirsiniz.',
+    info_openai_key_desc: 'OpenAI API anahtarını platform.openai.com adresinden alabilirsiniz.',
+    info_anthropic_key_desc: 'Anthropic Claude API anahtarını console.anthropic.com adresinden alabilirsiniz.',
+    info_openrouter_key_desc: 'OpenRouter birden fazla modele erişim sağlar. openrouter.ai adresinden alabilirsiniz.',
+    info_gemini_key_desc: 'Google Gemini API anahtarını aistudio.google.com adresinden alabilirsiniz.',
+    info_groq_key_desc: 'Groq çok hızlı inference sunar. console.groq.com adresinden alabilirsiniz.',
+    info_mistral_key_desc: 'Mistral AI API anahtarını console.mistral.ai adresinden alabilirsiniz.',
+    info_ollama_url_desc: 'Ollama yerel sunucusunun adresi. Varsayılan: http://localhost:11434',
+    info_google_places_key_desc: 'Google Places API ile işletme verileri çekilir. Google Cloud Console\'dan alabilirsiniz.',
+    info_google_search_key_desc: 'Google Custom Search API anahtarı. Google Cloud Console\'dan alabilirsiniz.',
+    info_google_search_cx_desc: 'Google Custom Search Engine ID. Özel arama motoru oluşturup ID alabilirsiniz.',
+    info_ig_username_desc: 'Instagram otomasyon için kullanılacak hesap kullanıcı adı.',
+    info_ig_password_desc: 'Instagram şifresi sadece RAM\'de tutulur, diske yazılmaz.',
+    info_ig_encryption_key_desc: 'Oturum dosyasını şifrelemek için kullanılan Fernet anahtarı.',
+    info_outreach_mode_desc: 'Mod A: Mesajı panoya kopyalar, elle göndermeniz gerekir. Mod B: Otomatik gönderir (risk içerir).',
+    info_max_outreach_desc: 'Günlük gönderilebilecek maksimum mesaj sayısı. Instagram için 15-20 önerilir.',
+    info_tg_token_desc: 'Telegram bot bildirimleri için @BotFather\'dan alınan token.',
+  },
+  en: {
+    // Navigation
+    menu_dashboard: 'Dashboard',
+    menu_leads: 'Lead Discovery',
+    menu_pipeline: 'CRM & Sales Funnel',
+    menu_campaigns: 'Multi-Channel Outreach',
+    menu_waterfall: 'Deep Web Audit',
+    menu_history: 'Tasks & History',
+    menu_unibox: 'AI RAG Assistant',
+    menu_settings: 'Settings',
+    sidebar_toggle_title: 'Toggle Sidebar',
+    // Dashboard
+    dashboard_h1: 'Dashboard',
+    dashboard_subtitle_text: 'Launch business discovery rounds and track overall status statistics.',
+    stat_new_discovered: 'Newly Discovered',
+    stat_ai_ready: 'AI Analysis Ready',
+    stat_contacted: 'Contacted',
+    stat_replied: 'Replied',
+    discovery_form_title: 'Start New Discovery',
+    lbl_search_sector: 'Sector / Keywords',
+    lbl_search_location: 'Location / City / Region / Country',
+    lbl_search_radius: 'Radius (km)',
+    lbl_search_provider: 'Data Source',
+    lbl_scan_depth: 'Scan Depth',
+    lbl_search_country: 'Country/Countries',
+    lbl_search_city: 'City/Cities',
+    lbl_search_region: 'Region / District',
+    lbl_search_notes: 'Draft Note',
+    lbl_search_preset_name: 'Preset / Draft Name',
+    lbl_search_preset_select: 'Saved Presets',
+    lbl_search_draft_select: 'Saved Drafts',
+    btn_save_preset: 'Save Preset',
+    btn_save_draft: 'Save Draft',
+    btn_load_preset: 'Load Preset',
+    btn_load_draft: 'Load Draft',
+    btn_start_discovery: 'Start Discovery',
+    lbl_discovery_progress: 'Discovery Progress',
+    opt_provider_all: 'All Sources (Recommended)',
+    opt_provider_osm: 'OpenStreetMap (Free)',
+    opt_provider_web: 'Web Search (DDG Scraper)',
+    opt_provider_google: 'Google Places (API Key Required)',
+    opt_depth_rapid: '⚡ Rapid (First 20 Results)',
+    opt_depth_medium: '🔍 Medium (50 Results, 3 Sources)',
+    opt_depth_deep: '🔬 Deep (200+ Results, All Sources)',
+    ph_search_sector: 'hair salon\narchitect\ndental clinic',
+    ph_search_location: 'Kadıköy\nIstanbul\nTurkey',
+    ph_search_radius: 'Empty = Unlimited (City Bounds)',
+    ph_search_country: 'Turkey\nGermany',
+    ph_search_city: 'Istanbul\nBerlin',
+    ph_search_region: 'Marmara\nKadıköy',
+    ph_search_notes: 'e.g.: premium focus, newly opened businesses...',
+    ph_search_preset_name: 'e.g.: Istanbul salon scan',
+    opt_select_preset: 'Select preset to load',
+    opt_select_draft: 'Select draft',
+    // Leads
+    leads_h1: 'Leads',
+    leads_subtitle: 'Browse discovered businesses and their AI analysis.',
+    th_business_name: 'Business Name',
+    th_sector: 'Sector',
+    th_location: 'Location',
+    th_web: 'Web',
+    th_status: 'Status',
+    // Settings
+    settings_title: 'Settings',
+    settings_subtitle: 'Configure API keys, automation settings and notification channels.',
+    settings_sec_env: 'Application Configuration (.env)',
+    settings_section_llm: '1. LLM / AI Settings',
+    settings_section_google: '2. Google & Search Services',
+    settings_section_ig: '3. Instagram Automation (Mod B)',
+    settings_section_notif: '4. Notification Channels (SMTP / Telegram)',
+    lbl_primary_llm: 'Primary LLM Provider',
+    lbl_fallback_llm: 'Fallback Provider',
+    lbl_deepseek_key: 'DeepSeek API Key',
+    lbl_openai_key: 'OpenAI API Key',
+    lbl_anthropic_key: 'Anthropic API Key',
+    lbl_openrouter_key: 'OpenRouter API Key',
+    lbl_gemini_key: 'Gemini API Key',
+    lbl_groq_key: 'Groq API Key',
+    lbl_mistral_key: 'Mistral API Key',
+    lbl_ollama_url: 'Ollama Base URL (Local)',
+    lbl_google_places_key: 'Google Places API Key',
+    lbl_google_search_key: 'Google Custom Search API Key',
+    lbl_google_search_cx: 'Google Custom Search CX',
+    lbl_ig_username: 'Instagram Username',
+    lbl_ig_password: 'Instagram Password',
+    lbl_ig_encryption_key: 'Session Encryption Key',
+    lbl_outreach_mode: 'Outreach Mode',
+    lbl_max_outreach: 'Daily Maximum Message Limit',
+    lbl_tg_token: 'Telegram Bot Token',
+    opt_assisted: 'Assisted Mode A (Clipboard & Browser - Safe)',
+    opt_full_auto: 'Mode B (Full Automation - Risky)',
+    opt_none: 'None',
+    automation_risk_text: '⚠️ WARNING: Enabling full automation violates Instagram Terms of Service. Do you understand the risk of account restriction or termination?',
+    automation_confirm_label: 'I understand the risks and want to enable full automation.',
+    info_primary_llm_desc: 'Primary AI provider for research and text generation. DeepSeek recommended (cost/quality ratio).',
+    info_fallback_llm_desc: 'Fallback provider when primary fails.',
+    info_deepseek_key_desc: 'Get your DeepSeek API key from platform.deepseek.com.',
+    info_openai_key_desc: 'Get your OpenAI API key from platform.openai.com.',
+    info_anthropic_key_desc: 'Get your Anthropic Claude API key from console.anthropic.com.',
+    info_openrouter_key_desc: 'OpenRouter provides access to multiple models. Get key from openrouter.ai.',
+    info_gemini_key_desc: 'Get your Google Gemini API key from aistudio.google.com.',
+    info_groq_key_desc: 'Groq offers very fast inference. Get key from console.groq.com.',
+    info_mistral_key_desc: 'Get your Mistral AI API key from console.mistral.ai.',
+    info_ollama_url_desc: 'Address of local Ollama server. Default: http://localhost:11434',
+    info_google_places_key_desc: 'Google Places API for business data. Get from Google Cloud Console.',
+    info_google_search_key_desc: 'Google Custom Search API key. Get from Google Cloud Console.',
+    info_google_search_cx_desc: 'Google Custom Search Engine ID.',
+    info_ig_username_desc: 'Instagram account username for automation.',
+    info_ig_password_desc: 'Instagram password kept in RAM only, never written to disk.',
+    info_ig_encryption_key_desc: 'Fernet key for encrypting session file.',
+    info_outreach_mode_desc: 'Mode A: Copies message to clipboard for manual sending. Mode B: Auto-sends (risky).',
+    info_max_outreach_desc: 'Max messages per day. 15-20 recommended for Instagram.',
+    info_tg_token_desc: 'Token from @BotFather for Telegram bot notifications.',
+  }
+};
+
+let currentLanguage = localStorage.getItem('aegis-language') || 'tr';
+
+function getTranslation(key, lang) {
+  const l = lang || currentLanguage;
+  return (TRANSLATIONS[l] && TRANSLATIONS[l][key]) || (TRANSLATIONS['tr'] && TRANSLATIONS['tr'][key]) || key;
+}
+
+function applyLanguage(lang) {
+  currentLanguage = lang || 'tr';
+  localStorage.setItem('aegis-language', currentLanguage);
+  
+  // Apply data-i18n text content
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    const val = getTranslation(key);
+    if (val && val !== key) {
+      el.textContent = val;
+    }
+  });
+  
+  // Apply data-i18n-placeholder
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    const key = el.getAttribute('data-i18n-placeholder');
+    const val = getTranslation(key);
+    if (val && val !== key) {
+      el.placeholder = val;
+    }
+  });
+  
+  // Apply data-i18n-title
+  document.querySelectorAll('[data-i18n-title]').forEach(el => {
+    const key = el.getAttribute('data-i18n-title');
+    const val = getTranslation(key);
+    if (val && val !== key) {
+      el.title = val;
+    }
+  });
+  
+  // Update html lang attribute
+  document.documentElement.lang = currentLanguage;
+}
+
     // Global Error Logger for UI Debugging
     window.onerror = function(message, source, lineno, colno, error) {
       // Always attempt to close any stuck modals so buttons behind them stay clickable
@@ -2737,7 +3107,8 @@
       const notes = document.getElementById('search-notes').value;
       const radius = document.getElementById('search-radius').value;
       const provider = document.getElementById('search-provider').value;
-      const composedLocation = [location, city, region, country].filter(Boolean).join('\\n');
+      const scanDepth = document.getElementById('search-scan-depth') ? document.getElementById('search-scan-depth').value : 'medium';
+      const composedLocation = [location, city, region, country].filter(Boolean).join('\n');
 
       if (!sector || !location) {
         showToast("Lütfen sektör ve konum alanlarını doldurun.", "error");
@@ -2755,11 +3126,11 @@
       document.getElementById('discovery-btn-text').innerText = "Keşfediliyor...";
       document.getElementById('discovery-loader').classList.remove('hidden');
 
-      updateDiscoveryProgress("Talep alındı, keşif başlatılıyor...");
+      updateDiscoveryProgress("Talep alındı, keşif başlatılıyor... (Derinlik: " + scanDepth + ")");
 
       const startBtn = document.getElementById('btn-start-discovery');
       const promise = _apiCall(
-        () => window.pywebview.api.discover_leads(sector, composedLocation, radius, provider),
+        () => window.pywebview.api.discover_leads(sector, composedLocation, radius, provider, scanDepth),
         { action: 'Keşif başlat' }
       );
       // Hard-disable while in-flight (defence in depth) — async finishDiscovery
@@ -2937,6 +3308,33 @@
     let allSearches = [];
     let renderLimit = 50;
     let nextRenderIndex = 0;
+    let _currentSortBy = 'id';
+    let _currentSortDir = 'desc';
+
+    function sortLeads(col) {
+      if (_currentSortBy === col) {
+        _currentSortDir = _currentSortDir === 'asc' ? 'desc' : 'asc';
+      } else {
+        _currentSortBy = col;
+        _currentSortDir = 'asc';
+      }
+      // Update sort indicators
+      document.querySelectorAll('[id^="sort-indicator-"]').forEach(el => el.textContent = '');
+      const indicator = document.getElementById('sort-indicator-' + col);
+      if (indicator) indicator.textContent = _currentSortDir === 'asc' ? ' ↑' : ' ↓';
+      loadLeads();
+    }
+
+function handleLanguageChange(lang) {
+  applyLanguage(lang);
+  try { pywebview.api.set_config_value('app.gui_language', lang); } catch(e) {}
+}
+
+function handleThemeChange(theme) {
+  document.body.className = theme;
+  localStorage.setItem('aegis-theme', theme);
+  try { pywebview.api.set_config_value('app.gui_theme', theme); } catch(e) {}
+}
 
     // Load Leads List
     function loadLeads(keepScroll = false) {
@@ -2954,7 +3352,7 @@
         }
       }
       
-      _apiCall(() => window.pywebview.api.get_leads(filter, searchLogId), { action: 'Müşteri adaylarını yükle' }).then(leads => {
+      _apiCall(() => window.pywebview.api.get_leads(filter, searchLogId, '', '', '', _currentSortBy, _currentSortDir), { action: 'Müşteri adaylarını yükle' }).then(leads => {
         if (!leads) return;
         if (leads.error) {
           showToast("Leads alınamadı: " + leads.error, "error");
@@ -3100,6 +3498,22 @@
           { key: 'telegram',  label: 'Telegram',  url: lead.telegram_url, handle: lead.telegram_url, bg: '#229ed9' },
           { key: 'twitter',   label: 'X/Twitter', url: lead.twitter_url,  handle: lead.twitter_url,  bg: '#1d1d1d' },
         ];
+
+    function toggleLeadDetailExpand() {
+      const detailView = document.getElementById('lead-detail-view');
+      const splitLeft = document.querySelector('#panel-candidates .split-left');
+      if (!detailView) return;
+      if (detailView.classList.contains('expanded')) {
+        detailView.classList.remove('expanded');
+        detailView.style.flex = '1';
+        if (splitLeft) splitLeft.style.display = 'flex';
+      } else {
+        detailView.classList.add('expanded');
+        detailView.style.flex = '2';
+        if (splitLeft) splitLeft.style.display = 'none';
+      }
+    }
+
         const socialGridHtml = socialChips.map(chip => {
           if (chip.url) {
             return `<div class="social-chip is-active">
@@ -3130,50 +3544,61 @@
           </div>`
         ).join('') || '<p style="color: var(--text-muted); font-size: 0.85rem;">Mesajlaşma geçmişi yok.</p>';
 
-        detailView.innerHTML = `
-          <h2 style="font-family: var(--font-display); font-size: 1.4rem;">${escapeHtml(lead.business_name)}</h2>
+        // Profile avatar resolution
+        const fallbackAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(lead.business_name || 'Aday')}&background=6366f1&color=fff&rounded=true&bold=true`;
+        const avatarSrc = lead.profile_image_url || fallbackAvatar;
+        const profileImgHtml = `<img src="${escapeHtml(avatarSrc)}" alt="Profil" style="width:64px;height:64px;border-radius:50%;object-fit:cover;border:2px solid var(--color-brand);flex-shrink:0;box-shadow:0 4px 12px rgba(0,0,0,0.3);" onerror="this.src='${fallbackAvatar}'">`;
 
-          <div class="detail-section">
-            <div style="display: flex; gap: 24px; font-size: 0.85rem; color: var(--text-muted);">
-              <span><b>Sektör:</b> ${escapeHtml(lead.sector || '-')}</span>
-              <span><b>Puan:</b> ${lead.rating || '-'} (${lead.review_count || '0'} yorum)</span>
+        detailView.innerHTML = `
+          <!-- Header Card -->
+          <div style="background:var(--bg-surface); border:1px solid var(--border-subtle); border-radius:12px; padding:16px; margin-bottom:16px; display:flex; justify-content:space-between; align-items:center;">
+            <div style="display:flex; gap:16px; align-items:center;">
+              ${profileImgHtml}
+              <div>
+                <h2 style="font-family: var(--font-display); font-size: 1.3rem; margin:0; color:var(--text-main);">${escapeHtml(lead.business_name)}</h2>
+                <div style="font-size: 0.8rem; color:var(--text-muted); margin-top:4px; display:flex; gap:12px; align-items:center;">
+                  <span style="background:rgba(99,102,241,0.15); color:var(--color-brand); padding:2px 8px; border-radius:6px; font-weight:600;">${escapeHtml(lead.sector || 'Sektör Belirtilmedi')}</span>
+                  <span>⭐ ${lead.rating || '-'} (${lead.review_count || '0'} yorum)</span>
+                </div>
+              </div>
             </div>
-            <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">
-              <span><b>Adres:</b> ${escapeHtml(lead.address || '-')}</span>
-            </div>
-            <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">
-              <span><b>Telefon:</b> ${escapeHtml(lead.phone || '-')}</span>
-            </div>
-            <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">
-              <span><b>Web:</b> ${webLink}</span>
-            </div>
-            <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">
-              <span><b>Instagram:</b> ${igLink}</span>
+            <button class="btn btn-secondary" style="font-size:0.75rem; padding:6px 10px; height:32px;" onclick="toggleLeadDetailExpand()" title="Paneli Genişlet / Daralt">↔ Genişlet</button>
+          </div>
+
+          <!-- Contact & Core Info Card -->
+          <div class="detail-section" style="background:var(--bg-surface); border:1px solid var(--border-subtle); border-radius:12px; padding:16px; margin-bottom:16px;">
+            <h3 style="margin-top:0; font-size:0.95rem; border-bottom:1px solid var(--border-subtle); padding-bottom:8px; color:var(--text-main);">📌 İletişim &amp; Adres Bilgileri</h3>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; font-size:0.85rem; color:var(--text-main);">
+              <div><b style="color:var(--text-muted);">Adres:</b> <br>${escapeHtml(lead.address || '-')}</div>
+              <div><b style="color:var(--text-muted);">Telefon:</b> <br>${escapeHtml(lead.phone || '-')}</div>
+              <div><b style="color:var(--text-muted);">E-Posta:</b> <br>${escapeHtml(lead.email || 'Bulunamadı')}</div>
+              <div><b style="color:var(--text-muted);">Web Sitesi:</b> <br>${webLink}</div>
+              <div><b style="color:var(--text-muted);">Instagram:</b> <br>${igLink}</div>
+              <div><b style="color:var(--text-muted);">Veri Kaynağı:</b> <br><span style="text-transform:uppercase; font-size:0.75rem; font-weight:bold; color:var(--color-accent);">${escapeHtml(lead.raw_source || 'OSINT')}</span></div>
             </div>
           </div>
 
-          <div class="detail-section">
-            <h3>Sosyal Medya</h3>
-            <div class="social-grid">${socialGridHtml}</div>
-            <div style="display: flex; gap: 8px; margin-top: 6px; flex-wrap: wrap;">
-              <button class="btn btn-secondary" id="btn-social-${lead.id}" style="font-size: 0.8rem;" onclick="triggerSocialDiscovery(${lead.id})">🌐 Çoklu Platform Keşfi</button>
+          <!-- Social & OSINT Card -->
+          <div class="detail-section" style="background:var(--bg-surface); border:1px solid var(--border-subtle); border-radius:12px; padding:16px; margin-bottom:16px;">
+            <h3 style="margin-top:0; font-size:0.95rem; border-bottom:1px solid var(--border-subtle); padding-bottom:8px; color:var(--text-main);">🌐 Sosyal Medya &amp; OSINT Araçları</h3>
+            <div class="social-grid" style="margin-bottom:12px;">${socialGridHtml}</div>
+            
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom:12px;">
+              <button class="btn btn-secondary" id="btn-social-${lead.id}" style="font-size: 0.8rem; background:var(--bg-base); border:1px solid var(--border-accent);" onclick="triggerSocialDiscovery(${lead.id})">🌐 Çoklu Platform Keşfi</button>
               <button class="btn btn-secondary" id="btn-verify-email-${lead.id}" style="font-size: 0.8rem; background-color: #10b981; color: white;" onclick="triggerEmailVerify('${lead.email}', ${lead.id})">🛡️ E-Postayı Doğrula</button>
               <button class="btn btn-secondary" id="btn-screen-audit-${lead.id}" style="font-size: 0.8rem; background-color: #6366f1; color: white;" onclick="triggerScreenAudit(${lead.id})">🚀 Screen-Audit Başlat</button>
               <button class="btn btn-secondary" id="btn-waterfall-${lead.id}" style="font-size: 0.8rem; background-color: #f59e0b; color: white;" onclick="triggerWaterfall(${lead.id})">⚡ Şelale Akışı Çalıştır</button>
             </div>
+
             ${lead.instagram_bio ? `
-            <div style="margin-top: 8px; padding: 10px 12px; background: var(--bg-base); border: 1px solid var(--border-subtle); border-radius: 8px; font-size: 0.8rem; color: var(--text-muted); white-space: pre-wrap;">${escapeHtml(lead.instagram_bio)}</div>
+            <div style="padding: 10px; background: var(--bg-base); border: 1px solid var(--border-subtle); border-radius: 8px; font-size: 0.8rem; color: var(--text-muted); white-space: pre-wrap;"><b>Biyografi:</b> ${escapeHtml(lead.instagram_bio)}</div>
             ` : ''}
           </div>
 
-          <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-            <button class="btn btn-secondary" id="btn-research-${lead.id}" onclick="triggerResearch(${lead.id})">Araştır &amp; AI Taslağı Üret</button>
-            <button class="btn btn-danger" onclick="pasGecLead(${lead.id})">Pas Geç</button>
-            <button class="btn btn-secondary" style="font-size:0.8rem;" onclick="doNotContactLead(${lead.id})">🚫 İletişim Kurma</button>
-          </div>
-
-          <div class="detail-section">
-            <h3>Teknik Denetim &amp; AI Öncelik Skoru</h3>
+          <!-- AI Priority & Technical Audit -->
+          <div class="detail-section" style="background:var(--bg-surface); border:1px solid var(--border-subtle); border-radius:12px; padding:16px; margin-bottom:16px;">
+            <h3 style="margin-top:0; font-size:0.95rem; border-bottom:1px solid var(--border-subtle); padding-bottom:8px; color:var(--text-main);">🔬 Teknik Denetim &amp; AI Skorlama</h3>
+            
             <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 12px;">
               <div style="background-color: var(--bg-base); padding: 10px; border-radius: 8px; border: 1px solid var(--border-subtle);">
                 <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px;">AI ÖNCELİK ETİKETİ</div>
@@ -3188,23 +3613,10 @@
                 </div>
               </div>
             </div>
-            
-            <div style="display: flex; flex-direction: column; gap: 8px; font-size: 0.85rem;">
-              <div><b>E-posta:</b> ${escapeHtml(lead.email || 'Bulunamadı')}</div>
-              <div><b>Doğrulama Durumu:</b> 
-                ${lead.email_verification_status ? `
-                  <span style="font-weight:bold; color:${lead.email_verification_status === 'valid' ? '#10b981' : (lead.email_verification_status === 'mx_only' ? '#3b82f6' : '#ef4444')};">
-                    ${lead.email_verification_status.toUpperCase()}
-                  </span>
-                  <br><small style="color:var(--text-muted);">${escapeHtml(lead.email_verification_details || '')}</small>
-                ` : '<span style="color:var(--text-muted)">Doğrulanmadı</span>'}
-              </div>
-              <div><b>KVKK / Çerez Uyumluluğu:</b> 
-                ${lead.kvkk_compliant === true ? '<span style="color:#10b981; font-weight:bold;">✓ Uyumlu</span>' : (lead.kvkk_compliant === false ? '<span style="color:#ef4444; font-weight:bold;">✕ Uyumsuz (Politika eksik)</span>' : '<span style="color:var(--text-muted)">Denetlenmedi</span>')}
-              </div>
-              <div><b>Kırık Link Denetimi:</b> 
-                ${lead.has_broken_links === true ? `<span style="color:#ef4444; font-weight:bold;">⚠ Kırık Link Var</span><br><small style="color:var(--text-muted);">${escapeHtml(lead.broken_links_details || '')}</small>` : (lead.has_broken_links === false ? '<span style="color:#10b981; font-weight:bold;">✓ Kırık Link Yok</span>' : '<span style="color:var(--text-muted)">Denetlenmedi</span>')}
-              </div>
+
+            <div style="display: flex; flex-direction: column; gap: 8px; font-size: 0.85rem; color:var(--text-main);">
+              <div><b>KVKK / Çerez Uyumluluğu:</b> ${lead.kvkk_compliant === true ? '<span style="color:#10b981; font-weight:bold;">✓ Uyumlu</span>' : (lead.kvkk_compliant === false ? '<span style="color:#ef4444; font-weight:bold;">✕ Uyumsuz (Politika eksik)</span>' : '<span style="color:var(--text-muted)">Denetlenmedi</span>')}</div>
+              <div><b>Kırık Link Denetimi:</b> ${lead.has_broken_links === true ? `<span style="color:#ef4444; font-weight:bold;">⚠ Kırık Link Var</span><br><small style="color:var(--text-muted);">${escapeHtml(lead.broken_links_details || '')}</small>` : (lead.has_broken_links === false ? '<span style="color:#10b981; font-weight:bold;">✓ Kırık Link Yok</span>' : '<span style="color:var(--text-muted)">Denetlenmedi</span>')}</div>
               <div style="display: flex; gap: 16px; margin-top: 4px;">
                 <span><b>PageSpeed (Masaüstü):</b> ${lead.page_speed_desktop !== null ? lead.page_speed_desktop + '/100' : '-'}</span>
                 <span><b>PageSpeed (Mobil):</b> ${lead.page_speed_mobile !== null ? lead.page_speed_mobile + '/100' : '-'}</span>
@@ -3216,19 +3628,21 @@
               ${lead.screenshot_path ? `
               <div style="margin-top: 12px;">
                 <b>Sitenin Ekran Görüntüsü:</b>
-                <div style="margin-top: 6px; border: 1px solid var(--border-subtle); border-radius: 8px; overflow: hidden; max-height: 180px;">
+                <div style="margin-top: 6px; border: 1px solid var(--border-subtle); border-radius: 8px; overflow: hidden; max-height: 200px;">
                   <img src="file:///${lead.screenshot_path}" style="width:100%; object-fit:cover; cursor:pointer;" onclick="viewFullImage('file:///${lead.screenshot_path}')" />
                 </div>
               </div>
               ` : ''}
+              
               ${lead.visual_audit_notes ? `
-              <div style="margin-top: 8px; padding: 10px; background: rgba(99,102,241,0.05); border: 1px solid rgba(99,102,241,0.2); border-radius: 8px;">
+              <div style="margin-top: 8px; padding: 10px; background: rgba(99,102,241,0.08); border: 1px solid rgba(99,102,241,0.2); border-radius: 8px;">
                 <div style="font-size: 0.75rem; font-weight: bold; color: #818cf8; margin-bottom: 4px;">GÖRSEL ANALİZ NOTLARI</div>
                 <div style="font-size: 0.8rem; color: var(--text-main);">${escapeHtml(lead.visual_audit_notes)}</div>
               </div>
               ` : ''}
+              
               ${lead.outreach_hook ? `
-              <div style="margin-top: 8px; padding: 10px; background: rgba(245,158,11,0.05); border: 1px solid rgba(245,158,11,0.2); border-radius: 8px;">
+              <div style="margin-top: 8px; padding: 10px; background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.2); border-radius: 8px;">
                 <div style="font-size: 0.75rem; font-weight: bold; color: #fbbf24; margin-bottom: 4px;">KİŞİSELLEŞTİRİLMİŞ KANCA (THE HOOK)</div>
                 <div style="font-size: 0.8rem; color: var(--text-main); font-style: italic;">"${escapeHtml(lead.outreach_hook)}"</div>
                 <div style="margin-top: 6px; display:flex; justify-content:flex-end;">
@@ -3239,9 +3653,30 @@
             </div>
           </div>
 
-          <div class="detail-section">
-            <h3>Araştırma Notları &amp; Skor</h3>
-            <p style="font-size: 0.9rem; margin-bottom: 8px;"><b>Web Kalite Skoru:</b> ${lead.website_quality_score !== null ? lead.website_quality_score + '/100' : 'Hesaplanmamış'}</p>
+          <!-- Action & Research Card -->
+          <div class="detail-section" style="background:var(--bg-surface); border:1px solid var(--border-subtle); border-radius:12px; padding:16px; margin-bottom:16px;">
+            <h3 style="margin-top:0; font-size:0.95rem; border-bottom:1px solid var(--border-subtle); padding-bottom:8px; color:var(--text-main);">🤖 Yapay Zeka Taslağı &amp; İşlem Eylemleri</h3>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom:12px;">
+              <button class="btn btn-secondary" id="btn-research-${lead.id}" style="background:var(--color-brand); color:white;" onclick="triggerResearch(${lead.id})">⚡ Araştır &amp; AI Taslağı Üret</button>
+              <button class="btn btn-danger" onclick="pasGecLead(${lead.id})">Pas Geç</button>
+              <button class="btn btn-secondary" style="font-size:0.8rem;" onclick="doNotContactLead(${lead.id})">🚫 İletişim Kurma</button>
+            </div>
+
+            <div style="margin-top:12px;">
+              <h4 style="font-size:0.85rem; margin-bottom:6px; color:var(--text-muted);">Düzenlenebilir AI Mesaj Taslağı:</h4>
+              <textarea id="edit-draft-box" style="width:100%; height:100px; padding:10px; border-radius:8px; background:var(--bg-base); border:1px solid var(--border-accent); color:var(--text-main); font-size:0.85rem; resize:vertical; outline:none; box-sizing:border-box;">${escapeHtml(draftMessage)}</textarea>
+              <div style="display:flex; justify-content:flex-end; margin-top:8px;">
+                <button class="btn btn-secondary" style="font-size:0.8rem; background-color:var(--color-success); color:white;" onclick="saveDraft(${lead.id})">💾 Taslağı Kaydet</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Research Notes Card -->
+          <div class="detail-section" style="background:var(--bg-surface); border:1px solid var(--border-subtle); border-radius:12px; padding:16px;">
+            <h3 style="margin-top:0; font-size:0.95rem; border-bottom:1px solid var(--border-subtle); padding-bottom:8px; color:var(--text-main);">📝 Araştırma Notları Geçmişi</h3>
+            <div style="display:flex; flex-direction:column; gap:8px;">${notesHtml}</div>
+          </div>
+        `;
             <div style="display: flex; flex-direction: column; gap: 8px;">${notesHtml}</div>
           </div>
 

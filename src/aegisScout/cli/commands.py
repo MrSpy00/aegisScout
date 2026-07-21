@@ -105,9 +105,12 @@ def _split_multi_value(value: str) -> list[str]:
 # New keyless providers are appended here. Providers needing an API key
 # (e.g. Google Places) are kept out of this list and added conditionally.
 # ---------------------------------------------------------------------------
+from aegisScout.discovery.doktorsitesi_provider import DoktorSitesiDiscoveryProvider
+
 BASE_DISCOVERY_PROVIDERS: list[tuple[str, type]] = [
     ("osm", OSMDiscoveryProvider),
     ("web_search", WebSearchDiscoveryProvider),
+    ("doktorsitesi", DoktorSitesiDiscoveryProvider),
     ("google_maps_scraper", GoogleMapsScraperDiscoveryProvider),
     ("yelp_tripadvisor", YelpTripAdvisorDiscoveryProvider),
     ("sahibinden_sarisayfalar", SahibindenSariSayfalarDiscoveryProvider),

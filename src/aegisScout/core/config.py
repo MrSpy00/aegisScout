@@ -111,9 +111,31 @@ class AppSettings(BaseSettings):
     # --- Database override (empty = use default SQLite file in ./data) ---
     database_url: str = ""
 
+    # --- OSINT & Search APIs ---
+    emailosint_api_key: Optional[str] = None
+    serper_api_key: Optional[str] = None
+    serpapi_api_key: Optional[str] = None
+
     # --- GUI & UI Preferences ---
     gui_theme: str = "theme-amethyst"
     gui_language: str = "tr"
+
+    # --- Multi-Key Rotation Helper ---
+    _key_indices: dict = {}
+
+    def get_next_api_key(self, field_name: str) -> Optional[str]:
+        """Return next API key for provider, cycling through comma-separated keys if provided."""
+        val = getattr(self, field_name, None)
+        if not val:
+            return None
+        keys = [k.strip() for k in str(val).split(",") if k.strip()]
+        if not keys:
+            return None
+        if not hasattr(self, "_key_indices") or self._key_indices is None:
+            object.__setattr__(self, "_key_indices", {})
+        idx = self._key_indices.get(field_name, 0) % len(keys)
+        self._key_indices[field_name] = idx + 1
+        return keys[idx]
 
     # --- Pydantic config ---
     model_config = SettingsConfigDict(

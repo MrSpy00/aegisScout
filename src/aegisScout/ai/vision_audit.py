@@ -49,8 +49,23 @@ async def capture_website_screenshot(
             await browser.close()
             return True
     except Exception as e:
-        logger.warning(f"Playwright screenshot capture failed for {url}: {e}")
-        return False
+        logger.warning(f"Playwright screenshot capture failed for {url}: {e}. Trying HTTP web-shot fallback...")
+
+    # Fallback via public web-shot rendering service
+    try:
+        shot_url = f"https://image.thum.io/get/width/{viewport_width}/crop/{viewport_height}/{url}"
+        async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as client:
+            resp = await client.get(shot_url)
+            if resp.status_code == 200 and len(resp.content) > 1000:
+                Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+                with open(output_path, "wb") as f:
+                    f.write(resp.content)
+                logger.info(f"Fallback screenshot saved successfully for {url}")
+                return True
+    except Exception as fallback_err:
+        logger.warning(f"Fallback web-shot failed for {url}: {fallback_err}")
+
+    return False
 
 
 class VisionAuditManager:

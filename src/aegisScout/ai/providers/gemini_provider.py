@@ -39,9 +39,10 @@ class GeminiProvider(BaseLLMProvider):
             f"{model}:generateContent"
         )
 
-    def _build_headers(self) -> dict[str, str]:
+    def _build_headers(self, api_key: Optional[str] = None) -> dict[str, str]:
+        key = api_key or settings.get_next_api_key("gemini_api_key") or self.api_key or ""
         return {
-            "X-Goog-Api-Key": self.api_key or "",
+            "X-Goog-Api-Key": key,
             "Content-Type": "application/json",
         }
 
@@ -68,7 +69,8 @@ class GeminiProvider(BaseLLMProvider):
         system_prompt: Optional[str] = None,
         **kwargs,
     ) -> str:
-        if not self.api_key:
+        active_key = settings.get_next_api_key("gemini_api_key") or self.api_key
+        if not active_key:
             raise ProviderError(
                 f"{self.provider_name}: API key not configured "
                 f"(set {self.api_key_env})."
@@ -77,7 +79,7 @@ class GeminiProvider(BaseLLMProvider):
         model = kwargs.get("model", GEMINI_DEFAULT_MODEL)
         temperature = kwargs.get("temperature", 0.7)
         url = self._build_url(model)
-        headers = self._build_headers()
+        headers = self._build_headers(active_key)
         payload = self._build_payload(prompt, system_prompt, temperature)
 
         async def _do_request() -> httpx.Response:

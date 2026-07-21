@@ -65,16 +65,26 @@ _TOML_KEYS = {
     "outreach.tone": ("outreach", "tone"),
     "outreach.company_name": ("outreach", "company_name"),
     "outreach.mod_b_acknowledged": ("outreach", "mod_b_acknowledged"),
+    "outreach.daily_limit": ("outreach", "daily_limit"),
     "rate_limits.instagram_actions_per_hour": ("rate_limits", "instagram_actions_per_hour"),
     "rate_limits.instagram_actions_per_day": ("rate_limits", "instagram_actions_per_day"),
     "rate_limits.scrape_delay_min_seconds": ("rate_limits", "scrape_delay_min_seconds"),
     "rate_limits.scrape_delay_max_seconds": ("rate_limits", "scrape_delay_max_seconds"),
     "discovery.default_search_radius_km": ("discovery", "default_search_radius_km"),
     "discovery.target_sectors": ("discovery", "target_sectors"),
+    "discovery.scan_depth": ("discovery", "scan_depth"),
     "app.name": ("app", "name"),
+    "app.gui_theme": ("app", "gui_theme"),
+    "app.gui_language": ("app", "gui_language"),
+    "app.show_watermark": ("app", "show_watermark"),
     "notifications.telegram_enabled": ("notifications", "telegram_enabled"),
     "notifications.email_enabled": ("notifications", "email_enabled"),
     "app.show_console": ("app", "show_console"),
+    "app.gui_theme": ("app", "gui_theme"),
+    "app.gui_language": ("app", "gui_language"),
+    "app.show_watermark": ("app", "show_watermark"),
+    "discovery.scan_depth": ("discovery", "scan_depth"),
+    "outreach.daily_limit": ("outreach", "daily_limit"),
 }
 
 # Sensitive keys — must be persisted to .env, never to config.toml.
@@ -111,6 +121,9 @@ _ENV_KEYS = {
     "zenrows_api_key",
     "crawlbase_api_key",
     "apify_api_key",
+    "emailosint_api_key",
+    "serper_api_key",
+    "serpapi_api_key",
     "linkedin_session_cookie",
     "ollama_model",
     "outreach_mode",
@@ -189,7 +202,7 @@ class GuiApi:
     # -------------------------------------------------------------------
     # Leads (unchanged)
     # -------------------------------------------------------------------
-    def get_leads(self, status=None, search_log_id=None, has_website="", has_instagram="", has_phone=""):
+    def get_leads(self, status=None, search_log_id=None, has_website="", has_instagram="", has_phone="", sort_by="id", sort_dir="desc"):
         try:
             with Session(engine) as session:
                 stmt = select(Lead).where(Lead.session_id == self._active_session_id)
@@ -221,7 +234,14 @@ class GuiApi:
                             Lead.discovered_at <= t_end
                         )
 
-                stmt = stmt.order_by(Lead.id.desc())
+                # Dynamic sorting
+                valid_sort_cols = {"id", "business_name", "sector", "address", "status", "score", "discovered_at"}
+                sort_col = sort_by if sort_by in valid_sort_cols else "id"
+                col_attr = getattr(Lead, sort_col, Lead.id)
+                if sort_dir == "asc":
+                    stmt = stmt.order_by(col_attr.asc())
+                else:
+                    stmt = stmt.order_by(col_attr.desc())
                 leads = session.exec(stmt).all()
 
                 res = []
@@ -816,7 +836,7 @@ class GuiApi:
         except Exception as e:
             return {"error": str(e)}
 
-    def discover_leads(self, sector, location, radius, provider):
+    def discover_leads(self, sector, location, radius, provider, scan_depth="medium"):
         try:
             parsed_radius = self._resolve_radius(radius)
             if parsed_radius == 0:
@@ -848,6 +868,7 @@ class GuiApi:
                         location=location_query,
                         radius_km=parsed_radius,
                         provider_name=provider,
+                        scan_depth=scan_depth,
                         progress_callback=progress_cb,
                         session_id=self._active_session_id,
                         task_id=task_id
@@ -1737,8 +1758,16 @@ class GuiApi:
         if not isinstance(key, str) or not key.strip():
             return {"error": "key must be a non-empty string"}
 
-        # Sensitive key — write to .env via Settings singleton.
-        if key in _ENV_KEYS:
+        key = key.strip()
+
+        # Alias normalization
+        if key == "gui_theme":
+            key = "app.gui_theme"
+        elif key == "gui_language":
+            key = "app.gui_language"
+
+        # Sensitive key or API key — write to .env via Settings singleton.
+        if key in _ENV_KEYS or any(k in key.lower() for k in ("api_key", "token", "password", "secret")):
             try:
                 env_path = Path(get_env_path())
                 if env_path.exists() and env_path.is_dir():
@@ -1783,9 +1812,6 @@ class GuiApi:
         if key in _TOML_KEYS:
             section, toml_key = _TOML_KEYS[key]
             try:
-                # Use the toml_config module's CONFIG_FILE so test fixtures
-                # (which monkey-patch it) are respected and we never write
-                # outside the user's real config dir.
                 from aegisScout.core import toml_config as _toml_cfg
                 cfg_path = Path(_toml_cfg.CONFIG_FILE)
                 if cfg_path.exists():
@@ -1815,8 +1841,6 @@ class GuiApi:
                 if section not in config_data or not isinstance(config_data[section], dict):
                     config_data[section] = {}
                 config_data[section][toml_key] = data[section][toml_key]
-                # Best-effort: keep the toml_config module's cache in sync so
-                # subsequent reads via that module see the new value.
                 if hasattr(_toml_cfg, "config_data") and isinstance(_toml_cfg.config_data, dict):
                     if section not in _toml_cfg.config_data or not isinstance(_toml_cfg.config_data[section], dict):
                         _toml_cfg.config_data[section] = {}
@@ -1829,43 +1853,19 @@ class GuiApi:
                 return {"error": str(e)}
 
         return {
-            "error": f"Unknown config key: '{key}'. Sensitive keys (passwords/tokens/api_keys) "
-                     "must be set via login_instagram() or by editing .env directly."
+            "error": f"Unknown config key: '{key}'."
         }
 
     def save_settings(self, new_settings) -> dict:
         """
-        DEPRECATED bulk setter. Kept for backward compat. Refuses any sensitive
-        key. Use `set_config_value()` per key instead, or
-        `login_instagram()` for credentials.
+        Bulk setter for settings. Route keys appropriately to .env or config.toml.
         """
         if not isinstance(new_settings, dict):
             return {"error": "new_settings must be a dict"}
-        refused = []
         results = []
         for key, val in new_settings.items():
-            # Block any key that could carry a secret
-            lk = key.lower()
-            if any(
-                needle in lk
-                for needle in ("api_key", "password", "token", "secret", "encryption_key")
-            ):
-                refused.append(key)
-                continue
-            if key in _ENV_KEYS:
-                refused.append(key)
-                continue
             res = self.set_config_value(key, val)
             results.append({"key": key, **res})
-        if refused:
-            return {
-                "success": False,
-                "error": (
-                    f"Refused sensitive keys: {refused}. Use login_instagram() or "
-                    "edit .env directly for secrets."
-                ),
-                "applied": results,
-            }
         return {"success": True, "applied": results}
 
     # -------------------------------------------------------------------
@@ -2495,25 +2495,32 @@ class GuiApi:
             return {"error": str(e)}
 
     def delete_lead(self, lead_id):
+        import time
         try:
             lead_id = int(lead_id)
-            with Session(engine) as session:
-                lead = session.get(Lead, lead_id)
-                if not lead:
-                    return {"error": "Aday bulunamadı."}
-
-                session.execute(text("DELETE FROM research_notes WHERE lead_id = :lid"), {"lid": lead_id})
-                session.execute(text("DELETE FROM messages WHERE lead_id = :lid"), {"lid": lead_id})
-                session.delete(lead)
-
-                log = ActivityLog(
-                    action="lead_delete",
-                    details=f"Aday silindi: {lead.business_name}",
-                    session_id=self._active_session_id,
-                )
-                session.add(log)
-                session.commit()
-                return {"success": True}
+            for attempt in range(5):
+                try:
+                    with Session(engine) as session:
+                        lead = session.get(Lead, lead_id)
+                        if not lead:
+                            return {"error": "Aday bulunamadı."}
+                        biz_name = lead.business_name or f"ID:{lead_id}"
+                        session.execute(text("DELETE FROM research_notes WHERE lead_id = :lid"), {"lid": lead_id})
+                        session.execute(text("DELETE FROM messages WHERE lead_id = :lid"), {"lid": lead_id})
+                        session.execute(text("DELETE FROM leads WHERE id = :lid"), {"lid": lead_id})
+                        log = ActivityLog(
+                            action="lead_delete",
+                            details=f"Aday silindi: {biz_name}",
+                            session_id=self._active_session_id,
+                        )
+                        session.add(log)
+                        session.commit()
+                        return {"success": True}
+                except Exception as e:
+                    if "locked" in str(e).lower() and attempt < 4:
+                        time.sleep(0.3 * (2 ** attempt))
+                    else:
+                        raise
         except Exception as e:
             return {"error": str(e)}
 
@@ -2832,31 +2839,36 @@ class GuiApi:
             return {"error": str(e)}
 
     def clear_all_leads(self):
-        try:
-            with Session(engine) as session:
-                session.execute(
-                    text("DELETE FROM research_notes WHERE lead_id IN (SELECT id FROM leads WHERE session_id = :sid)"),
-                    {"sid": self._active_session_id},
-                )
-                session.execute(
-                    text("DELETE FROM messages WHERE lead_id IN (SELECT id FROM leads WHERE session_id = :sid)"),
-                    {"sid": self._active_session_id},
-                )
-                session.execute(
-                    text("DELETE FROM leads WHERE session_id = :sid"),
-                    {"sid": self._active_session_id},
-                )
-
-                log = ActivityLog(
-                    action="leads_clear_all",
-                    details="Tüm adaylar temizlendi.",
-                    session_id=self._active_session_id,
-                )
-                session.add(log)
-                session.commit()
-                return {"success": True}
-        except Exception as e:
-            return {"error": str(e)}
+        import time
+        for attempt in range(5):
+            try:
+                with Session(engine) as session:
+                    sid = self._active_session_id
+                    session.execute(
+                        text("DELETE FROM research_notes WHERE lead_id IN (SELECT id FROM leads WHERE session_id = :sid)"),
+                        {"sid": sid},
+                    )
+                    session.execute(
+                        text("DELETE FROM messages WHERE lead_id IN (SELECT id FROM leads WHERE session_id = :sid)"),
+                        {"sid": sid},
+                    )
+                    session.execute(
+                        text("DELETE FROM leads WHERE session_id = :sid"),
+                        {"sid": sid},
+                    )
+                    log = ActivityLog(
+                        action="leads_clear_all",
+                        details="Tüm adaylar temizlendi.",
+                        session_id=sid,
+                    )
+                    session.add(log)
+                    session.commit()
+                    return {"success": True}
+            except Exception as e:
+                if "locked" in str(e).lower() and attempt < 4:
+                    time.sleep(0.3 * (2 ** attempt))
+                else:
+                    return {"error": str(e)}
 
     def clear_leads_by_filter(self, status=None, sector=None):
         try:
@@ -2896,6 +2908,118 @@ class GuiApi:
                 session.add(log)
                 session.commit()
                 return {"success": True, "deleted_count": deleted_count}
+        except Exception as e:
+            return {"error": str(e)}
+
+    def find_profile_image(self, lead_id):
+        """Find and save a profile image for a lead from various sources."""
+        try:
+            lead_id = int(lead_id)
+            with Session(engine) as session:
+                lead = session.get(Lead, lead_id)
+                if not lead:
+                    return {"error": "Aday bulunamadı."}
+                
+                image_url = None
+                
+                # Try Instagram profile pic
+                if lead.instagram_handle:
+                    try:
+                        handle = lead.instagram_handle.lstrip('@')
+                        image_url = f"https://unavatar.io/instagram/{handle}"
+                    except Exception:
+                        pass
+                
+                # Try website favicon / social image via unavatar
+                if not image_url and lead.website_url:
+                    try:
+                        from urllib.parse import urlparse
+                        domain = urlparse(lead.website_url).netloc
+                        if domain:
+                            image_url = f"https://unavatar.io/{domain}"
+                    except Exception:
+                        pass
+                
+                if image_url:
+                    lead.profile_image_url = image_url
+                    session.add(lead)
+                    session.commit()
+                    return {"success": True, "image_url": image_url}
+                
+                return {"success": False, "message": "Profil fotoğrafı bulunamadı."}
+        except Exception as e:
+            return {"error": str(e)}
+
+    def run_osint_lookup(self, lead_id):
+        """Run basic OSINT lookup for a lead (domain, email, social)."""
+        try:
+            lead_id = int(lead_id)
+            with Session(engine) as session:
+                lead = session.get(Lead, lead_id)
+                if not lead:
+                    return {"error": "Aday bulunamadı."}
+                
+                osint_results = {}
+                
+                # Domain info
+                if lead.website_url:
+                    try:
+                        from urllib.parse import urlparse
+                        parsed = urlparse(lead.website_url)
+                        domain = parsed.netloc.replace('www.', '')
+                        osint_results['domain'] = domain
+                        osint_results['domain_url'] = f"https://{domain}"
+                    except Exception:
+                        pass
+                
+                # Email domain lookup
+                if lead.email:
+                    try:
+                        email_domain = lead.email.split('@')[-1] if '@' in lead.email else None
+                        if email_domain:
+                            osint_results['email_domain'] = email_domain
+                    except Exception:
+                        pass
+                
+                # Social media compilation
+                socials = {}
+                if lead.instagram_handle:
+                    socials['instagram'] = f"https://instagram.com/{lead.instagram_handle.lstrip('@')}"
+                if lead.facebook_url:
+                    socials['facebook'] = lead.facebook_url
+                if lead.linkedin_url:
+                    socials['linkedin'] = lead.linkedin_url
+                if lead.youtube_url:
+                    socials['youtube'] = lead.youtube_url
+                if lead.tiktok_url:
+                    socials['tiktok'] = lead.tiktok_url
+                if lead.twitter_url:
+                    socials['twitter'] = lead.twitter_url
+                if lead.telegram_url:
+                    socials['telegram'] = lead.telegram_url
+                
+                osint_results['socials'] = socials
+                osint_results['social_count'] = len(socials)
+                
+                import json
+                lead.osint_data = json.dumps(osint_results, ensure_ascii=False)
+                session.add(lead)
+                session.commit()
+                
+                return {"success": True, "data": osint_results}
+        except Exception as e:
+            return {"error": str(e)}
+
+    def get_app_info(self):
+        """Return application version and status info."""
+        try:
+            from aegisScout import __version__
+            from aegisScout.core.database import get_database_url
+            return {
+                "version": __version__,
+                "db_url": get_database_url(),
+                "session_id": self._active_session_id,
+            }
         except Exception as e:
             return {"error": str(e)}
 
