@@ -2385,11 +2385,52 @@
 
   <!-- ⚙️ JavaScript Application Bridge logic -->
   <script>
+    // Global Error Logger for UI Debugging — MUST be at line 1 of script execution
+    window.onerror = function(message, source, lineno, colno, error) {
+      try { _forceCloseAllModals(); } catch (_) {}
+      try {
+        if (window.pywebview && window.pywebview.api) {
+          window.pywebview.api.log_js_error(message, source, lineno, colno, error ? error.stack : '');
+        }
+      } catch (_) {}
+      try { console.error('[aegisScout JS Error]', message, source, lineno, colno, error); } catch (_) {}
+      return false;
+    };
+    window.onunhandledrejection = function(event) {
+      try { _forceCloseAllModals(); } catch (_) {}
+      try {
+        if (window.pywebview && window.pywebview.api) {
+          window.pywebview.api.log_js_error("Unhandled Rejection: " + (event && event.reason ? event.reason : ''), "", 0, 0, "");
+        }
+      } catch (_) {}
+      try { console.error('[aegisScout Unhandled Rejection]', event && event.reason); } catch (_) {}
+    };
+
+    // Safe LocalStorage Wrapper — MUST be defined before any i18n or state helpers run!
+    const safeLocalStorage = {
+      getItem: function(key) {
+        try {
+          return localStorage.getItem(key);
+        } catch (e) {
+          return null;
+        }
+      },
+      setItem: function(key, val) {
+        try {
+          localStorage.setItem(key, val);
+        } catch (e) {}
+      },
+      removeItem: function(key) {
+        try {
+          localStorage.removeItem(key);
+        } catch (e) {}
+      }
+    };
 
 // ============================================================
 // 🌍 i18n Translation Helper Functions
 // ============================================================
-let currentLanguage = localStorage.getItem('aegis-language') || 'tr';
+let currentLanguage = safeLocalStorage.getItem('aegis-language') || 'tr';
 
 function getTranslation(key, lang) {
   const l = lang || currentLanguage || 'tr';
@@ -2404,7 +2445,7 @@ function getTranslation(key, lang) {
 
 function applyLanguage(lang) {
   currentLanguage = lang || 'tr';
-  localStorage.setItem('aegis-language', currentLanguage);
+  safeLocalStorage.setItem('aegis-language', currentLanguage);
   
   // Apply data-i18n text content
   document.querySelectorAll('[data-i18n]').forEach(el => {
@@ -2608,21 +2649,7 @@ function applyLanguage(lang) {
       }
     }
 
-    // Safe LocalStorage Wrapper
-    const safeLocalStorage = {
-      getItem: (key) => {
-        try {
-          return localStorage.getItem(key);
-        } catch (e) {
-          return null;
-        }
-      },
-      setItem: (key, val) => {
-        try {
-          localStorage.setItem(key, val);
-        } catch (e) {}
-      }
-    };
+
 
     // Helper to safely escape HTML attributes and text
     function escapeHtml(str) {
@@ -3132,7 +3159,7 @@ function handleLanguageChange(lang) {
 
 function handleThemeChange(theme) {
   document.body.className = theme;
-  localStorage.setItem('aegis-theme', theme);
+  safeLocalStorage.setItem('aegis-theme', theme);
   try { pywebview.api.set_config_value('app.gui_theme', theme); } catch(e) {}
 }
 

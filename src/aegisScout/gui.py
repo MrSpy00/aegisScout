@@ -3113,18 +3113,36 @@ def _get_icon_path() -> str | None:
 
 def _start_window(api, icon_path, debug_mode):
     """Create a single window and start the GUI loop."""
-    window = webview.create_window(
-        title="aegisScout — İşletme Keşif ve Satış Otomasyonu",
-        html=HTML_CONTENT,
-        js_api=api,
-        width=1200,
-        height=800,
-        resizable=True,
-        min_size=(1024, 700),
-    )
+    from aegisScout.utils.paths import get_assets_dir
+    index_path = get_assets_dir() / "index.html"
+
+    if index_path.exists():
+        url_target = index_path.as_uri()
+        logger.info(f"Launching PyWebView window using file URL: {url_target}")
+        window = webview.create_window(
+            title="aegisScout — İşletme Keşif ve Satış Otomasyonu",
+            url=url_target,
+            js_api=api,
+            width=1200,
+            height=800,
+            resizable=True,
+            min_size=(1024, 700),
+        )
+    else:
+        logger.info("Launching PyWebView window using HTML_CONTENT string fallback")
+        window = webview.create_window(
+            title="aegisScout — İşletme Keşif ve Satış Otomasyonu",
+            html=HTML_CONTENT,
+            js_api=api,
+            width=1200,
+            height=800,
+            resizable=True,
+            min_size=(1024, 700),
+        )
     api._window = window
     # Auto-detect GUI (edgechromium on Windows with WebView2, mshtml fallback)
     webview.start(debug=debug_mode, private_mode=False, icon=icon_path)
+
 
 
 def start_gui():
