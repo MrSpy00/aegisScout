@@ -158,6 +158,13 @@ Here are actual screenshots of the desktop application's main panels:
 ### 22. SQLite WAL ve Yüksek Başarımlı Veritabanı (V5)
 - **WAL Modu ve İndeksleme:** Veritabanı performansı WAL (Write-Ahead Logging) ve özel SQLite indeksleri ile güçlendirilmiş, eşzamanlı okuma/yazma işlemleri hızlandırılmıştır.
 - **Otomatik Tekilleştirme (Deduplication):** Tekrarlayan adres ve alan adı girdileri veritabanı seviyesinde otomatik olarak engellenir.
+
+### 23. Kapsamlı Master Plan İyileştirmeleri ve Sıfır Key OSINT (Master Plan V6)
+- **50+ Ücretsiz OSINT API Entegrasyonu:** Shodan InternetDB (`internetdb.shodan.io`) ile sıfır key ile açık port, CVE ve etiket tespiti; crt.sh ile SSL sertifika subdomain keşfi; Mozilla Observatory ile web güvenlik skoru sorgulama; Wayback Machine ile tarihsel site arşivi denetimi.
+- **AI Ürün Fikirleri Motoru (`product_ideation.py`):** Her keşfedilen işletme için Türkiye pazarına uygun TL fiyat tahminli 2-3 adet özel yazılım/dijital ürün fikri, kapıda söylenecek satış kancası (pitch hook), müşteri itirazlarına yanıtlar ve AI geliştirme promptları üretir.
+- **Tam 9 Dilde i18n Çeviri Motoru ve Sağdan Sola (RTL) Düzen:** Türkçe, İngilizce, Almanca, İspanyolca, Fransızca, Arapça, Çince, Rusça ve Hintçe dillerinde 300'ün üzerinde arayüz metni eksiksiz desteklenir; Arapça seçiminde otomatik `dir="rtl"` düzenine geçilir.
+- **SingletonPool ve Veritabanı Bağlantı Optimizasyonu:** SQLite dosya veritabanlarında per-query PRAGMA çalıştırma yükü ve bağlantı kilitlenmeleri `SingletonPool` mimarisi ile sıfıra indirildi. Migrasyon sistemi tablo varlık kontrolü ve geri dönüş mekanizmaları ile güçlendirildi.
+- **Eksiksiz Ücretsiz Telefon ve Breach OSINT (`phone_intel.py`, `breach_checker.py`):** Yerel `phonenumbers` kütüphanesi ile offline operatör/numara doğrulama, wa.me ve t.me kontrolü; HIBP Pwned Passwords ve XposedOrNot servisleri ile sıfır keyli veri sızıntısı tespiti.
 - **Sıfır Bağlantı Sızıntısı & NullPool Güvenliği:** SQLite veritabanı motoru için `NullPool` (in-memory testler için `StaticPool`) entegrasyonu yapılarak `QueuePool` bağlantı kilitlenmeleri ve zaman aşımları tamamen ortadan kaldırılmıştır.
 - **100% Temayla Entegre SVG İkonlar & Sessiz Tema/Dil Kalıcılığı:** Tüm arayüz buton ve widget'larındaki emojiler dinamik SVG vektör simgeler ile değiştirilmiş; ayarlar giriş/çıkışlarında tekrarlayan spam bildirimler temizlenmiş ve sol menü daraltma (collapsed) görünümü mükemmelleştirilmiştir.
 

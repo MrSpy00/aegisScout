@@ -45,10 +45,8 @@ ENV/
 Thumbs.db
 
 # --- AI Agent / OpenCode ---
+.env.local
 .omo/
-
-# --- Proje Kokundeki Kazara Olusan Dosyalar ---
-]
 
 # --- Loglar ve Test ---
 logs/
