@@ -11,6 +11,59 @@ logger = get_logger("discovery.osm")
 
 __all__ = ["OSMDiscoveryProvider", "_build_user_agent", "SECTOR_OSM_TAGS"]
 
+# ---------------------------------------------------------------------------
+# Post-filter: OSM element types / name keywords that indicate
+# non-business locations (transit stops, government offices, places of worship,
+# schools, parks, ATMs, etc.). Applied after Overpass API response.
+# ---------------------------------------------------------------------------
+POST_FILTER_OSM_AMENITY_TYPES = {
+    "bus_station", "bus_stop", "tram_stop", "taxi", "ferry_terminal",
+    "atm", "bank",
+    "place_of_worship",
+    "townhall", "courthouse", "police", "fire_station", "post_office",
+    "library",
+    "school", "university", "college", "kindergarten",
+    "parking", "fuel",
+    "grave_yard", "cemetery",
+    "shelter", "bench", "waste_basket", "recycling",
+    "drinking_water", "fountain",
+    "toilets",
+}
+
+POST_FILTER_OSM_SHOP_TYPES = {
+    "vacant", "empty",
+}
+
+POST_FILTER_OSM_NAME_KEYWORDS = [
+    "atm", "bankamatik", "akbank atm", "garanti atm",
+    "durak", "otobüs", "otobus", "metro", "tramvay", "dolmuş", "dolmus",
+    "istasyon", "gar ",
+    "park ", "otopark",
+    "cami", "camii", "kilise", "katedral", "türbe", "turbe", "dergah",
+    "mezarlık", "mezarlik",
+    "belediye", "muhtarlık", "muhtarlik", "kaymakamlık", "valilik",
+    "emniyet", "karakol", "itfaiye",
+    "ptt ", "postane",
+    "okul", "lise", "üniversite", "universite", "kolej", "anaokul",
+    "kütüphane", "kutuphane",
+]
+
+
+def _osm_is_filtered(tags: dict) -> bool:
+    """Return True if the OSM element should be excluded from lead results."""
+    amenity = tags.get("amenity", "")
+    if amenity in POST_FILTER_OSM_AMENITY_TYPES:
+        return True
+    shop = tags.get("shop", "")
+    if shop in POST_FILTER_OSM_SHOP_TYPES:
+        return True
+    name = tags.get("name", "").lower()
+    for kw in POST_FILTER_OSM_NAME_KEYWORDS:
+        if kw in name:
+            return True
+    return False
+
+
 
 def _build_user_agent() -> str:
     """
@@ -365,8 +418,12 @@ out body center;
         # Determine if we should perform an area-based boundary query
         use_area = False
         area_id = None
+        city_like_types = {
+            "country", "state", "province", "region", "county",
+            "city", "town", "administrative", "district", "suburb", "municipality"
+        }
         if osm_type in ("relation", "way") and osm_id:
-            if radius_km == 0 or radius_km >= 50 or addresstype in ("country", "state", "province", "region", "county"):
+            if radius_km == 0 or radius_km >= 30 or addresstype in city_like_types:
                 if osm_type == "relation":
                     area_id = 3600000000 + int(osm_id)
                 elif osm_type == "way":
@@ -381,11 +438,11 @@ out body center;
         else:
             # coordinate-based search
             if radius_km == 0:
-                logger.info("Radius is 0 (unlimited) but no OSM area ID available. Using default 50km coordinate radius.")
-                radius_km = 50
-            elif radius_km > 100:
-                logger.warning(f"OSM Overpass radius of {radius_km}km is too large and will cause timeouts. Capping to 100km.")
-                radius_km = 100
+                logger.info("Radius is 0 (unlimited) but no OSM area ID available. Using default 15km coordinate radius.")
+                radius_km = 15
+            elif radius_km > 30:
+                logger.warning(f"OSM Overpass radius of {radius_km}km is large and may cause timeouts. Capping to 30km.")
+                radius_km = 30
             radius_meters = radius_km * 1000
             query = self._build_overpass_query(sector, radius_meters, lat, lon)
 
@@ -429,7 +486,22 @@ out body center;
                 if not name:
                     continue
 
-                # Extract contact details
+                # Apply noise filter (exclude non-business locations)
+                if _osm_is_filtered(tags):
+                    logger.debug(f"OSM noise filter excluded: {name}")
+                    continue
+
+                # Extract lat/lon from element center (set by `out body center`)
+                lat_val: Optional[float] = None
+                lon_val: Optional[float] = None
+                center = elem.get("center")
+                if center:
+                    lat_val = center.get("lat")
+                    lon_val = center.get("lon")
+                elif elem.get("lat") is not None:
+                    lat_val = elem.get("lat")
+                    lon_val = elem.get("lon")
+
                 phone = (
                     tags.get("phone")
                     or tags.get("contact:phone")
@@ -489,6 +561,8 @@ out body center;
                     instagram_handle=instagram_handle,
                     instagram_url=instagram_url,
                     source="osm",
+                    _lat=lat_val,
+                    _lon=lon_val,
                 )
                 candidates.append(candidate)
         except Exception as e:

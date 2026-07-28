@@ -70,27 +70,32 @@ class DoktorSitesiDiscoveryProvider(BaseDiscoveryProvider):
     async def _collect_profile_urls(self, query: str) -> Set[str]:
         urls: Set[str] = set()
         encoded = urllib.parse.quote(query)
-        search_target = f"{_BASE_URL}/ara?q={encoded}"
+        search_targets = [
+            f"{_BASE_URL}/arama?q={encoded}",
+            f"{_BASE_URL}/arama/{encoded}",
+        ]
 
         try:
             async with httpx.AsyncClient(
                 headers=_HEADERS, timeout=_HTTP_TIMEOUT_SEC, follow_redirects=True
             ) as client:
-                resp = await client.get(search_target)
-                if resp.status_code != 200:
-                    logger.warning(f"DoktorSitesi search returned HTTP {resp.status_code}")
-                    return urls
+                for target in search_targets:
+                    resp = await client.get(target)
+                    if resp.status_code != 200:
+                        continue
 
-                soup = BeautifulSoup(resp.text, "html.parser")
-                for a in soup.find_all("a", href=True):
-                    href = a["href"]
-                    # Matches doctor/specialist profile URLs on doktorsitesi.com
-                    if re.search(r"/(uzman|doktor|psikolog|danisman|dr-[a-z0-9-]+|prof-[a-z0-9-]+)/", href) or (
-                        href.startswith("/") and len(href.split("/")) == 2 and not href.startswith("/ara")
-                    ):
-                        full_url = urllib.parse.urljoin(_BASE_URL, href)
-                        if full_url != _BASE_URL and "uzmanlik-alanlari" not in full_url:
-                            urls.add(full_url)
+                    soup = BeautifulSoup(resp.text, "html.parser")
+                    for a in soup.find_all("a", href=True):
+                        href = a["href"]
+                        # Matches doctor/specialist profile URLs on doktorsitesi.com
+                        if re.search(r"/(uzman|doktor|psikolog|danisman|dr-[a-z0-9-]+|prof-[a-z0-9-]+)/", href) or (
+                            href.startswith("/") and len(href.split("/")) == 2 and not href.startswith("/arama") and not href.startswith("/ara")
+                        ):
+                            full_url = urllib.parse.urljoin(_BASE_URL, href)
+                            if full_url != _BASE_URL and "uzmanlik-alanlari" not in full_url:
+                                urls.add(full_url)
+                    if urls:
+                        break
         except Exception as e:
             logger.warning(f"DoktorSitesi URL collection error: {e}")
 

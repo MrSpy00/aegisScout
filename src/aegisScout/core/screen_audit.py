@@ -33,10 +33,10 @@ SCREENSHOTS_DIR.mkdir(parents=True, exist_ok=True)
 
 def _capture_screenshot_sync(url: str, output_path: Path) -> bool:
     """Capture a screenshot of the given URL and save it to output_path using Playwright with cross-platform flags."""
-    if not PLAYWRIGHT_AVAILABLE:
-        logger.warning("Playwright is not installed. Run: pip install playwright && playwright install chromium")
-        return False
-    logger.info(f"Capturing screenshot of {url} to {output_path}...")
+    target_url = url.strip()
+    if not target_url.startswith(("http://", "https://")):
+        target_url = "https://" + target_url
+
     try:
         with sync_playwright() as p:
             # Cross-platform chromium launch flags
@@ -51,12 +51,13 @@ def _capture_screenshot_sync(url: str, output_path: Path) -> bool:
             )
             context = browser.new_context(
                 viewport={"width": 1280, "height": 800},
-                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                ignore_https_errors=True
             )
             page = context.new_page()
             
             # Go to URL with robust domcontentloaded condition & timeout
-            page.goto(url, wait_until="domcontentloaded", timeout=15000)
+            page.goto(target_url, wait_until="domcontentloaded", timeout=15000)
             page.wait_for_timeout(1000)
             
             # Capture viewport screenshot
@@ -65,7 +66,7 @@ def _capture_screenshot_sync(url: str, output_path: Path) -> bool:
             logger.info("Screenshot captured successfully.")
             return True
     except Exception as e:
-        logger.error(f"Failed to capture screenshot for {url} via Playwright: {e}")
+        logger.error(f"Failed to capture screenshot for {target_url} via Playwright: {e}")
         return False
 
 
@@ -166,17 +167,17 @@ async def run_website_screen_audit(lead_id: int) -> dict:
         screenshot_path = SCREENSHOTS_DIR / screenshot_filename
 
         # 1. Capture screenshot (with graceful fallback if Playwright is missing or fails)
-        if not PLAYWRIGHT_AVAILABLE:
-            return {"error": "Playwright modülü yüklü değil. Lütfen 'pip install playwright' ve 'playwright install chromium' komutlarını çalıştırın."}
+        success = False
+        if PLAYWRIGHT_AVAILABLE:
+            import asyncio
+            success = await asyncio.to_thread(_capture_screenshot_sync, lead.website_url, screenshot_path)
+            if success:
+                lead.screenshot_path = f"data/screenshots/{screenshot_filename}"
+                session.add(lead)
+                session.commit()
+                session.refresh(lead)
 
-        import asyncio
-        success = await asyncio.to_thread(_capture_screenshot_sync, lead.website_url, screenshot_path)
-        if success:
-            lead.screenshot_path = f"data/screenshots/{screenshot_filename}"
-            session.add(lead)
-            session.commit()
-            session.refresh(lead)
-        else:
+        if not success:
             logger.warning("Screenshot capture unavailable or failed. Using heuristic screen audit fallback.")
 
         # 2. Analyze design using Gemini Vision or local fallback

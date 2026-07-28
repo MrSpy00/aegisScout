@@ -400,22 +400,34 @@ async def discover_leads(
             if tqm and task_id:
                 await tqm.wait_if_paused(task_id)
                 tqm.update_progress(task_id, 30.0 + (idx / max(1, total_cand)) * 70.0)
-            # Deduplication: business_name + address unique constraint
-            if c.address:
+            # Deduplication: prefer place_id (Google), fallback to name+address
+            place_id_val = getattr(c, '_place_id', None)
+            if place_id_val:
+                stmt = select(Lead).where(
+                    (Lead.place_id == place_id_val) &
+                    (Lead.session_id == session_id)
+                )
+                if session.exec(stmt).first():
+                    duplicate_count += 1
+                    continue
+            elif c.address:
                 stmt = select(Lead).where(
                     (Lead.business_name == c.business_name) &
                     (Lead.address == c.address) &
                     (Lead.session_id == session_id)
                 )
+                if session.exec(stmt).first():
+                    duplicate_count += 1
+                    continue
             else:
                 stmt = select(Lead).where(
                     Lead.business_name == c.business_name,
                     col(Lead.address).is_(None),
                     Lead.session_id == session_id
                 )
-            if session.exec(stmt).first():
-                duplicate_count += 1
-                continue
+                if session.exec(stmt).first():
+                    duplicate_count += 1
+                    continue
 
             lead = Lead(
                 business_name=c.business_name,
@@ -431,6 +443,11 @@ async def discover_leads(
                 source=c.source,
                 status="new",
                 session_id=session_id,
+                # Extended metadata from enriched providers
+                place_id=getattr(c, '_place_id', None),
+                lat=getattr(c, '_lat', None),
+                lon=getattr(c, '_lon', None),
+                reviews_json=getattr(c, '_reviews_json', None),
             )
             session.add(lead)
             added_count += 1

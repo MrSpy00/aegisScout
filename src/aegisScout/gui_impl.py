@@ -2420,7 +2420,10 @@ class GuiApi:
             from sqlmodel import func
 
             with Session(engine) as session:
-                statuses = ["new", "researched", "contacted", "replied", "rejected", "do_not_contact"]
+                statuses = [
+                    "new", "researched", "contacted", "replied", "rejected",
+                    "do_not_contact", "visited", "pitch_sent", "won", "lost"
+                ]
                 counts = {}
                 for s in statuses:
                     cnt = session.exec(
@@ -2440,9 +2443,214 @@ class GuiApi:
                         & (Lead.status == "drafted")
                     )
                 ).one() or 0
+                # Funnel conversion rate
+                total_closed = counts["won"] + counts["lost"]
+                counts["conversion_rate"] = (
+                    round(counts["won"] / total_closed * 100, 1)
+                    if total_closed > 0 else 0.0
+                )
+                # Has-website / no-website opportunity counts
+                counts["no_website_count"] = session.exec(
+                    select(func.count(Lead.id)).where(
+                        (Lead.session_id == self._active_session_id)
+                        & (Lead.has_website == False)  # noqa: E712
+                    )
+                ).one() or 0
                 return counts
         except Exception as e:
             return {"error": str(e)}
+
+    def get_leads_map_data(self):
+        """Return all leads that have lat/lon coordinates for the map view."""
+        try:
+            with Session(engine) as session:
+                stmt = (
+                    select(Lead)
+                    .where(
+                        (Lead.session_id == self._active_session_id)
+                        & (Lead.lat.is_not(None))
+                        & (Lead.lon.is_not(None))
+                    )
+                )
+                leads = session.exec(stmt).all()
+                result = []
+                for lead in leads:
+                    result.append({
+                        "id": lead.id,
+                        "business_name": lead.business_name,
+                        "sector": lead.sector or "",
+                        "status": lead.status,
+                        "lat": lead.lat,
+                        "lon": lead.lon,
+                        "address": lead.address or "",
+                        "has_website": lead.has_website,
+                        "phone": lead.phone or "",
+                        "rating": lead.rating,
+                        "review_count": lead.review_count,
+                    })
+                return result
+        except Exception as e:
+            return {"error": str(e)}
+
+    def get_daily_usage(self):
+        """Return today's API usage stats for the sidebar widget."""
+        try:
+            from aegisScout.core.database import get_daily_usage as _get_daily_usage
+            return _get_daily_usage(days=7)
+        except Exception as e:
+            return {"error": str(e)}
+
+    def update_lead_status_advanced(self, lead_id, new_status, note=None):
+        """Update a lead's status with optional CRM note. Supports all funnel stages."""
+        VALID_STATUSES = {
+            "new", "researched", "drafted", "contacted", "replied",
+            "converted", "rejected", "do_not_contact",
+            "visited", "pitch_sent", "won", "lost"
+        }
+        try:
+            lead_id = int(lead_id)
+            new_status = str(new_status).strip().lower()
+            if new_status not in VALID_STATUSES:
+                return {"error": f"Geçersiz durum: '{new_status}'. Geçerli değerler: {sorted(VALID_STATUSES)}"}
+            with Session(engine) as session:
+                lead = session.get(Lead, lead_id)
+                if not lead:
+                    return {"error": f"Lead {lead_id} bulunamadı."}
+                old_status = lead.status
+                lead.status = new_status
+                lead.updated_at = _utcnow()
+                # Add CRM log if note or status changed
+                from aegisScout.core.models import CrmLog
+                log_note = note or f"Durum güncellendi: {old_status} → {new_status}"
+                crm = CrmLog(lead_id=lead_id, note=log_note)
+                session.add(crm)
+                act = ActivityLog(
+                    action="status_update",
+                    details=f"Lead #{lead_id} '{lead.business_name}': {old_status} → {new_status}",
+                    session_id=self._active_session_id,
+                )
+                session.add(act)
+                session.commit()
+                return {"success": True, "old_status": old_status, "new_status": new_status}
+        except Exception as e:
+            return {"error": str(e)}
+
+    def get_sales_pitch(self, lead_id):
+        """Generate a sales pitch package for a lead (async-queued)."""
+        try:
+            lead_id = int(lead_id)
+            task_id = f"pitch_{lead_id}_{int(time.time())}"
+
+            with Session(db_module.engine) as session:
+                lead = session.get(Lead, lead_id)
+                if not lead:
+                    return {"error": f"Lead {lead_id} bulunamadı."}
+                # Gather data for pitch generation
+                notes_raw = [n.content for n in lead.research_notes] if lead.research_notes else []
+                website_notes = "\n".join(notes_raw[:3]) if notes_raw else ""
+                instagram_bio = lead.instagram_bio or ""
+                # Build review_highlights from reviews_json
+                review_highlights = ""
+                if lead.reviews_json:
+                    try:
+                        import json as _json
+                        reviews = _json.loads(lead.reviews_json)
+                        review_highlights = " | ".join(
+                            f"{r.get('author','')}: {r.get('text','')[:80]}" for r in reviews[:3]
+                        )
+                    except Exception:
+                        pass
+                # Snapshot values before closing session
+                snap = {
+                    "business_name": lead.business_name,
+                    "sector": lead.sector or "",
+                    "has_website": lead.has_website,
+                    "address": lead.address or "",
+                    "phone": lead.phone or "",
+                    "rating": lead.rating,
+                    "review_count": lead.review_count,
+                    "website_notes": website_notes,
+                    "instagram_bio": instagram_bio,
+                    "review_highlights": review_highlights,
+                }
+
+            task_name = f"Saha Pitch: {snap['business_name']}"
+
+            async def task_coro(task_id: str):
+                try:
+                    from aegisScout.ai.multi_agent import generate_sales_pitch_mode
+                    result = await generate_sales_pitch_mode(
+                        business_name=snap["business_name"],
+                        sector=snap["sector"],
+                        has_website=snap["has_website"],
+                        website_notes=snap["website_notes"],
+                        instagram_bio=snap["instagram_bio"],
+                        review_highlights=snap["review_highlights"],
+                        address=snap["address"],
+                        phone=snap["phone"],
+                        rating=snap["rating"],
+                        review_count=snap["review_count"],
+                    )
+                    if self._window:
+                        try:
+                            result_json = json.dumps(result, ensure_ascii=False)
+                            self._window.evaluate_js(
+                                f"finishSalesPitch({lead_id}, true, {result_json})"
+                            )
+                        except Exception:
+                            pass
+                    # Track usage
+                    try:
+                        from aegisScout.core.database import increment_usage
+                        increment_usage("llm", "sales_pitch")
+                    except Exception:
+                        pass
+                except Exception as ex:
+                    logger.error(f"Sales pitch task failed: {ex}")
+                    if self._window:
+                        try:
+                            err_json = json.dumps(str(ex))
+                            self._window.evaluate_js(
+                                f"finishSalesPitch({lead_id}, false, {err_json})"
+                            )
+                        except Exception:
+                            pass
+
+            from aegisScout.core.task_queue import TaskQueueManager
+            tqm = TaskQueueManager.get_instance()
+            tqm.add_task(task_id, task_name, task_coro)
+            return {"success": True, "queued": True, "task_id": task_id}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def get_sector_stats(self):
+        """Return lead counts grouped by sector for category filter with live counts."""
+        try:
+            from sqlmodel import func
+            with Session(engine) as session:
+                rows = session.exec(
+                    select(Lead.sector, func.count(Lead.id))
+                    .where(Lead.session_id == self._active_session_id)
+                    .where(Lead.sector.is_not(None))
+                    .group_by(Lead.sector)
+                    .order_by(func.count(Lead.id).desc())
+                ).all()
+                return [{"sector": r[0], "count": r[1]} for r in rows]
+        except Exception as e:
+            return {"error": str(e)}
+
+    def get_lead_reviews(self, lead_id):
+        """Return the customer review snippets for a lead."""
+        try:
+            with Session(engine) as session:
+                lead = session.get(Lead, int(lead_id))
+                if not lead:
+                    return {"error": "Lead bulunamadı."}
+                reviews = lead.get_reviews()
+                return {"reviews": reviews}
+        except Exception as e:
+            return {"error": str(e)}
+
 
     def clear_activity_logs(self):
         try:

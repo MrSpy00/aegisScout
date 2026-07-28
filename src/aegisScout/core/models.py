@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from typing import Optional, List
 from sqlmodel import SQLModel, Field, Relationship, UniqueConstraint
+import json as _json
 
 
 def _utcnow() -> datetime:
@@ -45,9 +46,19 @@ class Lead(SQLModel, table=True):
     source: Optional[str] = Field(default=None)  # 'osm', 'google_places', 'manual'
     status: str = Field(
         default="new", index=True
-    )  # new | researched | drafted | contacted | replied | converted | rejected | do_not_contact
+    )  # new | researched | drafted | contacted | replied | converted | rejected | do_not_contact | visited | pitch_sent | won | lost
     discovered_at: datetime = Field(default_factory=_utcnow)
     updated_at: datetime = Field(default_factory=_utcnow)
+
+    # 📍 Geographic coordinates (for map view)
+    lat: Optional[float] = Field(default=None)
+    lon: Optional[float] = Field(default=None)
+
+    # 🗺️ Google Places unique ID (prevents duplicate imports)
+    place_id: Optional[str] = Field(default=None, index=True)
+
+    # ⭐ Original-language customer review snippets (JSON list)
+    reviews_json: Optional[str] = Field(default=None)
     notes: Optional[str] = Field(default=None)
     campaign_id: Optional[int] = Field(default=None, foreign_key="campaigns.id", index=True)
     session_id: Optional[int] = Field(default=1, foreign_key="user_sessions.id", index=True)
@@ -119,6 +130,19 @@ class Lead(SQLModel, table=True):
             return None
         parts = [p.strip() for p in self.address.split(",") if p.strip()]
         return parts[-1] if parts else self.address
+
+    def get_reviews(self) -> list:
+        """Deserialize reviews_json to a Python list of review dicts."""
+        if not self.reviews_json:
+            return []
+        try:
+            return _json.loads(self.reviews_json)
+        except Exception:
+            return []
+
+    def set_reviews(self, reviews: list) -> None:
+        """Serialize a list of review dicts into reviews_json."""
+        self.reviews_json = _json.dumps(reviews, ensure_ascii=False)
 
 
 
@@ -248,3 +272,19 @@ class CrmLog(SQLModel, table=True):
 
     # Relationships
     lead: Optional[Lead] = Relationship(back_populates="crm_logs")
+
+
+class ApiUsageDaily(SQLModel, table=True):
+    """Tracks per-provider daily API usage and estimated costs."""
+    __tablename__ = "api_usage_daily"
+
+    __table_args__ = (
+        UniqueConstraint("date", "provider", "action", name="uq_usage_date_provider_action"),
+    )
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    date: str = Field(index=True)   # ISO date string: '2026-07-28'
+    provider: str = Field(index=True)  # 'google_places', 'osm', 'gemini', 'openai', etc.
+    action: str  # 'discovery', 'llm_generate', 'email_verify', 'warmup', 'osint'
+    count: int = Field(default=0)
+    estimated_cost_usd: float = Field(default=0.0)

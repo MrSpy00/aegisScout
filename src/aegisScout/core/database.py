@@ -154,15 +154,22 @@ def make_engine(url: Optional[str] = None):
         )
 
     connect_args: dict = {}
-    if effective_url.startswith("sqlite"):
+    if effective_url.lower().startswith("sqlite"):
         connect_args = {"check_same_thread": False, "timeout": 30}
 
     kwargs: dict[str, Any] = {"pool_pre_ping": True}
-    if not effective_url.endswith(":memory:"):
+    if ":memory:" in effective_url.lower():
+        from sqlalchemy.pool import StaticPool
+        kwargs["poolclass"] = StaticPool
+    elif effective_url.lower().startswith("sqlite"):
+        from sqlalchemy.pool import NullPool
+        kwargs["poolclass"] = NullPool
+    else:
         kwargs.update({
-            "pool_size": 5,
-            "max_overflow": 10,
-            "pool_recycle": 3600,
+            "pool_size": 30,
+            "max_overflow": 60,
+            "pool_recycle": 1800,
+            "pool_timeout": 30,
         })
 
     engine = create_engine(
@@ -247,15 +254,40 @@ def init_db(engine_to_use=None) -> None:
         _run_migrations(session, db_logger)
 
 
-def _column_exists(session: Session, table: str, column: str) -> bool:
+def _table_exists(session: Session, table: str) -> bool:
     try:
-        rows = session.execute(text(f"PRAGMA table_info({table})")).all()
+        r = session.execute(
+            text("SELECT name FROM sqlite_master WHERE type='table' AND name=:name"),
+            {"name": table}
+        ).first()
+        return bool(r)
+    except Exception:
+        return False
+
+
+def _column_exists(session: Session, table: str, column: str) -> bool:
+    if not _table_exists(session, table):
+        return True
+    try:
+        rows = session.execute(text(f"PRAGMA table_info('{table}')")).all()
         return any(row[1] == column for row in rows)
     except Exception:
         return False
 
 
 def _run_migrations(session: Session, db_logger) -> None:
+    from sqlalchemy import inspect
+    engine_to_use = session.bind
+
+    existing_columns: dict[str, set[str]] = {}
+    try:
+        if engine_to_use:
+            inspector = inspect(engine_to_use)
+            for table in inspector.get_table_names():
+                existing_columns[table] = {c["name"] for c in inspector.get_columns(table)}
+    except Exception as e:
+        db_logger.warning(f"Could not inspect table columns: {e}")
+
     migrations = [
         ("leads", "campaign_id", "INTEGER REFERENCES campaigns(id)"),
         ("leads", "session_id", DEFAULT_SESSION_COLUMN_DEF),
@@ -295,18 +327,33 @@ def _run_migrations(session: Session, db_logger) -> None:
         ("leads", "scan_depth", "TEXT DEFAULT 'medium'"),
         ("leads", "phone_carrier", "TEXT"),
         ("leads", "phone_type", "TEXT"),
+        ("leads", "lat", "REAL"),
+        ("leads", "lon", "REAL"),
+        ("leads", "place_id", "TEXT"),
+        ("leads", "reviews_json", "TEXT"),
     ]
 
     for table, column, col_def in migrations:
-        if not _column_exists(session, table, column):
-            db_logger.info(f"Migration: adding '{column}' to '{table}'...")
-            try:
-                session.execute(
-                    text(f"ALTER TABLE {table} ADD COLUMN {column} {col_def}")
-                )
-                session.commit()
-                db_logger.info(f"Migration OK: {table}.{column} added.")
-            except Exception as e:
+        cols_for_table = existing_columns.get(table)
+        if cols_for_table is not None and column in cols_for_table:
+            continue
+
+        db_logger.info(f"Migration: adding '{column}' to '{table}'...")
+        try:
+            session.execute(
+                text(f"ALTER TABLE {table} ADD COLUMN {column} {col_def}")
+            )
+            session.commit()
+            if cols_for_table is not None:
+                cols_for_table.add(column)
+            db_logger.info(f"Migration OK: {table}.{column} added.")
+        except Exception as e:
+            err_str = str(e).lower()
+            if "duplicate column" in err_str or "already exists" in err_str:
+                session.rollback()
+                if cols_for_table is not None:
+                    cols_for_table.add(column)
+            else:
                 db_logger.error(f"Migration failed ({table}.{column}): {e}")
                 session.rollback()
 
@@ -393,6 +440,90 @@ def get_session():
         yield session
 
 
+def increment_usage(
+    provider: str,
+    action: str,
+    count: int = 1,
+    estimated_cost_usd: float = 0.0,
+) -> None:
+    """Atomically increment API usage counter for today.
+
+    Uses INSERT OR IGNORE + UPDATE to handle concurrent access safely.
+    Silently swallows all errors — usage tracking must never break the main flow.
+    """
+    from datetime import date as _date
+    try:
+        today = _date.today().isoformat()
+        with Session(engine) as session:
+            # Try INSERT first (new row for today)
+            session.exec(
+                text(
+                    "INSERT OR IGNORE INTO api_usage_daily (date, provider, action, count, estimated_cost_usd) "
+                    "VALUES (:date, :provider, :action, 0, 0)"
+                ),
+                params={"date": today, "provider": provider, "action": action},
+            )
+            session.exec(
+                text(
+                    "UPDATE api_usage_daily "
+                    "SET count = count + :count, estimated_cost_usd = estimated_cost_usd + :cost "
+                    "WHERE date = :date AND provider = :provider AND action = :action"
+                ),
+                params={
+                    "count": count,
+                    "cost": estimated_cost_usd,
+                    "date": today,
+                    "provider": provider,
+                    "action": action,
+                },
+            )
+            session.commit()
+    except Exception:
+        pass  # Never let tracking errors propagate
+
+
+def get_daily_usage(days: int = 7) -> dict:
+    """Return API usage stats for the last N days (default 7).
+
+    Returns a dict with:
+        - ``today``: {provider: {action: {count, cost}}} for today
+        - ``totals``: {action: count} aggregated across providers for today
+        - ``history``: list of {date, total_count, total_cost} for the last N days
+    """
+    from datetime import date as _date, timedelta as _timedelta
+    try:
+        today = _date.today().isoformat()
+        since = (_date.today() - _timedelta(days=days - 1)).isoformat()
+        with Session(engine) as session:
+            rows = session.exec(
+                text(
+                    "SELECT date, provider, action, count, estimated_cost_usd "
+                    "FROM api_usage_daily WHERE date >= :since ORDER BY date DESC"
+                ),
+                params={"since": since},
+            ).all()
+
+        today_data: dict = {}
+        totals: dict = {}
+        history_map: dict = {}
+        for row in rows:
+            d, prov, act, cnt, cost = row
+            if d == today:
+                today_data.setdefault(prov, {})[act] = {
+                    "count": cnt,
+                    "cost": round(cost, 6),
+                }
+                totals[act] = totals.get(act, 0) + cnt
+            history_map.setdefault(d, {"date": d, "total_count": 0, "total_cost": 0.0})
+            history_map[d]["total_count"] += cnt
+            history_map[d]["total_cost"] = round(history_map[d]["total_cost"] + cost, 6)
+
+        history = sorted(history_map.values(), key=lambda x: x["date"])
+        return {"today": today_data, "totals": totals, "history": history}
+    except Exception as e:
+        return {"today": {}, "totals": {}, "history": [], "error": str(e)}
+
+
 __all__ = [
     "engine",
     "make_engine",
@@ -401,6 +532,8 @@ __all__ = [
     "get_database_url",
     "sqlite_retry_on_lock",
     "deduplicate_leads",
+    "increment_usage",
+    "get_daily_usage",
     "DATABASE_URL",
     "DEFAULT_DB_FILENAME",
     "DEFAULT_RELATIVE_DIR",

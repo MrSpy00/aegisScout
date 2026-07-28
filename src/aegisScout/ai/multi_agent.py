@@ -132,3 +132,134 @@ Output format MUST be a valid JSON with the following structure:
         "analysis": analysis,
         "opening_message": final_message
     }
+
+
+async def generate_sales_pitch_mode(
+    business_name: str,
+    sector: str,
+    has_website: bool,
+    website_notes: str,
+    instagram_bio: str,
+    review_highlights: str,
+    address: str = "",
+    phone: str = "",
+    rating: Optional[float] = None,
+    review_count: Optional[int] = None,
+    language: str = "tr",
+) -> dict:
+    """
+    Generates a structured Field Sales Pitch package for in-person sales visits.
+
+    Returns a dict with:
+      - profile_md: Business profile summary (markdown)
+      - pitch_script_md: Verbal pitch script for the salesperson to say at the door
+      - ideas: List of product ideas, each with title, description, price_estimate,
+                needs_cms, and build_prompt
+      - error: (optional) error message if generation failed
+    """
+    ai_router = _get_router()
+
+    # Pricing rules embedded in the prompt (from Gropector's validated approach)
+    pricing_rules = """
+FIYATLANDIRMA KURALLARI (TL cinsinden, 2025 Türkiye pazarı):
+- Statik tek sayfa / dijital kartvizit: 500-1.200 TL (tek seferlik)
+- Orta karmaşıklık statik site (3-5 sayfa): 1.200-2.500 TL
+- CMS + yönetim paneli (müşteri kendi güncelleyebilir): 3.000-6.000 TL + aylık 300-750 TL bakım
+- Entegrasyon gerektiren sistem (rezervasyon, API, ödeme): 5.000-10.000 TL
+
+YASAKLI FİKİR TÜRLERİ (bunları ÖNERME):
+- E-ticaret / online satış mağazası
+- Muhasebe veya ERP sistemi
+- Sadece QR kod yönlendirme (ürün olarak sunulamaz)
+- Sosyal medya yönetimi (hizmet, yazılım değil)
+"""
+
+    rag_context = ""
+    try:
+        matches = search_knowledge_base(f"{sector} {business_name}", top_k=2)
+        if matches:
+            rag_context = "\n".join([f"Referans: {m['content']}" for m in matches])
+    except Exception:
+        pass
+
+    # Build the combined pitch generation prompt
+    rating_str = f"{rating:.1f}/5.0 ({review_count} yorum)" if rating else "Bilinmiyor"
+    pitch_prompt = f"""[SAHA SATIŞ PITCH OLUŞTURUCUSU]
+
+Aşağıdaki işletme için kapsamlı bir saha satış paketi oluştur.
+ÇIKTIYI TÜRKÇE VER.
+
+# İŞLETME BİLGİLERİ
+İşletme Adı: {business_name}
+Sektör: {sector}
+Adres: {address or "Bilinmiyor"}
+Telefon: {phone or "Bilinmiyor"}
+Web Sitesi: {"Var" if has_website else "YOK (Büyük Fırsat!)"}
+Web Notu: {website_notes or "Bilgi yok"}
+Instagram Biyografi: {instagram_bio or "Bilgi yok"}
+Google Yorumları: {review_highlights or "Yok"}
+Google Puanı: {rating_str}
+Portfolyo/RAG Referanslar: {rag_context or "Yok"}
+
+{pricing_rules}
+
+# GÖREV
+Aşağıdaki yapıya UYGUN bir JSON üret. SADECE JSON döndür, başka hiçbir şey ekleme.
+
+ÇIKTI FORMATI:
+{{
+  "profile_md": "İşletmenin 4-6 cümlelik özet profili. Güçlü yönleri, zayıflıkları ve dijital fırsatları içermeli.",
+  "pitch_script_md": "Kapıda söylenecek 5-8 cümlelik sözlü pitch scripti. Doğal ve samimi olmalı. Emoji kullanma. İlk cümle kapıyı açmalı, ikinci cümle spesifik bir sorunu belirtmeli, son cümle öneriye geçiş yapmalı.",
+  "ideas": [
+    {{
+      "title": "Ürün/Hizmet Adı (kısa ve net)",
+      "description": "Bu çözümün işletmeye spesifik katkısı (2-3 cümle)",
+      "price_estimate": "X.XXX-Y.YYY TL",
+      "needs_cms": true,
+      "build_prompt": "Bu sistemi geliştirmek için detaylı teknik geliştirme promptu. Hangi teknolojiler kullanılacak, hangi özellikler olacak, nasıl yapılandırılacak — tüm teknik detaylar."
+    }}
+  ]
+}}
+
+NOTLAR:
+- ideas listesinde 2-3 fikir olmalı, fazla değil.
+- En az bir fikir web sitesi YOK ise basit bir dijital varlık (landing page) olsun.
+- needs_cms: müşteri kendi içerikleri güncelleyebilecekse true, statik sayfa ise false.
+- build_prompt: Geliştirici olarak ben bu fikri hemen kodlamaya başlayabileceğim kadar detaylı olmalı.
+- Fiyatları yukarıdaki kurallara göre belirle. Uydurma fiyat verme.
+"""
+
+    logger.info(f"Running Sales Pitch Agent for: {business_name}")
+    raw_output = await ai_router.generate(pitch_prompt)
+
+    if not raw_output:
+        return {
+            "error": "AI yanıt vermedi.",
+            "profile_md": f"{business_name} — {sector}",
+            "pitch_script_md": f"Merhaba, {business_name} işletmenizi ziyaret ettim...",
+            "ideas": [],
+        }
+
+    # Parse JSON output
+    try:
+        cleaned = raw_output.strip()
+        if cleaned.startswith("```"):
+            cleaned = re.sub(r"^```[a-zA-Z0-9_+-]*\n?", "", cleaned)
+            cleaned = re.sub(r"\n?```$", "", cleaned).strip()
+        result = json.loads(cleaned)
+        # Validate required keys
+        if "profile_md" not in result:
+            result["profile_md"] = f"{business_name} — {sector}"
+        if "pitch_script_md" not in result:
+            result["pitch_script_md"] = ""
+        if "ideas" not in result or not isinstance(result["ideas"], list):
+            result["ideas"] = []
+        return result
+    except Exception as parse_err:
+        logger.warning(f"Sales pitch JSON parse failed: {parse_err}. Returning raw output.")
+        return {
+            "profile_md": f"{business_name} — {sector}",
+            "pitch_script_md": raw_output,
+            "ideas": [],
+            "parse_error": str(parse_err),
+        }

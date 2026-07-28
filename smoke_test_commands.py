@@ -40,6 +40,7 @@ sys.modules["pydantic"] = pyd
 sqlm = types.ModuleType("sqlmodel")
 sqlm.Session = object
 sqlm.select = lambda *a, **k: None
+sqlm.col = lambda *a, **k: None
 sys.modules["sqlmodel"] = sqlm
 
 # Configure stubs
@@ -85,6 +86,10 @@ provider_map = {
     "InstagramFinder": "instagram_finder",
     "SocialDiscovery": "social_discovery",
     "DoktorTakvimiDiscoveryProvider": "doktortakvimi_provider",
+    "DoktorSitesiDiscoveryProvider": "doktorsitesi_provider",
+    "SerpApiMapsDiscoveryProvider": "serpapi_provider",
+    "SerpApiLocalPackDiscoveryProvider": "serpapi_provider",
+    "PhotonDiscoveryProvider": "photon_provider",
 }
 for name, modname in provider_map.items():
     full = f"aegisScout.discovery.{modname}"

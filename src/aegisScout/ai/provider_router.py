@@ -329,3 +329,23 @@ class ProviderRouter:
                 "analysis": "LLM parse failed; caller must provide fallback.",
                 "raw": e.raw,
             }
+
+
+def ask_llm(prompt: str, system_prompt: Optional[str] = None) -> str:
+    """
+    Synchronous helper for single-prompt LLM queries.
+    Invokes LLMProviderRouter.generate() across active primary and fallback providers.
+    """
+    import asyncio
+    router = LLMProviderRouter()
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+
+    if loop and loop.is_running():
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            return pool.submit(asyncio.run, router.generate(prompt, system_prompt=system_prompt)).result(timeout=60)
+    else:
+        return asyncio.run(router.generate(prompt, system_prompt=system_prompt))

@@ -158,6 +158,8 @@ Here are actual screenshots of the desktop application's main panels:
 ### 22. SQLite WAL ve Yüksek Başarımlı Veritabanı (V5)
 - **WAL Modu ve İndeksleme:** Veritabanı performansı WAL (Write-Ahead Logging) ve özel SQLite indeksleri ile güçlendirilmiş, eşzamanlı okuma/yazma işlemleri hızlandırılmıştır.
 - **Otomatik Tekilleştirme (Deduplication):** Tekrarlayan adres ve alan adı girdileri veritabanı seviyesinde otomatik olarak engellenir.
+- **Sıfır Bağlantı Sızıntısı & NullPool Güvenliği:** SQLite veritabanı motoru için `NullPool` (in-memory testler için `StaticPool`) entegrasyonu yapılarak `QueuePool` bağlantı kilitlenmeleri ve zaman aşımları tamamen ortadan kaldırılmıştır.
+- **100% Temayla Entegre SVG İkonlar & Sessiz Tema/Dil Kalıcılığı:** Tüm arayüz buton ve widget'larındaki emojiler dinamik SVG vektör simgeler ile değiştirilmiş; ayarlar giriş/çıkışlarında tekrarlayan spam bildirimler temizlenmiş ve sol menü daraltma (collapsed) görünümü mükemmelleştirilmiştir.
 
 ---
 
@@ -449,6 +451,8 @@ aegisScout tasks cancel <task_id>
 ### 21. SQLite WAL & Database Performance Boost (V5)
 - **WAL Mode & Custom Indexes:** Employs Write-Ahead Logging (WAL) and optimized SQL indexing for ultra-fast query execution and concurrent read/writes.
 - **Automated Deduplication:** Prevents duplicate leads and domains at the database query layer.
+- **Zero Connection Leakage & NullPool Engine:** Configured SQLite connection pool with `NullPool` (`StaticPool` for in-memory DBs) to eliminate `QueuePool` limits and thread deadlock timeouts.
+- **100% Theme-Integrated SVG Icons & Silent Settings Persistence:** Replaced all UI emojis and text symbols with dynamic theme-adaptive SVG icons; sanitized setting load/navigation events to prevent toast spamming and optimized collapsed sidebar layout.
 
 ---
 

@@ -117,98 +117,174 @@ class WebSearchDiscoveryProvider(BaseDiscoveryProvider):
         return any(domain in url_lower for domain in self._ignored_domains)
 
     async def _search_query(self, query: str, sector: str) -> List[LeadCandidate]:
-        """Execute a single DuckDuckGo HTML search query and parse results."""
+        """Execute web search query across DDG POST, DDG Lite, and Bing HTML fallbacks."""
         candidates = []
-        url = f"https://html.duckduckgo.com/html/?q={urllib.parse.quote(query)}"
+        html_text = ""
+        source_type = "ddg"
 
         try:
-            async with httpx.AsyncClient(timeout=15.0) as client:
-                resp = await client.get(url, headers=self.headers)
-                if resp.status_code != 200:
-                    logger.warning(f"DuckDuckGo returned status {resp.status_code} for query: {query}")
+            async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
+                # Strategy 1: DDG HTML GET (standard URL)
+                try:
+                    get_url = f"https://html.duckduckgo.com/html/?q={urllib.parse.quote(query)}"
+                    resp = await client.get(get_url, headers=self.headers)
+                    if resp.status_code == 200 and "result__a" in resp.text:
+                        html_text = resp.text
+                        source_type = "ddg"
+                except Exception:
+                    pass
+
+                # Strategy 2: DDG HTML POST fallback
+                if not html_text:
+                    try:
+                        resp = await client.post(
+                            "https://html.duckduckgo.com/html/",
+                            data={"q": query},
+                            headers={**self.headers, "Content-Type": "application/x-www-form-urlencoded"}
+                        )
+                        if resp.status_code == 200 and "result__a" in resp.text:
+                            html_text = resp.text
+                            source_type = "ddg"
+                    except Exception:
+                        pass
+
+                # Strategy 3: DDG Lite GET fallback
+                if not html_text:
+                    try:
+                        lite_url = f"https://lite.duckduckgo.com/lite/?q={urllib.parse.quote(query)}"
+                        resp = await client.get(lite_url, headers=self.headers)
+                        if resp.status_code == 200 and len(resp.text) > 500:
+                            html_text = resp.text
+                            source_type = "ddg_lite"
+                    except Exception:
+                        pass
+
+                # Strategy 4: Bing HTML GET fallback
+                if not html_text:
+                    try:
+                        bing_url = f"https://www.bing.com/search?q={urllib.parse.quote(query)}"
+                        resp = await client.get(bing_url, headers=self.headers)
+                        if resp.status_code == 200:
+                            html_text = resp.text
+                            source_type = "bing"
+                    except Exception:
+                        pass
+
+                if not html_text:
+                    logger.warning(f"All web search endpoints returned empty/blocked response for query: '{query}'")
                     return []
 
-                soup = BeautifulSoup(resp.text, "html.parser")
-                results = soup.find_all("div", class_="result")
+                soup = BeautifulSoup(html_text, "html.parser")
+                
+                # Parse results depending on markup
+                if source_type in ("ddg", "ddg_lite"):
+                    results = soup.find_all("div", class_="result") or soup.find_all("td", class_="result-snippet")
+                    for r in results:
+                        title_a = r.find("a", class_="result__a") or r.find("a", class_="result-link") or r.find("a")
+                        if not title_a:
+                            continue
 
-                for r in results:
-                    title_a = r.find("a", class_="result__a")
-                    if not title_a:
-                        continue
+                        title = title_a.text.strip()
+                        href = str(title_a.get("href", ""))
 
-                    title = title_a.text.strip()
-                    href = str(title_a.get("href", ""))
+                        parsed = urllib.parse.urlparse(href)
+                        queries_qs = urllib.parse.parse_qs(parsed.query)
+                        actual_url = str(queries_qs.get("uddg", [href])[0])
 
-                    # Decode DuckDuckGo redirect URLs
-                    parsed = urllib.parse.urlparse(href)
-                    queries_qs = urllib.parse.parse_qs(parsed.query)
-                    actual_url = str(queries_qs.get("uddg", [href])[0])
+                        if not actual_url or not actual_url.startswith("http"):
+                            continue
 
-                    if not actual_url or not actual_url.startswith("http"):
-                        continue
+                        if self._is_ignored_domain(actual_url) or self._is_aggregate_page(title):
+                            continue
 
-                    if self._is_ignored_domain(actual_url):
-                        continue
+                        business_name = self._clean_business_name(title)
+                        if not business_name or len(business_name) < 3:
+                            continue
 
-                    if self._is_aggregate_page(title):
-                        continue
+                        snippet_elem = r.find("a", class_="result__snippet") or r.find("div", class_="result__snippet") or r.find_next("td", class_="result-snippet")
+                        snippet_text = snippet_elem.get_text(separator=" ", strip=True) if snippet_elem else ""
 
-                    business_name = self._clean_business_name(title)
-                    if not business_name or len(business_name) < 3:
-                        continue
+                        instagram_handle = self._extract_instagram_handle(actual_url)
+                        if not instagram_handle and snippet_text:
+                            ig_match = re.search(r"(?:instagram\.com/|@)([a-zA-Z0-9_.\-]{3,30})", snippet_text)
+                            if ig_match:
+                                candidate_handle = ig_match.group(1).strip().lower()
+                                if candidate_handle not in {"p", "explore", "stories", "reel", "reels", "developer", "about", "legal", "terms", "privacy", "accounts", "emails"}:
+                                    instagram_handle = candidate_handle
 
-                    # Extract snippet for contact info
-                    snippet_text = ""
-                    snippet_elem = r.find("a", class_="result__snippet") or r.find("div", class_="result__snippet")
-                    if snippet_elem:
-                        snippet_text = snippet_elem.get_text(separator=" ", strip=True)
+                        is_instagram_page = "instagram.com" in actual_url.lower()
 
-                    instagram_handle = self._extract_instagram_handle(actual_url)
-
-                    # Also look for Instagram handles in snippets
-                    if not instagram_handle and snippet_text:
-                        ig_match = re.search(
-                            r"(?:instagram\.com/|@)([a-zA-Z0-9_.\-]{3,30})",
-                            snippet_text,
+                        candidate = LeadCandidate(
+                            business_name=business_name,
+                            sector=sector,
+                            source="web_search",
+                            has_website=not is_instagram_page,
                         )
-                        if ig_match:
-                            candidate_handle = ig_match.group(1).strip().lower()
-                            if candidate_handle not in {
-                                "p", "explore", "stories", "reel", "reels",
-                                "developer", "about", "legal", "terms",
-                                "privacy", "accounts", "emails",
-                            }:
-                                instagram_handle = candidate_handle
 
-                    is_instagram_page = "instagram.com" in actual_url.lower()
+                        if is_instagram_page:
+                            if instagram_handle:
+                                candidate.instagram_handle = instagram_handle
+                                candidate.instagram_url = f"https://instagram.com/{instagram_handle}"
+                        else:
+                            candidate.website_url = actual_url
+                            candidate.has_website = True
+                            if instagram_handle:
+                                candidate.instagram_handle = instagram_handle
+                                candidate.instagram_url = f"https://instagram.com/{instagram_handle}"
 
-                    candidate = LeadCandidate(
-                        business_name=business_name,
-                        sector=sector,
-                        source="web_search",
-                        has_website=not is_instagram_page,
-                    )
+                        if snippet_text:
+                            phone = self._extract_phone_from_text(snippet_text)
+                            if phone: candidate.phone = phone
+                            email = self._extract_email_from_text(snippet_text)
+                            if email: candidate.email = email
 
-                    if is_instagram_page:
-                        if instagram_handle:
+                        candidates.append(candidate)
+
+                elif source_type == "bing":
+                    results = soup.find_all("li", class_="b_algo")
+                    for r in results:
+                        h2 = r.find("h2")
+                        if not h2: continue
+                        a = h2.find("a")
+                        if not a: continue
+                        title = a.get_text(strip=True)
+                        actual_url = a.get("href", "")
+                        if not actual_url or not actual_url.startswith("http"): continue
+                        if self._is_ignored_domain(actual_url) or self._is_aggregate_page(title): continue
+
+                        business_name = self._clean_business_name(title)
+                        if not business_name or len(business_name) < 3: continue
+
+                        snippet_elem = r.find("p") or r.find("div", class_="b_caption")
+                        snippet_text = snippet_elem.get_text(separator=" ", strip=True) if snippet_elem else ""
+
+                        instagram_handle = self._extract_instagram_handle(actual_url)
+                        is_instagram_page = "instagram.com" in actual_url.lower()
+
+                        candidate = LeadCandidate(
+                            business_name=business_name,
+                            sector=sector,
+                            source="web_search",
+                            has_website=not is_instagram_page,
+                        )
+
+                        if is_instagram_page and instagram_handle:
                             candidate.instagram_handle = instagram_handle
                             candidate.instagram_url = f"https://instagram.com/{instagram_handle}"
-                    else:
-                        candidate.website_url = actual_url
-                        candidate.has_website = True
-                        if instagram_handle:
-                            candidate.instagram_handle = instagram_handle
-                            candidate.instagram_url = f"https://instagram.com/{instagram_handle}"
+                        else:
+                            candidate.website_url = actual_url
+                            candidate.has_website = True
+                            if instagram_handle:
+                                candidate.instagram_handle = instagram_handle
+                                candidate.instagram_url = f"https://instagram.com/{instagram_handle}"
 
-                    if snippet_text:
-                        phone = self._extract_phone_from_text(snippet_text)
-                        if phone:
-                            candidate.phone = phone
-                        email = self._extract_email_from_text(snippet_text)
-                        if email:
-                            candidate.email = email
+                        if snippet_text:
+                            phone = self._extract_phone_from_text(snippet_text)
+                            if phone: candidate.phone = phone
+                            email = self._extract_email_from_text(snippet_text)
+                            if email: candidate.email = email
 
-                    candidates.append(candidate)
+                        candidates.append(candidate)
 
         except Exception as e:
             logger.error(f"Error executing web search query '{query}': {e}")

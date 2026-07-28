@@ -208,7 +208,7 @@ def build():
 
     print("[aegisScout Build] PyInstaller baslatiliyor...\n")
     result = subprocess.run(
-        [sys.executable, "-m", "PyInstaller", "--clean", "--noconfirm", str(SPEC_FILE)],
+        [sys.executable, "-m", "PyInstaller", "--clean", "--noconfirm", "--distpath", str(DIST_DIR), str(SPEC_FILE)],
         cwd=ROOT,
     )
 
@@ -222,6 +222,12 @@ def build():
 
     exe_name = "aegisScout.exe" if sys.platform == "win32" else "aegisScout"
     exe_path = DIST_DIR / exe_name
+
+    if not exe_path.exists():
+        for candidate in DIST_DIR.rglob("*.exe"):
+            import shutil
+            shutil.copy2(candidate, exe_path)
+            break
 
     if exe_path.exists():
         size_mb = exe_path.stat().st_size / (1024 * 1024)

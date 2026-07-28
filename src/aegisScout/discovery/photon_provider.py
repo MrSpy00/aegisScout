@@ -33,7 +33,6 @@ class PhotonDiscoveryProvider(BaseDiscoveryProvider):
         params = {
             "q": query,
             "limit": 30,
-            "lang": "tr",
         }
 
         headers = {
