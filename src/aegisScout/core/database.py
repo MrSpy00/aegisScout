@@ -162,9 +162,14 @@ def make_engine(url: Optional[str] = None):
         from sqlalchemy.pool import StaticPool
         kwargs["poolclass"] = StaticPool
     elif effective_url.lower().startswith("sqlite"):
-        # Use SingletonThreadPool for file-based SQLite to avoid per-query connection churn.
-        from sqlalchemy.pool import SingletonThreadPool
-        kwargs["poolclass"] = SingletonThreadPool
+        from sqlalchemy.pool import QueuePool
+        kwargs.update({
+            "poolclass": QueuePool,
+            "pool_size": 15,
+            "max_overflow": 30,
+            "pool_recycle": 1800,
+            "pool_timeout": 30,
+        })
     else:
         kwargs.update({
             "pool_size": 30,

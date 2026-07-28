@@ -481,9 +481,6 @@ class GuiApi:
             return {"error": str(e)}
 
     def export_leads_dialog(self, filters):
-        if not self._window:
-            return {"error": "GUI penceresi hazır değil."}
-            
         try:
             with Session(engine) as session:
                 stmt = select(Lead).where(Lead.session_id == self._active_session_id)
@@ -542,20 +539,32 @@ class GuiApi:
                     "Tüm Dosyalar (*.*)"
                 )
                 
-                result = self._window.create_file_dialog(
-                    webview.SAVE_DIALOG,
-                    save_filename=default_filename,
-                    file_types=file_types
-                )
-                
-                if not result:
-                    return {"success": False, "cancelled": True}
-                    
-                save_path = result[0]
-                ext = Path(save_path).suffix.lower()
-                
-                # Default format mapping based on UI option selection
+                save_path = None
                 ui_format = filters.get("format", ".xlsx")
+                if not ui_format.startswith("."):
+                    ui_format = "." + ui_format
+
+                if self._window:
+                    try:
+                        result = self._window.create_file_dialog(
+                            webview.SAVE_DIALOG,
+                            save_filename=default_filename,
+                            file_types=file_types
+                        )
+                        if result:
+                            save_path = result[0]
+                        else:
+                            return {"success": False, "cancelled": True}
+                    except Exception as dialog_err:
+                        logger.warning(f"File dialog failed: {dialog_err}. Falling back to default export folder.")
+
+                if not save_path:
+                    from aegisScout.utils.paths import get_data_dir
+                    exp_dir = get_data_dir() / "exports"
+                    exp_dir.mkdir(parents=True, exist_ok=True)
+                    save_path = str(exp_dir / f"{default_filename}{ui_format}")
+
+                ext = Path(save_path).suffix.lower()
                 if not ext:
                     save_path += ui_format
                     ext = ui_format
