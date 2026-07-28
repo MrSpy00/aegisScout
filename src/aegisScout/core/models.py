@@ -104,6 +104,7 @@ class Lead(SQLModel, table=True):
 
     @property
     def category(self) -> Optional[str]:
+        """Deprecated alias for `sector`. Use `Lead.sector` directly in ORM queries."""
         return self.sector
 
     @category.setter
@@ -121,8 +122,8 @@ class Lead(SQLModel, table=True):
         return 0.0
 
     @score.setter
-    def score(self, value: float):
-        self.priority_score = float(value)
+    def score(self, value):
+        self.priority_score = float(value) if value is not None else None
 
     @property
     def city(self) -> Optional[str]:
@@ -176,6 +177,9 @@ class SmtpAccount(SQLModel, table=True):
     created_at: datetime = Field(default_factory=_utcnow)
     last_used_at: Optional[datetime] = Field(default=None)
 
+    # Relationships
+    messages: List["Message"] = Relationship(back_populates="smtp_account")
+
 
 class Message(SQLModel, table=True):
     __tablename__ = "messages"
@@ -194,6 +198,7 @@ class Message(SQLModel, table=True):
 
     # Relationships
     lead: Lead = Relationship(back_populates="messages")
+    smtp_account: Optional["SmtpAccount"] = Relationship(back_populates="messages")
 
 
 class Campaign(SQLModel, table=True):
@@ -267,6 +272,7 @@ class CrmLog(SQLModel, table=True):
 
     id: Optional[int] = Field(default=None, primary_key=True)
     lead_id: int = Field(foreign_key="leads.id", index=True)
+    session_id: Optional[int] = Field(default=1, foreign_key="user_sessions.id", index=True)
     note: str
     created_at: datetime = Field(default_factory=_utcnow)
 

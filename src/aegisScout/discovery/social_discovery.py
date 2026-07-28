@@ -45,11 +45,16 @@ class SocialProfiles:
     facebook_url: Optional[str] = None
     telegram_url: Optional[str] = None
     twitter_url: Optional[str] = None
+    pinterest_url: Optional[str] = None
+    github_url: Optional[str] = None
+    behance_url: Optional[str] = None
+    whatsapp_url: Optional[str] = None
 
     def is_empty(self) -> bool:
         return not any([
             self.youtube_url, self.linkedin_url, self.tiktok_url,
             self.facebook_url, self.telegram_url, self.twitter_url,
+            self.pinterest_url, self.github_url, self.behance_url, self.whatsapp_url,
         ])
 
     def to_dict(self) -> Dict[str, Optional[str]]:
@@ -60,6 +65,10 @@ class SocialProfiles:
             "facebook_url": self.facebook_url,
             "telegram_url": self.telegram_url,
             "twitter_url": self.twitter_url,
+            "pinterest_url": self.pinterest_url,
+            "github_url": self.github_url,
+            "behance_url": self.behance_url,
+            "whatsapp_url": self.whatsapp_url,
         }
 
     def apply_to_lead(self, lead) -> None:

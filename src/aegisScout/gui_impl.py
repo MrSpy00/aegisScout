@@ -146,6 +146,18 @@ _SAFE_COMMANDS = {
     "get_activity_logs",
     "get_sessions",
 }
+def _bulk_delete_lead_ids(session: Session, lead_ids: list[int]) -> None:
+    """Helper to bulk-delete leads and all dependent records safely in chunks."""
+    if not lead_ids:
+        return
+    chunk_size = 900
+    for i in range(0, len(lead_ids), chunk_size):
+        chunk = lead_ids[i : i + chunk_size]
+        id_str = ",".join(str(int(lid)) for lid in chunk)
+        session.execute(text(f"DELETE FROM crm_logs WHERE lead_id IN ({id_str})"))
+        session.execute(text(f"DELETE FROM research_notes WHERE lead_id IN ({id_str})"))
+        session.execute(text(f"DELETE FROM messages WHERE lead_id IN ({id_str})"))
+        session.execute(text(f"DELETE FROM leads WHERE id IN ({id_str})"))
 
 
 class GuiApi:
@@ -341,129 +353,130 @@ class GuiApi:
         except Exception as e:
             return {"error": str(e)}
 
+    @sqlite_retry_on_lock()
     def delete_leads_by_search(self, search_log_id):
         try:
             with Session(engine) as session:
-                log = session.get(ActivityLog, int(search_log_id))
-                if not log:
-                    return {"error": "Arama kaydı bulunamadı."}
-                
-                t_start = log.timestamp - timedelta(seconds=5)
-                t_end = log.timestamp + timedelta(seconds=5)
-                
-                leads_stmt = select(Lead).where(
-                    Lead.session_id == self._active_session_id,
-                    Lead.discovered_at >= t_start,
-                    Lead.discovered_at <= t_end
-                )
-                leads = session.exec(leads_stmt).all()
-                deleted_count = len(leads)
-                
-                for lead in leads:
-                    session.delete(lead)
-                
-                session.delete(log)
-                
-                log_entry = ActivityLog(
-                    action="leads_clear_search",
-                    details=f"Aramaya ait adaylar temizlendi (Arama ID: {search_log_id}, Silinen: {deleted_count}).",
-                    session_id=self._active_session_id,
-                )
-                session.add(log_entry)
-                session.commit()
-                return {"success": True, "deleted_count": deleted_count}
+                with session.no_autoflush:
+                    log = session.get(ActivityLog, int(search_log_id))
+                    if not log:
+                        return {"error": "Arama kaydı bulunamadı."}
+                    
+                    t_start = log.timestamp - timedelta(seconds=5)
+                    t_end = log.timestamp + timedelta(seconds=5)
+                    
+                    leads_stmt = select(Lead.id).where(
+                        Lead.session_id == self._active_session_id,
+                        Lead.discovered_at >= t_start,
+                        Lead.discovered_at <= t_end
+                    )
+                    lead_ids = session.exec(leads_stmt).all()
+                    deleted_count = len(lead_ids)
+                    
+                    _bulk_delete_lead_ids(session, lead_ids)
+                    session.delete(log)
+                    
+                    log_entry = ActivityLog(
+                        action="leads_clear_search",
+                        details=f"Aramaya ait adaylar temizlendi (Arama ID: {search_log_id}, Silinen: {deleted_count}).",
+                        session_id=self._active_session_id,
+                    )
+                    session.add(log_entry)
+                    session.commit()
+                    return {"success": True, "deleted_count": deleted_count}
         except Exception as e:
             return {"error": str(e)}
 
+    @sqlite_retry_on_lock()
     def clear_leads_advanced(self, filters):
         try:
             with Session(engine) as session:
-                stmt = select(Lead).where(Lead.session_id == self._active_session_id)
-                
-                status = filters.get("status")
-                if status and status != "all":
-                    stmt = stmt.where(Lead.status == status)
+                with session.no_autoflush:
+                    stmt = select(Lead.id).where(Lead.session_id == self._active_session_id)
                     
-                sector = filters.get("sector")
-                if sector and sector.strip():
-                    stmt = stmt.where(Lead.sector == sector.strip())
-                    
-                source = filters.get("source")
-                if source and source != "all":
-                    stmt = stmt.where(Lead.source == source)
-                    
-                min_rating = filters.get("min_rating")
-                if min_rating is not None and str(min_rating).strip() != "":
-                    try:
-                        stmt = stmt.where(Lead.rating >= float(min_rating))
-                    except ValueError:
-                        pass
-                max_rating = filters.get("max_rating")
-                if max_rating is not None and str(max_rating).strip() != "":
-                    try:
-                        stmt = stmt.where(Lead.rating <= float(max_rating))
-                    except ValueError:
-                        pass
+                    status = filters.get("status")
+                    if status and status != "all":
+                        stmt = stmt.where(Lead.status == status)
                         
-                has_website = filters.get("has_website")
-                if has_website == "yes":
-                    stmt = stmt.where(Lead.has_website == True)
-                elif has_website == "no":
-                    stmt = stmt.where(Lead.has_website == False)
+                    sector = filters.get("sector")
+                    if sector and sector.strip():
+                        stmt = stmt.where(Lead.sector == sector.strip())
+                        
+                    source = filters.get("source")
+                    if source and source != "all":
+                        stmt = stmt.where(Lead.source == source)
+                        
+                    min_rating = filters.get("min_rating")
+                    if min_rating is not None and str(min_rating).strip() != "":
+                        try:
+                            stmt = stmt.where(Lead.rating >= float(min_rating))
+                        except ValueError:
+                            pass
+                    max_rating = filters.get("max_rating")
+                    if max_rating is not None and str(max_rating).strip() != "":
+                        try:
+                            stmt = stmt.where(Lead.rating <= float(max_rating))
+                        except ValueError:
+                            pass
+                            
+                    has_website = filters.get("has_website")
+                    if has_website == "yes":
+                        stmt = stmt.where(Lead.has_website == True)
+                    elif has_website == "no":
+                        stmt = stmt.where(Lead.has_website == False)
+                        
+                    start_date = filters.get("start_date")
+                    if start_date and start_date.strip():
+                        try:
+                            dt_start = datetime.strptime(start_date, "%Y-%m-%d")
+                            stmt = stmt.where(Lead.discovered_at >= dt_start)
+                        except ValueError:
+                            pass
+                    end_date = filters.get("end_date")
+                    if end_date and end_date.strip():
+                        try:
+                            dt_end = datetime.strptime(end_date + " 23:59:59", "%Y-%m-%d %H:%M:%S")
+                            stmt = stmt.where(Lead.discovered_at <= dt_end)
+                        except ValueError:
+                            pass
                     
-                start_date = filters.get("start_date")
-                if start_date and start_date.strip():
-                    try:
-                        dt_start = datetime.strptime(start_date, "%Y-%m-%d")
-                        stmt = stmt.where(Lead.discovered_at >= dt_start)
-                    except ValueError:
-                        pass
-                end_date = filters.get("end_date")
-                if end_date and end_date.strip():
-                    try:
-                        dt_end = datetime.strptime(end_date + " 23:59:59", "%Y-%m-%d %H:%M:%S")
-                        stmt = stmt.where(Lead.discovered_at <= dt_end)
-                    except ValueError:
-                        pass
-                
-                search_log_id = filters.get("search_log_id")
-                if search_log_id and str(search_log_id).strip() != "":
-                    log = session.get(ActivityLog, int(search_log_id))
-                    if log:
-                        t_start = log.timestamp - timedelta(seconds=5)
-                        t_end = log.timestamp + timedelta(seconds=5)
+                    search_log_id = filters.get("search_log_id")
+                    if search_log_id and str(search_log_id).strip() != "":
+                        log = session.get(ActivityLog, int(search_log_id))
+                        if log:
+                            t_start = log.timestamp - timedelta(seconds=5)
+                            t_end = log.timestamp + timedelta(seconds=5)
+                            stmt = stmt.where(
+                                Lead.discovered_at >= t_start,
+                                Lead.discovered_at <= t_end
+                            )
+                    
+                    keyword = filters.get("keyword")
+                    if keyword and keyword.strip():
+                        kw_lower = keyword.strip().lower()
                         stmt = stmt.where(
-                            Lead.discovered_at >= t_start,
-                            Lead.discovered_at <= t_end
+                            func.lower(Lead.business_name).contains(kw_lower) |
+                            func.lower(Lead.sector).contains(kw_lower) |
+                            func.lower(Lead.address).contains(kw_lower) |
+                            func.lower(Lead.website_url).contains(kw_lower)
                         )
-                
-                keyword = filters.get("keyword")
-                if keyword and keyword.strip():
-                    kw_lower = keyword.strip().lower()
-                    stmt = stmt.where(
-                        func.lower(Lead.business_name).contains(kw_lower) |
-                        func.lower(Lead.sector).contains(kw_lower) |
-                        func.lower(Lead.address).contains(kw_lower) |
-                        func.lower(Lead.website_url).contains(kw_lower)
+                    
+                    lead_ids = session.exec(stmt).all()
+                    count = len(lead_ids)
+                    
+                    if filters.get("dry_run", False):
+                        return {"success": True, "count": count}
+                    
+                    _bulk_delete_lead_ids(session, lead_ids)
+                    
+                    log_entry = ActivityLog(
+                        action="leads_clear_advanced",
+                        details=f"Gelişmiş aday temizleme yapıldı. Silinen aday: {count}.",
+                        session_id=self._active_session_id
                     )
-                
-                leads = session.exec(stmt).all()
-                count = len(leads)
-                
-                if filters.get("dry_run", False):
-                    return {"success": True, "count": count}
-                
-                for lead in leads:
-                    session.delete(lead)
-                
-                log_entry = ActivityLog(
-                    action="leads_clear_advanced",
-                    details=f"Gelişmiş aday temizleme yapıldı. Silinen aday: {count}.",
-                    session_id=self._active_session_id
-                )
-                session.add(log_entry)
-                session.commit()
-                return {"success": True, "deleted_count": count}
+                    session.add(log_entry)
+                    session.commit()
+                    return {"success": True, "deleted_count": count}
         except Exception as e:
             return {"error": str(e)}
 
@@ -2775,9 +2788,10 @@ class GuiApi:
                     if not lead:
                         return {"error": "Aday bulunamadı."}
                     b_name = lead.business_name or f"Lead-{lead_id}"
+                    session.execute(text("DELETE FROM crm_logs WHERE lead_id = :lid"), {"lid": lead_id})
                     session.execute(text("DELETE FROM research_notes WHERE lead_id = :lid"), {"lid": lead_id})
                     session.execute(text("DELETE FROM messages WHERE lead_id = :lid"), {"lid": lead_id})
-                    session.delete(lead)
+                    session.execute(text("DELETE FROM leads WHERE id = :lid"), {"lid": lead_id})
 
                     log = ActivityLog(
                         action="lead_delete",
@@ -3110,6 +3124,10 @@ class GuiApi:
             with Session(engine) as session:
                 with session.no_autoflush:
                     session.execute(
+                        text("DELETE FROM crm_logs WHERE lead_id IN (SELECT id FROM leads WHERE session_id = :sid)"),
+                        {"sid": self._active_session_id},
+                    )
+                    session.execute(
                         text("DELETE FROM research_notes WHERE lead_id IN (SELECT id FROM leads WHERE session_id = :sid)"),
                         {"sid": self._active_session_id},
                     )
@@ -3150,6 +3168,10 @@ class GuiApi:
 
                     cond_str = " AND ".join(subquery_conds)
 
+                    session.execute(
+                        text(f"DELETE FROM crm_logs WHERE lead_id IN (SELECT id FROM leads WHERE {cond_str})"),
+                        params,
+                    )
                     session.execute(
                         text(f"DELETE FROM research_notes WHERE lead_id IN (SELECT id FROM leads WHERE {cond_str})"),
                         params,
@@ -3264,6 +3286,156 @@ class GuiApi:
         except Exception as e:
             logger.exception(f"get_ip_info_zero_key failed: {e}")
             return {"error": str(e)}
+
+    # -------------------------------------------------------------------
+    # Advanced OSINT Bridge Methods (new v3 modules)
+    # -------------------------------------------------------------------
+
+    def get_advanced_domain_intel(self, domain: str):
+        """Full domain intelligence: subdomains, Shodan InternetDB, Wayback, security headers."""
+        try:
+            from aegisScout.enrichment.advanced_domain_intel import get_full_domain_intel
+            return asyncio.run(get_full_domain_intel(domain))
+        except Exception as e:
+            logger.exception(f"get_advanced_domain_intel failed: {e}")
+            return {"error": str(e), "domain": domain}
+
+    def analyze_phone_number(self, phone: str):
+        """Phone number validation, carrier lookup, and line type detection (free services)."""
+        try:
+            from aegisScout.enrichment.phone_intel import analyze_phone, format_phone_summary
+            result = asyncio.run(analyze_phone(phone))
+            result["summary"] = format_phone_summary(result)
+            return result
+        except Exception as e:
+            logger.exception(f"analyze_phone_number failed: {e}")
+            return {"error": str(e), "phone": phone}
+
+    def check_breach_status(self, email: str = None, domain: str = None, username: str = None):
+        """Check email/domain/username for data breaches using free breach databases."""
+        try:
+            from aegisScout.enrichment.breach_checker import full_breach_check
+            target = email or domain or username or ""
+            target_type = "email" if email else ("domain" if domain else "username")
+            return asyncio.run(full_breach_check(target, target_type))
+        except Exception as e:
+            logger.exception(f"check_breach_status failed: {e}")
+            return {"error": str(e)}
+
+    def get_threat_intel(self, domain: str, ip: str = None):
+        """Threat intelligence from GreyNoise, ThreatFox, URLScan, PhishTank (free)."""
+        try:
+            from aegisScout.enrichment.threat_intel import get_threat_intel_report
+            return asyncio.run(get_threat_intel_report(domain, ip))
+        except Exception as e:
+            logger.exception(f"get_threat_intel failed: {e}")
+            return {"error": str(e), "domain": domain}
+
+    def filter_noise_from_results(self, places: list):
+        """Filter out non-business POI results from discovery scan using noise filter."""
+        try:
+            from aegisScout.discovery.noise_filter import filter_noise, get_opportunity_score
+            filtered = filter_noise(places)
+            # Add opportunity scores
+            for p in filtered:
+                p["opportunity_score"] = get_opportunity_score(p)
+            # Sort by opportunity score descending
+            filtered.sort(key=lambda x: x.get("opportunity_score", 0), reverse=True)
+            return {"filtered": filtered, "removed_count": len(places) - len(filtered)}
+        except Exception as e:
+            logger.exception(f"filter_noise_from_results failed: {e}")
+            return {"filtered": places, "removed_count": 0, "error": str(e)}
+
+    def score_lead_opportunity(self, lead: dict) -> float:
+        """Get opportunity score for a single lead (0-100)."""
+        try:
+            from aegisScout.discovery.noise_filter import get_opportunity_score
+            return get_opportunity_score(lead)
+        except Exception as e:
+            logger.exception(f"score_lead_opportunity failed: {e}")
+            return 50.0
+
+    def generate_product_ideas_for_lead(self, lead_id: int):
+        """Generate AI-powered product ideas for a lead (uses active LLM provider)."""
+        try:
+            from aegisScout.ai.product_ideation import generate_product_ideas, format_product_ideas_html
+            from aegisScout.core.database import engine
+            from aegisScout.core.models import Lead
+            from sqlmodel import Session, select
+
+            with Session(engine) as session:
+                lead = session.get(Lead, lead_id)
+                if not lead:
+                    return {"error": f"Lead {lead_id} not found"}
+                lead_dict = lead.dict()
+
+            # Use the active LLM client
+            from aegisScout.ai.llm_router import get_active_llm_client
+            llm_client = get_active_llm_client()
+
+            ideas_data = asyncio.run(generate_product_ideas(lead_dict, llm_client))
+            ideas_data["html"] = format_product_ideas_html(ideas_data)
+            return ideas_data
+        except Exception as e:
+            logger.exception(f"generate_product_ideas_for_lead failed: {e}")
+            # Return fallback
+            try:
+                from aegisScout.ai.product_ideation import _fallback_ideas, format_product_ideas_html
+                ideas = _fallback_ideas(str(lead_id), "İşletme", True)
+                ideas["html"] = format_product_ideas_html(ideas)
+                return ideas
+            except Exception:
+                return {"error": str(e)}
+
+    def get_shodan_internetdb(self, ip: str):
+        """Get Shodan InternetDB data for an IP (FREE, no API key needed)."""
+        try:
+            from aegisScout.enrichment.advanced_domain_intel import get_shodan_internetdb
+            return asyncio.run(get_shodan_internetdb(ip))
+        except Exception as e:
+            logger.exception(f"get_shodan_internetdb failed: {e}")
+            return {"error": str(e), "ip": ip}
+
+    def get_subdomains(self, domain: str):
+        """Discover subdomains via SSL certificate transparency (crt.sh, free)."""
+        try:
+            from aegisScout.enrichment.advanced_domain_intel import get_subdomains_crtsh
+            subdomains = asyncio.run(get_subdomains_crtsh(domain))
+            return {"domain": domain, "subdomains": subdomains, "count": len(subdomains)}
+        except Exception as e:
+            logger.exception(f"get_subdomains failed: {e}")
+            return {"error": str(e), "domain": domain, "subdomains": []}
+
+    def export_leads_advanced(self, format_type: str, output_path: str = None):
+        """Export leads to specified format (csv, json, jsonl, xlsx, vcard, hubspot, pipedrive)."""
+        try:
+            from aegisScout.utils.export_engine import export_leads
+            from pathlib import Path
+            import tempfile, os, datetime
+
+            if not output_path:
+                ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                ext_map = {
+                    "csv": "csv", "json": "json", "jsonl": "jsonl",
+                    "xlsx": "xlsx", "vcard": "vcf", "hubspot": "csv",
+                    "pipedrive": "csv", "notion": "csv"
+                }
+                ext = ext_map.get(format_type.lower(), "csv")
+                output_path = os.path.join(
+                    os.path.expanduser("~"), "Desktop",
+                    f"aegisScout_leads_{ts}.{ext}"
+                )
+
+            path = Path(output_path)
+            success = export_leads(format_type, path)
+            return {
+                "success": success,
+                "output_path": str(path),
+                "format": format_type
+            }
+        except Exception as e:
+            logger.exception(f"export_leads_advanced failed: {e}")
+            return {"success": False, "error": str(e)}
 
 
 

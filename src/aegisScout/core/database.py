@@ -112,11 +112,10 @@ def _register_sqlite_pragmas(engine) -> None:
             cursor.close()
 
 
-def sqlite_retry_on_lock(max_retries: int = 5, delay: float = 0.2):
-    """Decorator to retry DB operations if SQLite database is locked."""
+def sqlite_retry_on_lock(max_retries: int = 6, delay: float = 0.25):
+    """Decorator to retry DB operations if SQLite database is locked or busy."""
     import time
     import functools
-    import sqlite3
 
     def decorator(func):
         @functools.wraps(func)
@@ -124,8 +123,9 @@ def sqlite_retry_on_lock(max_retries: int = 5, delay: float = 0.2):
             for attempt in range(max_retries):
                 try:
                     return func(*args, **kwargs)
-                except (sqlite3.OperationalError, Exception) as e:
-                    if "locked" in str(e).lower() and attempt < max_retries - 1:
+                except Exception as e:
+                    err_str = str(e).lower()
+                    if ("locked" in err_str or "busy" in err_str or "autoflush" in err_str) and attempt < max_retries - 1:
                         time.sleep(delay * (2 ** attempt))
                     else:
                         raise
@@ -162,8 +162,10 @@ def make_engine(url: Optional[str] = None):
         from sqlalchemy.pool import StaticPool
         kwargs["poolclass"] = StaticPool
     elif effective_url.lower().startswith("sqlite"):
-        from sqlalchemy.pool import NullPool
-        kwargs["poolclass"] = NullPool
+        # Use SingletonPool for file-based SQLite to avoid per-query connection churn.
+        # NullPool causes 7 PRAGMA commands per query which destroys performance.
+        from sqlalchemy.pool import SingletonPool
+        kwargs["poolclass"] = SingletonPool
     else:
         kwargs.update({
             "pool_size": 30,
@@ -267,7 +269,7 @@ def _table_exists(session: Session, table: str) -> bool:
 
 def _column_exists(session: Session, table: str, column: str) -> bool:
     if not _table_exists(session, table):
-        return True
+        return False
     try:
         rows = session.execute(text(f"PRAGMA table_info('{table}')")).all()
         return any(row[1] == column for row in rows)
@@ -293,6 +295,9 @@ def _run_migrations(session: Session, db_logger) -> None:
         ("leads", "session_id", DEFAULT_SESSION_COLUMN_DEF),
         ("campaigns", "session_id", DEFAULT_SESSION_COLUMN_DEF),
         ("activity_log", "session_id", DEFAULT_SESSION_COLUMN_DEF),
+        ("search_presets", "session_id", "INTEGER REFERENCES user_sessions(id) DEFAULT 1"),
+        ("discovery_drafts", "session_id", "INTEGER REFERENCES user_sessions(id) DEFAULT 1"),
+        ("crm_logs", "session_id", "INTEGER REFERENCES user_sessions(id) DEFAULT 1"),
         ("leads", "instagram_bio", "TEXT"),
         ("leads", "youtube_url", "TEXT"),
         ("leads", "linkedin_url", "TEXT"),
@@ -335,7 +340,14 @@ def _run_migrations(session: Session, db_logger) -> None:
 
     for table, column, col_def in migrations:
         cols_for_table = existing_columns.get(table)
-        if cols_for_table is not None and column in cols_for_table:
+        if cols_for_table is not None:
+            if column in cols_for_table:
+                continue
+        else:
+            if _column_exists(session, table, column):
+                continue
+
+        if not _table_exists(session, table):
             continue
 
         db_logger.info(f"Migration: adding '{column}' to '{table}'...")
@@ -363,6 +375,8 @@ def _run_migrations(session: Session, db_logger) -> None:
         ("idx_leads_created", "CREATE INDEX IF NOT EXISTS idx_leads_created ON leads (discovered_at);"),
         ("idx_leads_domain", "CREATE INDEX IF NOT EXISTS idx_leads_domain ON leads (website_url);"),
         ("idx_leads_phone", "CREATE INDEX IF NOT EXISTS idx_leads_phone ON leads (phone);"),
+        ("idx_leads_sector_status", "CREATE INDEX IF NOT EXISTS idx_leads_sector_status ON leads (sector, status);"),
+        ("idx_leads_lat_lon", "CREATE INDEX IF NOT EXISTS idx_leads_lat_lon ON leads (lat, lon);"),
     ]
     for idx_name, idx_sql in indexes:
         try:
@@ -371,6 +385,7 @@ def _run_migrations(session: Session, db_logger) -> None:
         except Exception as e:
             db_logger.warning(f"Failed to create index {idx_name}: {e}")
             session.rollback()
+
 
 
 def deduplicate_leads(session: Session) -> int:
@@ -417,6 +432,9 @@ def deduplicate_leads(session: Session) -> int:
                     primary_lead.score = score_lead
                 session.delete(lead)
                 merged_count += 1
+                # Flush periodically to avoid memory buildup
+                if merged_count % 50 == 0:
+                    session.flush()
                 continue
 
         # Register primary keys
@@ -455,26 +473,20 @@ def increment_usage(
     try:
         today = _date.today().isoformat()
         with Session(engine) as session:
-            # Try INSERT first (new row for today)
             session.exec(
                 text(
-                    "INSERT OR IGNORE INTO api_usage_daily (date, provider, action, count, estimated_cost_usd) "
-                    "VALUES (:date, :provider, :action, 0, 0)"
-                ),
-                params={"date": today, "provider": provider, "action": action},
-            )
-            session.exec(
-                text(
-                    "UPDATE api_usage_daily "
-                    "SET count = count + :count, estimated_cost_usd = estimated_cost_usd + :cost "
-                    "WHERE date = :date AND provider = :provider AND action = :action"
+                    "INSERT INTO api_usage_daily (date, provider, action, count, estimated_cost_usd) "
+                    "VALUES (:date, :provider, :action, :count, :cost) "
+                    "ON CONFLICT(date, provider, action) DO UPDATE SET "
+                    "count = count + excluded.count, "
+                    "estimated_cost_usd = estimated_cost_usd + excluded.estimated_cost_usd"
                 ),
                 params={
-                    "count": count,
-                    "cost": estimated_cost_usd,
                     "date": today,
                     "provider": provider,
                     "action": action,
+                    "count": count,
+                    "cost": estimated_cost_usd,
                 },
             )
             session.commit()
