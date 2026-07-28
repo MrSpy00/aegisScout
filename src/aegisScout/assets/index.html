@@ -3069,8 +3069,7 @@ function applyLanguage(lang) {
       const scanDepth = getElemVal('search-scan-depth', 'medium');
       const maxResultsVal = getElemVal('search-max-results', '0');
       const maxResults = parseInt(maxResultsVal) || 0;
-      const composedLocation = [location, city, region, country].filter(Boolean).join('
-');
+      const composedLocation = [location, city, region, country].filter(Boolean).join('\n');
 
       if (!sector.trim() || !location.trim()) {
         showToast("Lütfen sektör ve konum alanlarını doldurun.", "error");
