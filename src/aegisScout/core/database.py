@@ -162,13 +162,9 @@ def make_engine(url: Optional[str] = None):
         from sqlalchemy.pool import StaticPool
         kwargs["poolclass"] = StaticPool
     elif effective_url.lower().startswith("sqlite"):
-        from sqlalchemy.pool import QueuePool
+        from sqlalchemy.pool import NullPool
         kwargs.update({
-            "poolclass": QueuePool,
-            "pool_size": 15,
-            "max_overflow": 30,
-            "pool_recycle": 1800,
-            "pool_timeout": 30,
+            "poolclass": NullPool,
         })
     else:
         kwargs.update({

@@ -27,6 +27,18 @@ import csv
 from pathlib import Path
 from typing import Optional, List
 
+# Reconfigure stdout/stderr to UTF-8 to prevent Windows CMD charmap encoding crashes
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+if hasattr(sys.stderr, "reconfigure"):
+    try:
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 import typer
 from rich.console import Console
 from rich.panel import Panel

@@ -1348,57 +1348,60 @@
   </div>
 
   <!-- ️ Main View Area -->
-  <div class="main-content">
-    
-    <!-- ️ Dashboard Panel -->
-    <div id="panel-dashboard" class="panel active">
-      <div>
-        <h1 data-i18n="dashboard_h1">Dashboard</h1>
-        <p class="subtitle" data-i18n="dashboard_subtitle_text">Müşteri keşif turları başlatın ve genel durum istatistiklerini takip edin.</p>
+  <div class="main-c    <!-- ️ Dashboard / Komuta Merkezi Panel -->
+    <div id="panel-dashboard" class="panel active" style="width: 100%; box-sizing: border-box;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 12px;">
+        <div>
+          <h1 style="font-family: var(--font-display); font-size: 1.8rem; letter-spacing: -0.02em;" data-i18n="dashboard_h1">Komuta Merkezi (Dashboard)</h1>
+          <p class="subtitle" data-i18n="dashboard_subtitle_text">Müşteri keşif turları başlatın, AI analizlerini takip edin ve genel durumu yönetin.</p>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <span class="badge status-researched" style="padding: 6px 12px; font-size: 0.8rem; border-radius: 8px;">● Keşif Motoru Hazır</span>
+        </div>
       </div>
 
       <!--  Counter Cards -->
-      <div class="stats-grid">
-        <div class="stat-card">
-          <div class="stat-val" id="count-new">0</div>
+      <div class="stats-grid" style="margin-bottom: 24px;">
+        <div class="stat-card" style="box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
+          <div class="stat-val" id="count-new" style="color: var(--color-brand);">0</div>
           <div class="stat-lbl" data-i18n="stat_new_discovered">Yeni Keşfedilen</div>
         </div>
-        <div class="stat-card">
-          <div class="stat-val" id="count-researched">0</div>
+        <div class="stat-card" style="box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
+          <div class="stat-val" id="count-researched" style="color: var(--color-accent);">0</div>
           <div class="stat-lbl" data-i18n="stat_ai_ready">AI Analizi Hazır</div>
         </div>
-        <div class="stat-card">
-          <div class="stat-val" id="count-contacted">0</div>
+        <div class="stat-card" style="box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
+          <div class="stat-val" id="count-contacted" style="color: var(--color-warning);">0</div>
           <div class="stat-lbl" data-i18n="stat_contacted">İletişime Geçilen</div>
         </div>
-        <div class="stat-card">
-          <div class="stat-val" id="count-replied">0</div>
+        <div class="stat-card" style="box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
+          <div class="stat-val" id="count-replied" style="color: var(--color-success);">0</div>
           <div class="stat-lbl" data-i18n="stat_replied">Geri Dönüş Yapan</div>
         </div>
       </div>
 
       <!--  Discovery Form Card -->
-      <div class="stat-card" style="gap: 20px;">
-        <h2 style="font-family: var(--font-display); font-size: 1.3rem;" data-i18n="discovery_form_title">Yeni Keşif Başlat</h2>
+      <div class="stat-card" style="gap: 20px; padding: 24px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); border-radius: 16px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-subtle); padding-bottom: 10px;">
+          <h2 style="font-family: var(--font-display); font-size: 1.25rem; font-weight: 700; margin: 0;" data-i18n="discovery_form_title">🔍 Akıllı Müşteri Keşfi Başlat</h2>
+          <span style="font-size: 0.8rem; color: var(--text-muted);">Çoklu Kaynak & OSINT Destekli</span>
+        </div>
+
         <div class="form-row">
           <div class="form-group">
             <label for="search-sector" data-i18n="lbl_search_sector">Sektör / Anahtar Kelimeler</label>
-            <textarea id="search-sector" rows="3" data-i18n-placeholder="ph_search_sector" placeholder="kuaför&#10;mimar&#10;diş kliniği">kuaför</textarea>
+            <textarea id="search-sector" rows="2" data-i18n-placeholder="ph_search_sector" placeholder="kuaför&#10;mimar&#10;diş kliniği" style="border-radius: 10px; padding: 10px;">kuaför</textarea>
           </div>
           <div class="form-group">
             <label for="search-location" style="display:flex;justify-content:space-between;align-items:center;" data-i18n="lbl_search_location">
               <span>Konum / Şehir / Bölge / Ülke</span>
-              <button type="button" class="btn btn-secondary" style="font-size:0.75rem;padding:2px 8px;height:24px;" onclick="openLocationPickerModal()">Haritadan Seç</button>
+              <button type="button" class="btn btn-secondary" style="font-size:0.75rem;padding:2px 8px;height:24px;border-radius:6px;" onclick="openLocationPickerModal()">Haritadan Seç</button>
             </label>
-            <textarea id="search-location" rows="3" data-i18n-placeholder="ph_search_location" placeholder="Kadıköy&#10;İstanbul&#10;Türkiye">Kadıköy, İstanbul</textarea>
-          </div>
-          <div class="form-group">
-            <label for="search-radius" data-i18n="lbl_search_radius">Yarıçap (km)</label>
-            <input type="number" id="search-radius" min="0" data-i18n-placeholder="ph_search_radius" placeholder="Boş = Sınırsız (Şehir Sınırları)">
+            <textarea id="search-location" rows="2" data-i18n-placeholder="ph_search_location" placeholder="Kadıköy&#10;İstanbul&#10;Türkiye" style="border-radius: 10px; padding: 10px;">Kadıköy, İstanbul</textarea>
           </div>
           <div class="form-group">
             <label for="search-provider" data-i18n="lbl_search_provider">Veri Kaynağı</label>
-            <select id="search-provider">
+            <select id="search-provider" style="height: 42px; border-radius: 10px;">
               <option value="all" selected data-i18n="opt_provider_all">Tüm Kaynaklar (Önerilen / All Sources)</option>
               <option value="photon" data-i18n="opt_provider_photon">Photon / OpenStreetMap (Sıfır Key / Hızlı)</option>
               <option value="serpapi_maps" data-i18n="opt_provider_serpapi_maps">SerpApi Google Maps (Yüksek Kalite)</option>
@@ -1409,67 +1412,58 @@
               <option value="google_places" data-i18n="opt_provider_google">Google Places (API Anahtarlı)</option>
             </select>
           </div>
+        </div>
+
+        <div class="form-row">
           <div class="form-group">
             <label for="search-scan-depth" data-i18n="lbl_scan_depth">Tarama Derinliği</label>
-            <select id="search-scan-depth">
+            <select id="search-scan-depth" style="height: 40px; border-radius: 10px;">
               <option value="rapid">Hızlı (Temel Arama)</option>
               <option value="medium" selected>Dengeli (Standart OSINT)</option>
               <option value="deep">Kapsamlı (Tüm Derin Web &amp; Biyografi)</option>
             </select>
           </div>
           <div class="form-group">
+            <label for="search-radius" data-i18n="lbl_search_radius">Yarıçap (km)</label>
+            <input type="number" id="search-radius" min="0" data-i18n-placeholder="ph_search_radius" placeholder="Boş = Sınırsız (Şehir Sınırları)" style="height: 40px; border-radius: 10px;">
+          </div>
+          <div class="form-group">
             <label for="search-max-results" data-i18n="lbl_max_results">Maksimum Sonuç Sınırı</label>
-            <input type="number" id="search-max-results" placeholder="Boş / 0 = Sınırsız" min="0" step="10">
+            <input type="number" id="search-max-results" placeholder="Boş / 0 = Sınırsız" min="0" step="10" style="height: 40px; border-radius: 10px;">
           </div>
         </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label for="search-country" data-i18n="lbl_search_country">Ülke(ler)</label>
-            <textarea id="search-country" rows="2" data-i18n-placeholder="ph_search_country" placeholder="Türkiye&#10;Almanya"></textarea>
-          </div>
-          <div class="form-group">
-            <label for="search-city" data-i18n="lbl_search_city">Şehir(ler)</label>
-            <textarea id="search-city" rows="2" data-i18n-placeholder="ph_search_city" placeholder="İstanbul&#10;Berlin"></textarea>
-          </div>
-          <div class="form-group">
-            <label for="search-region" data-i18n="lbl_search_region">Bölge / İlçe</label>
-            <textarea id="search-region" rows="2" data-i18n-placeholder="ph_search_region" placeholder="Marmara&#10;Kadıköy"></textarea>
-          </div>
-          <div class="form-group">
-            <label for="search-notes" data-i18n="lbl_search_notes">Taslak Notu</label>
-            <input type="text" id="search-notes" data-i18n-placeholder="ph_search_notes" placeholder="Örneğin: premium odak, yeni açılan işletmeler...">
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label for="search-preset-name" data-i18n="lbl_search_preset_name">Taslak / Preset Adı</label>
-            <input type="text" id="search-preset-name" data-i18n-placeholder="ph_search_preset_name" placeholder="Örneğin: İstanbul kuaför taraması">
-          </div>
-          <div class="form-group">
-            <label for="search-preset-select" data-i18n="lbl_search_preset_select">Kayıtlı Taslaklar</label>
-            <select id="search-preset-select">
-              <option value="" data-i18n="opt_select_preset">Yüklenecek taslak seçin</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="search-draft-select" data-i18n="lbl_search_draft_select">Kayıtlı Arama Taslakları</label>
-            <select id="search-draft-select">
-              <option value="" data-i18n="opt_select_draft">Taslak seçin</option>
-            </select>
-          </div>
-          <div class="form-group" style="justify-content: end;">
-            <label>&nbsp;</label>
-            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-              <button class="btn btn-secondary" type="button" onclick="saveSearchPresetFromUI()" data-i18n="btn_save_preset">Preset Kaydet</button>
-              <button class="btn btn-secondary" type="button" onclick="saveSearchDraftFromUI()" data-i18n="btn_save_draft">Taslak Kaydet</button>
-              <button class="btn btn-secondary" type="button" onclick="loadSelectedSearchPreset()" data-i18n="btn_load_preset">Preset Yükle</button>
-              <button class="btn btn-secondary" type="button" onclick="loadSelectedSearchDraft()" data-i18n="btn_load_draft">Taslak Yükle</button>
+
+        <!-- Presets & Advanced Section -->
+        <div style="background: rgba(0,0,0,0.15); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+          <div style="font-size: 0.85rem; font-weight: 700; color: var(--color-accent);">📁 Taslak &amp; Hazır Arama Şablonları</div>
+          <div class="form-row" style="margin-bottom: 0;">
+            <div class="form-group">
+              <label for="search-preset-select" data-i18n="lbl_search_preset_select">Kayıtlı Taslaklar</label>
+              <select id="search-preset-select" style="height: 38px; border-radius: 8px;">
+                <option value="" data-i18n="opt_select_preset">Yüklenecek taslak seçin</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="search-preset-name" data-i18n="lbl_search_preset_name">Taslak Adı</label>
+              <input type="text" id="search-preset-name" data-i18n-placeholder="ph_search_preset_name" placeholder="Örn: İstanbul Kuaför Taraması" style="height: 38px; border-radius: 8px;">
+            </div>
+            <div class="form-group" style="justify-content: flex-end;">
+              <label>&nbsp;</label>
+              <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <button class="btn btn-secondary" type="button" onclick="saveSearchPresetFromUI()" style="height: 38px; padding: 0 14px; border-radius: 8px; font-size: 0.82rem;" data-i18n="btn_save_preset">Kaydet</button>
+                <button class="btn btn-secondary" type="button" onclick="loadSelectedSearchPreset()" style="height: 38px; padding: 0 14px; border-radius: 8px; font-size: 0.82rem;" data-i18n="btn_load_preset">Yükle</button>
+              </div>
             </div>
           </div>
         </div>
-        <div>
-          <button class="btn" id="btn-start-discovery" onclick="triggerDiscovery()">
-            <span id="discovery-btn-text" data-i18n="btn_start_discovery">Keşfi Başlat</span>
+
+        <div style="margin-top: 8px;">
+          <button class="btn" id="btn-start-discovery" onclick="triggerDiscovery()" style="width: 100%; height: 48px; font-size: 1rem; font-weight: 700; border-radius: 12px; background: linear-gradient(135deg, #6366f1 0%, #3b82f6 100%); box-shadow: 0 4px 16px rgba(99,102,241,0.35);">
+            <span id="discovery-btn-text" data-i18n="btn_start_discovery">🚀 Keşfi Başlat</span>
+            <span id="discovery-loader" class="loader hidden"></span>
+          </button>
+        </div>
+      </div>discovery">Keşfi Başlat</span>
             <span id="discovery-loader" class="loader hidden"></span>
           </button>
         </div>
@@ -1569,7 +1563,7 @@
     </div>
 
     <!-- ️ Harita Paneli -->
-    <div id="panel-map" class="panel">
+    <div id="panel-map" class="panel" style="width: 100%; flex: 1; display: flex; flex-direction: column;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
         <div>
           <h1 style="margin:0;font-size:1.4rem;">️ İnteraktif Lead Haritası</h1>
@@ -1579,7 +1573,7 @@
            Haritayı Yenile
         </button>
       </div>
-      <div id="lead-map-container" style="width: 100%; height: calc(100vh - 200px); min-height: 560px; border-radius: 16px; border: 1px solid var(--border-subtle); box-shadow: 0 4px 20px rgba(0,0,0,0.15); overflow: hidden; margin-top: 8px;"></div>
+      <div id="lead-map-container" style="width: 100%; height: calc(100vh - 180px); min-height: 650px; flex: 1; border-radius: 16px; border: 1px solid var(--border-subtle); box-shadow: 0 4px 20px rgba(0,0,0,0.15); overflow: hidden; margin-top: 4px;"></div>
     </div>
 
     <!--  CRM Kanban Pipeline Panel -->
@@ -1688,31 +1682,56 @@
     </div>
     <!--  History Panel -->
     <div id="panel-history" class="panel">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
         <div>
-          <h1>İşlem Geçmişi & Oturumlar</h1>
-          <p class="subtitle">Yerel veritabanına kaydedilen tüm geçmiş taramalar, araştırmalar ve sistem günlükleri.</p>
+          <h1>İşlem Geçmişi &amp; Canlı Sistem Günlükleri</h1>
+          <p class="subtitle">Veritabanı eylemleri, CLI/CMD oturumları ve anlık sistem logları.</p>
         </div>
         <div style="display: flex; gap: 12px;">
+          <button class="btn btn-secondary" onclick="loadRealtimeLogs()"> Canlı Logları Yenile</button>
           <button class="btn btn-secondary" onclick="triggerNewSession()">Yeni Oturum Başlat</button>
           <button class="btn btn-danger" onclick="triggerClearHistory()">Geçmişi Temizle</button>
         </div>
       </div>
 
-      <div class="table-container" style="max-height: calc(100vh - 280px); overflow-y: auto;">
-        <table>
-          <thead>
-            <tr>
-              <th style="width: 180px;">Tarih / Saat</th>
-              <th style="width: 150px;">Eylem</th>
-              <th>Detaylar</th>
-              <th style="width: 60px; text-align: right;">İşlem</th>
-            </tr>
-          </thead>
-          <tbody id="history-table-body">
-            <!-- Logs injected dynamically -->
-          </tbody>
-        </table>
+      <div style="display: grid; grid-template-columns: 1fr; gap: 20px;">
+        <div class="table-container" style="max-height: 320px; overflow-y: auto;">
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 180px;">Tarih / Saat</th>
+                <th style="width: 150px;">Eylem</th>
+                <th>Detaylar</th>
+                <th style="width: 60px; text-align: right;">İşlem</th>
+              </tr>
+            </thead>
+            <tbody id="history-table-body">
+              <!-- Logs injected dynamically -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Realtime System Log Stream -->
+        <div style="background: #090d16; border: 1px solid var(--border-subtle); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 12px; font-family: 'Consolas', 'Fira Code', monospace;">
+          <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px; font-size: 0.88rem; color: #60a5fa; font-weight: bold;">
+              <span>⚡ Anlık Canlı Sistem Logları (Real-Time Terminal Stream)</span>
+            </div>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <select id="realtime-log-type" onchange="loadRealtimeLogs()" style="height: 28px; padding: 0 8px; border-radius: 6px; background: #111827; border: 1px solid #374151; color: #d1d5db; font-size: 0.78rem;">
+                <option value="all">Tüm Loglar (Tümü)</option>
+                <option value="main">Ana Sistem (aegisScout.log)</option>
+                <option value="discovery">Keşif (discovery.log)</option>
+                <option value="outreach">Erişim (outreach.log)</option>
+                <option value="errors">Hatalar (errors.log)</option>
+              </select>
+              <button class="btn btn-secondary" onclick="loadRealtimeLogs()" style="padding: 2px 10px; font-size: 0.75rem; height: 28px; background: #1f2937; color: #e5e7eb;">Yenile</button>
+            </div>
+          </div>
+          <div id="realtime-log-container" style="height: 260px; overflow-y: auto; font-size: 0.8rem; color: #a7f3d0; line-height: 1.5; white-space: pre-wrap; background: #030712; padding: 12px; border-radius: 8px; border: 1px solid #1f2937;">
+            Loglar yükleniyor...
+          </div>
+        </div>
       </div>
     </div>
 
@@ -2292,57 +2311,57 @@
 
   <!--  Unified Inbox & AI RAG Assistant Panel -->
   <div id="panel-unibox" class="panel" style="width: 100%; box-sizing: border-box; flex-direction: column;">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 12px; width: 100%;">
       <div>
         <h1 style="font-family: var(--font-display);" data-i18n="unibox_h1">AI RAG Asistanı &amp; Ortak Gelen Kutusu (Unified Inbox)</h1>
         <p class="subtitle" data-i18n="unibox_subtitle">E-posta, WhatsApp ve LinkedIn üzerinden gelen tüm yanıtları tek bir ekrandan yönetin.</p>
       </div>
-      <button class="btn btn-secondary" onclick="loadUnibox()" style="padding: 6px 16px; font-size: 0.85rem; height: 36px;" data-i18n="btn_refresh_unibox"> Yenile / Eşitle</button>
+      <button class="btn btn-secondary" onclick="loadUnibox()" style="padding: 8px 20px; font-size: 0.85rem; height: 40px;" data-i18n="btn_refresh_unibox"> Yenile / Eşitle</button>
     </div>
 
     <!-- Quick AI RAG Assistant Bar -->
-    <div style="background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 12px; margin-bottom: 16px; display: flex; flex-direction: column; gap: 8px;">
+    <div style="background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 16px; padding: 20px; margin-bottom: 20px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
       <div style="display: flex; justify-content: space-between; align-items: center;">
-        <span style="font-weight: 600; font-size: 0.85rem; color: var(--color-accent);">AI RAG Asistanı Soruları</span>
-        <span style="font-size: 0.75rem; color: var(--text-muted);">Yerel Bilgi Tabanı + LLM</span>
+        <span style="font-weight: 700; font-size: 0.9rem; color: var(--color-accent);">AI RAG Asistanı Soruları</span>
+        <span style="font-size: 0.78rem; color: var(--text-muted);">Yerel Bilgi Tabanı + LLM</span>
       </div>
-      <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-        <button class="btn btn-secondary" style="font-size:0.75rem; padding:4px 10px; height:28px;" onclick="sendRagQuickQuestion('Adayların en çok ilgi gösterdiği teklif nedir?')"> En Çok İlgi Gören Teklifler</button>
-        <button class="btn btn-secondary" style="font-size:0.75rem; padding:4px 10px; height:28px;" onclick="sendRagQuickQuestion('En yüksek dönüşüm sağlayan sektörler hangileri?')"> Yüksek Dönüşümlü Sektörler</button>
-        <button class="btn btn-secondary" style="font-size:0.75rem; padding:4px 10px; height:28px;" onclick="sendRagQuickQuestion('E-posta yanıt oranlarımı artırmak için stratejiler öner.')">️ Yanıt Oranı Stratejileri</button>
+      <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+        <button class="btn btn-secondary" style="font-size:0.8rem; padding:6px 14px; height:32px; border-radius:8px;" onclick="sendRagQuickQuestion('Adayların en çok ilgi gösterdiği teklif nedir?')"> En Çok İlgi Gören Teklifler</button>
+        <button class="btn btn-secondary" style="font-size:0.8rem; padding:6px 14px; height:32px; border-radius:8px;" onclick="sendRagQuickQuestion('En yüksek dönüşüm sağlayan sektörler hangileri?')"> Yüksek Dönüşümlü Sektörler</button>
+        <button class="btn btn-secondary" style="font-size:0.8rem; padding:6px 14px; height:32px; border-radius:8px;" onclick="sendRagQuickQuestion('E-posta yanıt oranlarımı artırmak için stratejiler öner.')">️ Yanıt Oranı Stratejileri</button>
       </div>
-      <div style="display: flex; gap: 8px; margin-top: 4px;">
-        <input type="text" id="rag-query-input" placeholder="Yapay zeka asistanına bir soru sorun..." style="flex-grow: 1; height: 36px; padding: 0 12px; border-radius: 8px; background: var(--bg-base); border: 1px solid var(--border-subtle); color: var(--text-main); font-size: 0.85rem;" onkeydown="if(event.key==='Enter') triggerRagQuery()">
-        <button class="btn btn-secondary" onclick="triggerRagQuery()" style="height: 36px; padding: 0 16px; font-size: 0.85rem; background: var(--color-brand); color: white;">Sor</button>
+      <div style="display: flex; gap: 10px; margin-top: 4px;">
+        <input type="text" id="rag-query-input" placeholder="Yapay zeka asistanına bir soru sorun..." style="flex-grow: 1; height: 40px; padding: 0 14px; border-radius: 10px; background: var(--bg-base); border: 1px solid var(--border-subtle); color: var(--text-main); font-size: 0.88rem;" onkeydown="if(event.key==='Enter') triggerRagQuery()">
+        <button class="btn" onclick="triggerRagQuery()" style="height: 40px; padding: 0 20px; font-size: 0.88rem; background: var(--color-brand); color: white; border-radius: 10px;">Sor</button>
       </div>
     </div>
 
-    <div style="display: flex; gap: 16px; min-height: calc(100vh - 280px); background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 12px; overflow: hidden; padding: 12px;">
+    <div style="display: flex; gap: 20px; min-height: calc(100vh - 300px); background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 16px; overflow: hidden; padding: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
       <!-- Left Pane: Leads List -->
-      <div style="width: 350px; min-width: 300px; border-right: 1px solid var(--border-subtle); display: flex; flex-direction: column; gap: 8px; padding-right: 12px; overflow-y: auto;" id="unibox-leads-list">
+      <div style="width: 350px; min-width: 300px; border-right: 1px solid var(--border-subtle); display: flex; flex-direction: column; gap: 10px; padding-right: 16px; overflow-y: auto;" id="unibox-leads-list">
         <p style="color: var(--text-muted); font-size: 0.85rem; text-align: center; margin-top: 20px;">Sohbet geçmişi olan adaylar burada listelenir.</p>
       </div>
       
       <!-- Right Pane: Message Thread & Reply Input -->
       <div style="flex-grow: 1; display: flex; flex-direction: column; height: 100%;">
         <!-- Thread View -->
-        <div id="unibox-thread-view" style="flex-grow: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 12px; background: rgba(0,0,0,0.15); border-radius: 8px; margin-bottom: 12px; min-height: 250px;">
+        <div id="unibox-thread-view" style="flex-grow: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; background: rgba(0,0,0,0.2); border-radius: 12px; margin-bottom: 16px; min-height: 280px;">
           <div style="text-align: center; color: var(--text-muted); margin-top: 100px;">Soldaki listeden bir aday seçerek sohbeti görüntüleyin veya yukarıdan yapay zeka asistanına soru sorun.</div>
         </div>
         
         <!-- Reply Input Container -->
-        <div id="unibox-reply-container" style="display: none; flex-direction: column; gap: 8px;">
-          <div style="display: flex; gap: 8px; align-items: center;">
-            <span style="font-size: 0.8rem; color: var(--text-muted);">Gönderim Kanalı:</span>
-            <select id="unibox-reply-channel" style="height: 28px; padding: 0 8px; border-radius: 6px; background: var(--bg-base); border: 1px solid var(--border-accent); color: var(--text-main); font-size: 0.8rem; outline: none;">
+        <div id="unibox-reply-container" style="display: none; flex-direction: column; gap: 10px;">
+          <div style="display: flex; gap: 10px; align-items: center;">
+            <span style="font-size: 0.82rem; color: var(--text-muted);">Gönderim Kanalı:</span>
+            <select id="unibox-reply-channel" style="height: 32px; padding: 0 10px; border-radius: 8px; background: var(--bg-base); border: 1px solid var(--border-accent); color: var(--text-main); font-size: 0.82rem; outline: none;">
               <option value="email"> E-Posta</option>
               <option value="whatsapp"> WhatsApp (Playwright)</option>
               <option value="linkedin"> LinkedIn (Playwright)</option>
             </select>
           </div>
-          <div style="display: flex; gap: 8px;">
-            <textarea id="unibox-reply-text" placeholder="Yanıtınızı buraya yazın..." style="flex-grow: 1; height: 54px; padding: 8px; border-radius: 8px; background: var(--bg-base); border: 1px solid var(--border-accent); color: var(--text-main); font-size: 0.85rem; resize: none; outline: none;"></textarea>
-            <button class="btn" onclick="sendUniboxReplyMessage()" style="padding: 0 20px; height: 54px; flex-shrink: 0; background: var(--color-brand); color: white;">Gönder</button>
+          <div style="display: flex; gap: 10px;">
+            <textarea id="unibox-reply-text" placeholder="Yanıtınızı buraya yazın..." style="flex-grow: 1; height: 56px; padding: 10px; border-radius: 10px; background: var(--bg-base); border: 1px solid var(--border-accent); color: var(--text-main); font-size: 0.88rem; resize: none; outline: none;"></textarea>
+            <button class="btn" onclick="sendUniboxReplyMessage()" style="padding: 0 24px; height: 56px; flex-shrink: 0; background: var(--color-brand); color: white; border-radius: 10px;">Gönder</button>
           </div>
         </div>
       </div>
@@ -2350,7 +2369,7 @@
   </div>
 
   <!--  Deep Web Audit & Waterfall Enrichment Panel -->
-  <div id="panel-waterfall" class="panel" style="width: 100%; min-height: calc(100vh - 80px); flex-direction: column; box-sizing: border-box;">
+  <div id="panel-waterfall" class="panel" style="width: 100%; box-sizing: border-box; flex-direction: column;">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 12px; width: 100%;">
       <div>
         <h1 style="font-family: var(--font-display);" data-i18n="waterfall_h1">Derin Web Denetimi &amp; Şelale Akış Editörü</h1>
@@ -2359,19 +2378,19 @@
       <button class="btn btn-secondary" onclick="saveWaterfallConfigUi()" style="padding: 8px 20px; font-size: 0.9rem; height: 40px; background-color: var(--color-success); color: white;" data-i18n="btn_save_waterfall"> Kaydet</button>
     </div>
 
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; min-height: calc(100vh - 220px); align-items: start; width: 100%;">
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; min-height: calc(100vh - 220px); align-items: stretch; width: 100%;">
       <!-- Left: Config Form -->
-      <div style="background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); width: 100%; box-sizing: border-box;">
-        <h3 style="font-family: var(--font-display); color: var(--color-accent); margin-bottom: 4px;"> Akış Adımları</h3>
-        <div id="waterfall-steps-list" style="display: flex; flex-direction: column; gap: 12px;">
+      <div style="background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 16px; padding: 24px; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); width: 100%; box-sizing: border-box;">
+        <h3 style="font-family: var(--font-display); color: var(--color-accent); margin-bottom: 4px; text-align: left;"> Akış Adımları</h3>
+        <div id="waterfall-steps-list" style="display: flex; flex-direction: column; gap: 12px; width: 100%;">
           <!-- Rendered by JS -->
         </div>
       </div>
       
       <!-- Right: Flow Visualisation -->
-      <div style="background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 16px; padding: 20px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 16px; position: relative; min-height: 400px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); width: 100%; box-sizing: border-box;">
-        <h3 style="font-family: var(--font-display); color: var(--color-accent); margin-bottom: 4px;"> Aktif Şelale Şeması</h3>
-        <div id="waterfall-flow-visual" style="display: flex; flex-direction: column; align-items: center; gap: 12px; width: 100%; max-width: 480px; margin-top: 10px;">
+      <div style="background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 16px; padding: 24px; display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 16px; position: relative; min-height: 400px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); width: 100%; box-sizing: border-box;">
+        <h3 style="font-family: var(--font-display); color: var(--color-accent); margin-bottom: 4px; text-align: left;"> Aktif Şelale Şeması</h3>
+        <div id="waterfall-flow-visual" style="display: flex; flex-direction: column; align-items: center; gap: 12px; width: 100%; margin-top: 10px;">
           <!-- Rendered dynamically by JS -->
         </div>
       </div>
@@ -2751,7 +2770,10 @@ function applyLanguage(lang) {
       // Load relevant tab data
       if (tabId === 'leads')         loadLeads();
       else if (tabId === 'dashboard') loadStats();
-      else if (tabId === 'map')       initLeadMap();
+      else if (tabId === 'map') {
+        initLeadMap();
+        setTimeout(() => { if (window._mapInstance) { window._mapInstance.invalidateSize(); } }, 150);
+      }
       else if (tabId === 'settings') loadSettings();
       else if (tabId === 'campaigns') loadCampaigns();
       else if (tabId === 'history')   loadHistory();
@@ -4625,6 +4647,27 @@ function handleThemeChange(theme) {
           `;
           body.appendChild(row);
         });
+        loadRealtimeLogs();
+      });
+    }
+
+    function loadRealtimeLogs() {
+      if (!window.pywebview || !window.pywebview.api) return;
+      const typeSelect = document.getElementById('realtime-log-type');
+      const logType = typeSelect ? typeSelect.value : 'all';
+      const container = document.getElementById('realtime-log-container');
+      if (!container) return;
+
+      window.pywebview.api.get_realtime_system_logs(logType, 250).then(entries => {
+        if (!entries || entries.length === 0) {
+          container.textContent = "Henüz sistem log kaydı yok.";
+          return;
+        }
+        const lines = entries.map(e => `[${e.source.toUpperCase()}] ${e.line}`).join('\n');
+        container.textContent = lines;
+        container.scrollTop = container.scrollHeight;
+      }).catch(err => {
+        container.textContent = "[HATA] Loglar alınamadı: " + err;
       });
     }
 
@@ -4830,7 +4873,7 @@ function handleThemeChange(theme) {
         if (res.error) {
           showToast("Dışa aktarma başarısız: " + res.error, "error");
         } else if (res.success) {
-          const filename = (res.path || '').split('\\\\').pop() || res.path || '';
+          const filename = (res.path || '').split(/[/\\]/).pop() || res.path || '';
           showToast(`${res.count} aday başarıyla kaydedildi: ${filename}`, "success");
         } else if (res.cancelled) {
           showToast("İşlem iptal edildi.", "info");
@@ -7369,8 +7412,10 @@ function handleThemeChange(theme) {
     function _createLeafletMap() {
       const el = document.getElementById('lead-map-container');
       if (!el || _mapInstance) return;
-      el.style.height = 'clamp(300px, calc(100vh - 220px), 600px)';
-      el.style.borderRadius = '12px';
+      el.style.height = 'calc(100vh - 180px)';
+      el.style.minHeight = '650px';
+      el.style.width = '100%';
+      el.style.borderRadius = '16px';
       el.style.overflow = 'hidden';
       _mapInstance = L.map('lead-map-container').setView([39.9, 32.8], 6);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {

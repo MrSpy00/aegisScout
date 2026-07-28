@@ -548,7 +548,7 @@ class GuiApi:
                     try:
                         result = self._window.create_file_dialog(
                             webview.SAVE_DIALOG,
-                            save_filename=default_filename,
+                            save_filename=f"{default_filename}{ui_format}",
                             file_types=file_types
                         )
                         if result:
@@ -2420,6 +2420,7 @@ class GuiApi:
     # -------------------------------------------------------------------
     # Logs / sessions / housekeeping (unchanged)
     # -------------------------------------------------------------------
+    @sqlite_retry_on_lock()
     def get_activity_logs(self):
         try:
             with Session(engine) as session:
@@ -2437,6 +2438,44 @@ class GuiApi:
         except Exception as e:
             return {"error": str(e)}
 
+    def get_realtime_system_logs(self, log_type: str = "all", limit: int = 200) -> list[dict]:
+        """Return real-time log entries read directly from disk log files."""
+        try:
+            from aegisScout.utils.logger import LOGS_DIR
+            target_files = {
+                "main": "aegisScout.log",
+                "discovery": "discovery.log",
+                "outreach": "outreach.log",
+                "errors": "errors.log",
+            }
+            files_to_read = []
+            if log_type in target_files:
+                files_to_read.append(target_files[log_type])
+            else:
+                files_to_read = list(target_files.values())
+
+            entries = []
+            for fname in files_to_read:
+                fpath = LOGS_DIR / fname
+                if not fpath.exists():
+                    continue
+                try:
+                    lines = fpath.read_text(encoding="utf-8", errors="ignore").splitlines()
+                    for line in lines[-limit:]:
+                        if not line.strip():
+                            continue
+                        entries.append({
+                            "source": fname.replace(".log", ""),
+                            "line": line
+                        })
+                except Exception as read_err:
+                    logger.warning(f"Could not read log file {fname}: {read_err}")
+
+            return entries[-limit:]
+        except Exception as e:
+            return [{"source": "system", "line": f"[ERROR] Could not fetch realtime logs: {e}"}]
+
+    @sqlite_retry_on_lock()
     def get_stats(self):
         try:
             from sqlmodel import func

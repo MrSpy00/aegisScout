@@ -73,7 +73,7 @@ a = Analysis(
         'win32com', 'win32ctypes',
     ],
     noarchive=False,
-    optimize=2,
+    optimize=0,
 )
 pyz = PYZ(a.pure)
 
