@@ -1731,19 +1731,31 @@
 
         <!-- Realtime System Log Stream -->
         <div style="background: #090d16; border: 1px solid var(--border-subtle); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 12px; font-family: 'Consolas', 'Fira Code', monospace;">
-          <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 8px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 8px; flex-wrap: wrap; gap: 8px;">
             <div style="display: flex; align-items: center; gap: 8px; font-size: 0.88rem; color: #60a5fa; font-weight: bold;">
-              <span>⚡ Anlık Canlı Sistem Logları (Real-Time Terminal Stream)</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+              <span>Anlık Canlı Sistem Logları (Real-Time Terminal Stream)</span>
             </div>
-            <div style="display: flex; gap: 8px; align-items: center;">
-              <select id="realtime-log-type" onchange="loadRealtimeLogs()" style="height: 28px; padding: 0 8px; border-radius: 6px; background: #111827; border: 1px solid #374151; color: #d1d5db; font-size: 0.78rem;">
+            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+              <label style="display: flex; align-items: center; gap: 6px; font-size: 0.78rem; color: #9ca3af; cursor: pointer; font-family: var(--font-body);">
+                <input type="checkbox" id="realtime-log-autoscroll" checked style="accent-color: var(--color-brand);"> Otomatik Kaydır
+              </label>
+              <select id="realtime-log-type" onchange="loadRealtimeLogs()" style="height: 30px; padding: 0 8px; border-radius: 6px; background: #111827; border: 1px solid #374151; color: #d1d5db; font-size: 0.78rem;">
                 <option value="all">Tüm Loglar (Tümü)</option>
                 <option value="main">Ana Sistem (aegisScout.log)</option>
                 <option value="discovery">Keşif (discovery.log)</option>
                 <option value="outreach">Erişim (outreach.log)</option>
                 <option value="errors">Hatalar (errors.log)</option>
               </select>
-              <button class="btn btn-secondary" onclick="loadRealtimeLogs()" style="padding: 2px 10px; font-size: 0.75rem; height: 28px; background: #1f2937; color: #e5e7eb;">Yenile</button>
+              <button class="btn btn-secondary" onclick="loadRealtimeLogs()" style="padding: 2px 10px; font-size: 0.75rem; height: 30px; background: #1f2937; color: #e5e7eb; display: inline-flex; align-items: center; gap: 5px;">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg> Yenile
+              </button>
+              <button class="btn btn-secondary" onclick="copyRealtimeLogs()" style="padding: 2px 10px; font-size: 0.75rem; height: 30px; background: #1f2937; color: #e5e7eb; display: inline-flex; align-items: center; gap: 5px;">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg> Kopyala
+              </button>
+              <button class="btn btn-secondary" onclick="exportRealtimeLogs()" style="padding: 2px 10px; font-size: 0.75rem; height: 30px; background: #1f2937; color: #e5e7eb; display: inline-flex; align-items: center; gap: 5px;">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Dışa Aktar
+              </button>
             </div>
           </div>
           <div id="realtime-log-container" style="height: 260px; overflow-y: auto; font-size: 0.8rem; color: #a7f3d0; line-height: 1.5; white-space: pre-wrap; background: #030712; padding: 12px; border-radius: 8px; border: 1px solid #1f2937;">
@@ -2786,6 +2798,12 @@ function applyLanguage(lang) {
       if (panel) panel.classList.add('active');
       saveUiStateDebounced();
 
+      // Clear any running realtime log auto-refresh timer when switching tabs
+      if (window._realtimeLogTimer) {
+        clearInterval(window._realtimeLogTimer);
+        window._realtimeLogTimer = null;
+      }
+
       // Load relevant tab data
       if (tabId === 'leads')         loadLeads();
       else if (tabId === 'dashboard') loadStats();
@@ -2795,7 +2813,10 @@ function applyLanguage(lang) {
       }
       else if (tabId === 'settings') loadSettings();
       else if (tabId === 'campaigns') loadCampaigns();
-      else if (tabId === 'history')   loadHistory();
+      else if (tabId === 'history') {
+        loadHistory();
+        window._realtimeLogTimer = setInterval(loadRealtimeLogs, 3000);
+      }
       else if (tabId === 'sessions')  loadSessions();
       else if (tabId === 'searches')  loadSearchesHistory();
       else if (tabId === 'pipeline')  loadPipeline();
@@ -3032,14 +3053,14 @@ function applyLanguage(lang) {
 
     // Trigger Lead Discovery
     function triggerDiscovery() {
-      const sector = document.getElementById('search-sector').value;
-      const location = document.getElementById('search-location').value;
-      const country = document.getElementById('search-country').value;
-      const city = document.getElementById('search-city').value;
-      const region = document.getElementById('search-region').value;
-      const notes = document.getElementById('search-notes').value;
-      const radius = document.getElementById('search-radius').value;
-      const provider = document.getElementById('search-provider').value;
+      const sector = document.getElementById('search-sector') ? document.getElementById('search-sector').value : '';
+      const location = document.getElementById('search-location') ? document.getElementById('search-location').value : '';
+      const country = document.getElementById('search-country') ? document.getElementById('search-country').value : '';
+      const city = document.getElementById('search-city') ? document.getElementById('search-city').value : '';
+      const region = document.getElementById('search-region') ? document.getElementById('search-region').value : '';
+      const notes = document.getElementById('search-notes') ? document.getElementById('search-notes').value : '';
+      const radius = document.getElementById('search-radius') ? document.getElementById('search-radius').value : '';
+      const provider = document.getElementById('search-provider') ? document.getElementById('search-provider').value : 'all';
       const scanDepth = document.getElementById('search-scan-depth') ? document.getElementById('search-scan-depth').value : 'medium';
       const maxResults = document.getElementById('search-max-results') ? (parseInt(document.getElementById('search-max-results').value) || 0) : 0;
       const composedLocation = [location, city, region, country].filter(Boolean).join('\n');
@@ -4675,6 +4696,7 @@ function handleThemeChange(theme) {
       const typeSelect = document.getElementById('realtime-log-type');
       const logType = typeSelect ? typeSelect.value : 'all';
       const container = document.getElementById('realtime-log-container');
+      const autoScrollCb = document.getElementById('realtime-log-autoscroll');
       if (!container) return;
 
       window.pywebview.api.get_realtime_system_logs(logType, 250).then(entries => {
@@ -4684,10 +4706,37 @@ function handleThemeChange(theme) {
         }
         const lines = entries.map(e => `[${e.source.toUpperCase()}] ${e.line}`).join('\n');
         container.textContent = lines;
-        container.scrollTop = container.scrollHeight;
+        if (!autoScrollCb || autoScrollCb.checked) {
+          container.scrollTop = container.scrollHeight;
+        }
       }).catch(err => {
         container.textContent = "[HATA] Loglar alınamadı: " + err;
       });
+    }
+
+    function copyRealtimeLogs() {
+      const container = document.getElementById('realtime-log-container');
+      if (!container || !container.textContent) return;
+      navigator.clipboard.writeText(container.textContent).then(() => {
+        showToast("Canlı loglar panoya kopyalandı.", "success");
+      }).catch(err => {
+        showToast("Kopyalama başarısız: " + err, "error");
+      });
+    }
+
+    function exportRealtimeLogs() {
+      const container = document.getElementById('realtime-log-container');
+      if (!container || !container.textContent) return;
+      const blob = new Blob([container.textContent], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `aegisScout_system_logs_${new Date().toISOString().slice(0,10)}.log`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast("Canlı loglar indirildi.", "success");
     }
 
     // -------------------------------------------------------------------
