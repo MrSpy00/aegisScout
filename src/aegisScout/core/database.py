@@ -162,10 +162,9 @@ def make_engine(url: Optional[str] = None):
         from sqlalchemy.pool import StaticPool
         kwargs["poolclass"] = StaticPool
     elif effective_url.lower().startswith("sqlite"):
-        # Use SingletonPool for file-based SQLite to avoid per-query connection churn.
-        # NullPool causes 7 PRAGMA commands per query which destroys performance.
-        from sqlalchemy.pool import SingletonPool
-        kwargs["poolclass"] = SingletonPool
+        # Use SingletonThreadPool for file-based SQLite to avoid per-query connection churn.
+        from sqlalchemy.pool import SingletonThreadPool
+        kwargs["poolclass"] = SingletonThreadPool
     else:
         kwargs.update({
             "pool_size": 30,
