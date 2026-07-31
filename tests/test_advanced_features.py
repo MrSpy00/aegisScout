@@ -214,3 +214,42 @@ def test_export_leads_dialog(test_env, tmp_path):
     res = api.export_leads_dialog({"format": ".pdf", "status": "all"})
     assert res["success"] is True
     assert os.path.exists(pdf_path)
+
+
+def test_preset_and_draft_management(test_env):
+    api = GuiApi()
+
+    # Save initial preset
+    res1 = api.save_search_preset("İstanbul Kuaför", "kuaför", "istanbul", "", "all")
+    assert res1["success"] is True
+    assert res1["preset"]["name"] == "İstanbul Kuaför"
+
+    # Save duplicate preset -> auto numbers as "İstanbul Kuaför (2)"
+    res2 = api.save_search_preset("İstanbul Kuaför", "kuaför", "istanbul", "", "all")
+    assert res2["success"] is True
+    assert res2["preset"]["name"] == "İstanbul Kuaför (2)"
+
+    # List presets
+    presets = api.list_search_presets()
+    assert len(presets) == 2
+
+    # Delete preset
+    del_res = api.delete_search_preset(res1["preset"]["id"])
+    assert del_res["success"] is True
+    assert len(api.list_search_presets()) == 1
+
+    # Save draft
+    d_res1 = api.save_search_draft("Ankara Berber", "berber", "ankara", "", "all")
+    assert d_res1["success"] is True
+    assert d_res1["draft"]["name"] == "Ankara Berber"
+
+    # Save duplicate draft -> auto numbers as "Ankara Berber (2)"
+    d_res2 = api.save_search_draft("Ankara Berber", "berber", "ankara", "", "all")
+    assert d_res2["success"] is True
+    assert d_res2["draft"]["name"] == "Ankara Berber (2)"
+
+    # Delete draft
+    del_d_res = api.delete_search_draft(d_res1["draft"]["id"])
+    assert del_d_res["success"] is True
+    assert len(api.list_search_drafts()) == 1
+

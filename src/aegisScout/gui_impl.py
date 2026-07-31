@@ -986,13 +986,32 @@ class GuiApi:
     def save_search_preset(self, name, sector, location, radius, provider, notes=None):
         try:
             if not name or not str(name).strip():
-                return {"error": "Preset name is required."}
+                return {"error": "Şablon adı gereklidir."}
+            name_clean = str(name).strip()
             with Session(engine) as session:
+                # Auto-number if duplicate preset name exists
+                existing = session.exec(
+                    select(SearchPreset)
+                    .where(SearchPreset.session_id == self._active_session_id)
+                    .where(SearchPreset.name == name_clean)
+                ).first()
+                if existing:
+                    count = 2
+                    candidate_name = f"{name_clean} ({count})"
+                    while session.exec(
+                        select(SearchPreset)
+                        .where(SearchPreset.session_id == self._active_session_id)
+                        .where(SearchPreset.name == candidate_name)
+                    ).first():
+                        count += 1
+                        candidate_name = f"{name_clean} ({count})"
+                    name_clean = candidate_name
+
                 preset = SearchPreset(
-                    name=str(name).strip(),
+                    name=name_clean,
                     sector_query=self._normalize_query(sector),
                     location_query=self._normalize_query(location),
-                    radius_km=int(radius) if radius not in (None, "") else 10,
+                    radius_km=int(radius) if radius not in (None, "") else 0,
                     provider_name=str(provider or "all").strip(),
                     notes=self._normalize_query(notes) or None,
                     session_id=self._active_session_id,
@@ -1001,6 +1020,19 @@ class GuiApi:
                 session.commit()
                 session.refresh(preset)
                 return {"success": True, "preset": preset.model_dump(mode="json")}
+        except Exception as e:
+            return {"error": str(e)}
+
+    def delete_search_preset(self, preset_id):
+        try:
+            preset_id = int(preset_id)
+            with Session(engine) as session:
+                preset = session.get(SearchPreset, preset_id)
+                if not preset:
+                    return {"error": "Şablon bulunamadı."}
+                session.delete(preset)
+                session.commit()
+                return {"success": True, "id": preset_id}
         except Exception as e:
             return {"error": str(e)}
 
@@ -1019,13 +1051,32 @@ class GuiApi:
     def save_search_draft(self, name, sector, location, radius, provider, country=None, city=None, region=None, keywords=None, notes=None):
         try:
             if not name or not str(name).strip():
-                return {"error": "Draft name is required."}
+                return {"error": "Taslak adı gereklidir."}
+            name_clean = str(name).strip()
             with Session(engine) as session:
+                # Auto-number if duplicate draft name exists
+                existing = session.exec(
+                    select(DiscoveryDraft)
+                    .where(DiscoveryDraft.session_id == self._active_session_id)
+                    .where(DiscoveryDraft.name == name_clean)
+                ).first()
+                if existing:
+                    count = 2
+                    candidate_name = f"{name_clean} ({count})"
+                    while session.exec(
+                        select(DiscoveryDraft)
+                        .where(DiscoveryDraft.session_id == self._active_session_id)
+                        .where(DiscoveryDraft.name == candidate_name)
+                    ).first():
+                        count += 1
+                        candidate_name = f"{name_clean} ({count})"
+                    name_clean = candidate_name
+
                 draft = DiscoveryDraft(
-                    name=str(name).strip(),
+                    name=name_clean,
                     sector_query=self._normalize_query(sector),
                     location_query=self._normalize_query(location),
-                    radius_km=int(radius) if radius not in (None, "") else 10,
+                    radius_km=int(radius) if radius not in (None, "") else 0,
                     provider_name=str(provider or "all").strip(),
                     country_query=self._normalize_query(country) or None,
                     city_query=self._normalize_query(city) or None,
@@ -1049,6 +1100,19 @@ class GuiApi:
                 if not draft:
                     return {"error": "Draft not found."}
                 return draft.model_dump(mode="json")
+        except Exception as e:
+            return {"error": str(e)}
+
+    def delete_search_draft(self, draft_id):
+        try:
+            draft_id = int(draft_id)
+            with Session(engine) as session:
+                draft = session.get(DiscoveryDraft, draft_id)
+                if not draft:
+                    return {"error": "Taslak bulunamadı."}
+                session.delete(draft)
+                session.commit()
+                return {"success": True, "id": draft_id}
         except Exception as e:
             return {"error": str(e)}
 

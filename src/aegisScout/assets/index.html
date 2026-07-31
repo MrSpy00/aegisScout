@@ -1479,6 +1479,7 @@
                   <option value="">Yüklenecek şablon seçin</option>
                 </select>
                 <button class="btn btn-secondary" type="button" onclick="loadSelectedSearchPreset()" style="height: 38px; padding: 0 12px; border-radius: 8px; font-size: 0.82rem;">Yükle</button>
+                <button class="btn btn-danger" type="button" onclick="deleteSelectedSearchPreset()" style="height: 38px; padding: 0 12px; border-radius: 8px; font-size: 0.82rem;" title="Seçili Şablonu Sil">Sil</button>
               </div>
             </div>
             <div class="form-group">
@@ -1488,6 +1489,7 @@
                   <option value="">Yüklenecek taslak seçin</option>
                 </select>
                 <button class="btn btn-secondary" type="button" onclick="loadSelectedSearchDraft()" style="height: 38px; padding: 0 12px; border-radius: 8px; font-size: 0.82rem;">Yükle</button>
+                <button class="btn btn-danger" type="button" onclick="deleteSelectedSearchDraft()" style="height: 38px; padding: 0 12px; border-radius: 8px; font-size: 0.82rem;" title="Seçili Taslağı Sil">Sil</button>
               </div>
             </div>
           </div>
@@ -2658,7 +2660,7 @@ function applyLanguage(lang) {
     let _scrollListenerAdded = false;
 
     function _isBridgeReady() {
-      if (typeof window !== 'undefined' && window.pywebview && window.pywebview.api) {
+      if (typeof window !== 'undefined' && window.pywebview && window.pywebview.api && (typeof window.pywebview.api.get_stats === 'function' || typeof window.pywebview.api.get_leads === 'function' || typeof window.pywebview.api.discover_leads === 'function')) {
         window.pywebviewReady = true;
         return true;
       }
@@ -2674,29 +2676,32 @@ function applyLanguage(lang) {
       try { console.error('[aegisScout bridge unavailable]', actionName); } catch (_) {}
     }
 
-    // Wrap a Promise-returning pywebview.api call with consistent error UX.
-    // Returns a new Promise so `await`/`then` chains keep working.
-    function _apiCall(promiseFactory, errContext) {
+    // Wrap a Promise-returning pywebview.api call with consistent error UX and auto-retry for startup injection.
+    function _apiCall(promiseFactory, errContext, retryCount = 0) {
       if (!_isBridgeReady()) {
-        // Quick dynamic retry if bridge is mid-injection
-        return new Promise((resolve, reject) => {
-          setTimeout(() => {
-            if (_isBridgeReady()) {
-              try { resolve(promiseFactory()); } catch (e) { reject(e); }
-            } else {
-              _bridgeUnavailableError(errContext && errContext.action);
-              reject(new Error('pywebview bridge not ready'));
-            }
-          }, 100);
-        });
+        if (retryCount < 12) {
+          return new Promise((resolve, reject) => {
+            setTimeout(() => {
+              _apiCall(promiseFactory, errContext, retryCount + 1).then(resolve).catch(reject);
+            }, 150);
+          });
+        }
+        _bridgeUnavailableError(errContext && errContext.action);
+        return Promise.reject(new Error('pywebview bridge not ready'));
       }
       try {
         const p = promiseFactory();
         if (!p || typeof p.then !== 'function') {
-          // Not a promise — just return it.
           return Promise.resolve(p);
         }
         return p.catch(err => {
+          if (err && err.toString && err.toString().includes('is not a function') && retryCount < 12) {
+            return new Promise((resolve, reject) => {
+              setTimeout(() => {
+                _apiCall(promiseFactory, errContext, retryCount + 1).then(resolve).catch(reject);
+              }, 150);
+            });
+          }
           const msg = (errContext && errContext.action ? errContext.action + ': ' : '')
             + (err && err.message ? err.message : (err && err.toString ? err.toString() : 'Bilinmeyen hata'));
           try { showToast(msg, 'error', 'İşlem Hatası', 5000); } catch (_) {}
@@ -2704,6 +2709,13 @@ function applyLanguage(lang) {
           throw err;
         });
       } catch (err) {
+        if (err && err.toString && err.toString().includes('is not a function') && retryCount < 12) {
+          return new Promise((resolve, reject) => {
+            setTimeout(() => {
+              _apiCall(promiseFactory, errContext, retryCount + 1).then(resolve).catch(reject);
+            }, 150);
+          });
+        }
         const msg = (errContext && errContext.action ? errContext.action + ': ' : '')
           + (err && err.message ? err.message : (err && err.toString ? err.toString() : 'Bilinmeyen hata'));
         try { showToast(msg, 'error', 'İşlem Hatası', 5000); } catch (_) {}
@@ -3308,6 +3320,50 @@ function applyLanguage(lang) {
       }
       setSearchFormValues(res.draft);
       showToast('Taslak yüklendi.', 'success');
+    }
+
+    async function deleteSelectedSearchPreset() {
+      if (!_isBridgeReady()) {
+        _bridgeUnavailableError('Arama şablonu silme');
+        return;
+      }
+      const select = document.getElementById('search-preset-select');
+      if (!select || !select.value) {
+        showToast('Lütfen silinecek bir şablon seçin.', 'warning');
+        return;
+      }
+      const selectedText = select.options[select.selectedIndex]?.text || 'Şablon';
+      const confirmed = await showConfirm('Şablonu Sil', `"${selectedText}" şablonunu silmek istediğinize emin misiniz?`, 'Sil', true);
+      if (!confirmed) return;
+      const res = await _apiCall(() => window.pywebview.api.delete_search_preset(select.value), { action: 'Arama şablonu silme' });
+      if (res && res.error) {
+        showToast('Şablon silinemedi: ' + res.error, 'error');
+        return;
+      }
+      showToast('Şablon başarıyla silindi.', 'success');
+      refreshSearchPresetLists();
+    }
+
+    async function deleteSelectedSearchDraft() {
+      if (!_isBridgeReady()) {
+        _bridgeUnavailableError('Arama taslağı silme');
+        return;
+      }
+      const select = document.getElementById('search-draft-select');
+      if (!select || !select.value) {
+        showToast('Lütfen silinecek bir taslak seçin.', 'warning');
+        return;
+      }
+      const selectedText = select.options[select.selectedIndex]?.text || 'Taslak';
+      const confirmed = await showConfirm('Taslağı Sil', `"${selectedText}" taslağını silmek istediğinize emin misiniz?`, 'Sil', true);
+      if (!confirmed) return;
+      const res = await _apiCall(() => window.pywebview.api.delete_search_draft(select.value), { action: 'Arama taslağı silme' });
+      if (res && res.error) {
+        showToast('Taslak silinemedi: ' + res.error, 'error');
+        return;
+      }
+      showToast('Taslak başarıyla silindi.', 'success');
+      refreshSearchPresetLists();
     }
 
     let allLeads = [];
