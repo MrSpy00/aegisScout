@@ -44,6 +44,7 @@ a = Analysis(
         'aegisScout.discovery.doktorsitesi_provider',
         'aegisScout.discovery.osint_framework',
         'aegisScout.discovery.doktortakvimi_provider',
+        'aegisScout.discovery.sitelike_provider',
     ],
     hookspath=[],
     hooksconfig={},

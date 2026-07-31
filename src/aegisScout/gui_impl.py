@@ -979,7 +979,7 @@ class GuiApi:
                     .where(SearchPreset.session_id == self._active_session_id)
                     .order_by(SearchPreset.id.desc())
                 ).all()
-                return [preset.model_dump() for preset in presets]
+                return [preset.model_dump(mode="json") for preset in presets]
         except Exception as e:
             return {"error": str(e)}
 
@@ -1000,7 +1000,7 @@ class GuiApi:
                 session.add(preset)
                 session.commit()
                 session.refresh(preset)
-                return {"success": True, "preset": preset.model_dump()}
+                return {"success": True, "preset": preset.model_dump(mode="json")}
         except Exception as e:
             return {"error": str(e)}
 
@@ -1012,7 +1012,7 @@ class GuiApi:
                     .where(DiscoveryDraft.session_id == self._active_session_id)
                     .order_by(DiscoveryDraft.id.desc())
                 ).all()
-                return [draft.model_dump() for draft in drafts]
+                return [draft.model_dump(mode="json") for draft in drafts]
         except Exception as e:
             return {"error": str(e)}
 
@@ -1037,7 +1037,7 @@ class GuiApi:
                 session.add(draft)
                 session.commit()
                 session.refresh(draft)
-                return {"success": True, "draft": draft.model_dump()}
+                return {"success": True, "draft": draft.model_dump(mode="json")}
         except Exception as e:
             return {"error": str(e)}
 
@@ -1048,7 +1048,7 @@ class GuiApi:
                 draft = session.get(DiscoveryDraft, draft_id)
                 if not draft:
                     return {"error": "Draft not found."}
-                return {"success": True, "draft": draft.model_dump()}
+                return draft.model_dump(mode="json")
         except Exception as e:
             return {"error": str(e)}
 
@@ -2581,16 +2581,26 @@ class GuiApi:
                 all_leads = session.exec(stmt).all()
 
                 result = []
+                import math
                 for lead in all_leads:
                     lat = lead.lat
                     lon = lead.lon
+                    is_fallback = False
 
                     # Fallback: derive city coordinates from address
                     if (lat is None or lon is None) and lead.address:
                         lat, lon = self._geocode_city(lead.address)
+                        is_fallback = True
 
                     if lat is None or lon is None:
                         continue  # No way to place on map
+
+                    if is_fallback and lead.id:
+                        # Micro-dispersion jitter using golden angle distribution so markers don't stack directly on top of each other
+                        angle = (lead.id * 137.5) * (math.pi / 180)
+                        radius_offset = 0.003 + ((lead.id % 25) * 0.0007)
+                        lat = round(lat + (radius_offset * math.cos(angle)), 6)
+                        lon = round(lon + (radius_offset * math.sin(angle)), 6)
 
                     result.append({
                         "id": lead.id,

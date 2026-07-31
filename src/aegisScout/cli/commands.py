@@ -176,12 +176,19 @@ if _HARITANE_AVAILABLE and HaritaneDiscoveryProvider is not None:
 if _TIKLA_AVAILABLE and TiklaDiscoveryProvider is not None:
     BASE_DISCOVERY_PROVIDERS.append(("tikla", TiklaDiscoveryProvider))
     logger.info("Tikla.com.tr provider registered.")
-if _FINDCOMTR_AVAILABLE and FindComTrDiscoveryProvider is not None:
-    BASE_DISCOVERY_PROVIDERS.append(("findcomtr", FindComTrDiscoveryProvider))
-    logger.info("Find.com.tr provider registered.")
+try:
+    from aegisScout.discovery.sitelike_provider import SitelikeDiscoveryProvider
+    _SITELIKE_AVAILABLE = True
+except ImportError:
+    SitelikeDiscoveryProvider = None  # type: ignore
+    _SITELIKE_AVAILABLE = False
+
+if _SITELIKE_AVAILABLE and SitelikeDiscoveryProvider is not None:
+    BASE_DISCOVERY_PROVIDERS.append(("sitelike", SitelikeDiscoveryProvider))
+    logger.info("Sitelike.org provider registered.")
 
 # Convenience group: all Turkish directory providers in one shot
-TURKEY_DIRECTORY_PROVIDERS = ["bulurum", "haritane", "tikla", "findcomtr", "doktortakvimi", "doktorsitesi", "sahibinden_sarisayfalar"]
+TURKEY_DIRECTORY_PROVIDERS = ["bulurum", "haritane", "tikla", "findcomtr", "doktortakvimi", "doktorsitesi", "sahibinden_sarisayfalar", "sitelike"]
 
 
 
@@ -222,7 +229,11 @@ _MIN_SECTOR_WORD_LEN = 3
 
 
 def _is_aggregate_or_ranking(candidate) -> bool:
-    """Return True if the candidate looks like a list/ranking page, not a real business."""
+    """Return True if the candidate looks like a list/ranking page or a directory listing, not a real business."""
+    from aegisScout.discovery.noise_filter import is_directory_url
+    url = getattr(candidate, "website_url", "") or ""
+    if url and is_directory_url(url):
+        return True
     haystack = f"{candidate.business_name} {candidate.address or ''}"
     return bool(_AGGREGATE_PATTERNS.search(haystack))
 
@@ -391,7 +402,19 @@ async def discover_leads(
 
     # Support multiple comma-separated sectors and locations
     sectors = _split_multi_value(sector) or [sector]
-    locations = _split_multi_value(location) or [location]
+    parsed_locations = _split_multi_value(location) or ([location] if location else ["Türkiye"])
+
+    _BROAD_LOCATIONS = {"türkiye", "turkey", "tr", "tüm türkiye", "türkiye geneli", "all turkey", "hepsi"}
+    locations: list[str] = []
+    for loc_item in parsed_locations:
+        if str(loc_item).strip().lower() in _BROAD_LOCATIONS:
+            # Expand country-wide search into major metropolitan areas for maximum lead yield
+            locations.extend(["İstanbul", "Ankara", "İzmir", "Bursa", "Antalya", "Adana", "Konya", "Gaziantep", "Kocaeli", "Kayseri"])
+        else:
+            locations.append(loc_item)
+    # Deduplicate expanded locations preserving order
+    seen_locs: set = set()
+    locations = [l for l in locations if not (l.lower() in seen_locs or seen_locs.add(l.lower()))]
 
     candidates = []
     # Track per-provider progress for real-time reporting

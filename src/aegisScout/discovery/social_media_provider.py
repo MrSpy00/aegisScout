@@ -604,9 +604,6 @@ class SocialMediaDiscoveryProvider(BaseDiscoveryProvider):
                 pass
 
         return candidates
-                pass
-
-        return candidates
 
     # ---------------------------------------------------------------------------
     # Main Search Entry Point

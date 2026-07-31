@@ -105,15 +105,25 @@ def is_noise(place: dict, excluded_types: Optional[set] = None) -> bool:
 _DIRECTORY_URL_BLACKLIST_PATTERNS = [
     r"bulurum\.com/dir/",
     r"bulurum\.com/search/",
+    r"bulurum\.com/kategori/",
     r"haritane\.com/kategori",
-    r"tikla\.com\.tr/sektorler/[^/]+/?$",
+    r"haritane\.com/sektor/",
+    r"tikla\.com\.tr/sektorler",
+    r"tikla\.com\.tr/kategori",
     r"find\.com\.tr/Search/",
     r"find\.com\.tr/Kategori/",
+    r"find\.com\.tr/sehir=",
     r"sarisayfalar\.com\.tr/arama",
+    r"sarisayfalar\.com\.tr/kategori",
     r"doktorsitesi\.com/arama",
+    r"doktorsitesi\.com/doktorlar",
+    r"doktortakvimi\.com/sehir",
     r"firmarehberi\.com/arama",
-    r"111\.com\.tr/arama",
-    r"sitelike\.org/similar/",
+    r"firmarehberi\.com/kategori",
+    r"11880\.com\.tr/arama",
+    r"sitelike\.org",
+    r"yellowpages\.com\.tr",
+    r"firmasayfasi\.com/kategori",
 ]
 
 
@@ -122,12 +132,15 @@ def is_directory_url(url: str) -> bool:
     Return True if the URL is a directory listing / category page,
     not a specific business profile or detail page.
     """
+    if not url:
+        return False
     import re as _re
     url_lower = url.lower()
     for pattern in _DIRECTORY_URL_BLACKLIST_PATTERNS:
         if _re.search(pattern, url_lower):
             return True
     return False
+
 
 
 
