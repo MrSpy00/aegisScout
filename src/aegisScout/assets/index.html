@@ -366,17 +366,18 @@
       flex-grow: 1;
       height: 100%;
       overflow-y: auto;
-      padding: 40px;
+      padding: 20px 28px;
       display: flex;
       flex-direction: column;
-      gap: 32px;
+      gap: 16px;
+      box-sizing: border-box;
     }
 
     .panel {
       display: none;
       animation: fadeIn 0.22s ease-out;
       flex-direction: column;
-      gap: 28px;
+      gap: 16px;
       width: 100%;
       max-width: 1400px;
       margin: 0 auto;
@@ -1380,54 +1381,54 @@
   <div class="main-content">
     <!-- Dashboard / Komuta Merkezi Panel -->
     <div id="panel-dashboard" class="panel active" style="width: 100%; box-sizing: border-box;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 12px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 8px;">
         <div>
-          <h1 style="font-family: var(--font-display); font-size: 1.8rem; letter-spacing: -0.02em;" data-i18n="dashboard_h1">Komuta Merkezi (Dashboard)</h1>
-          <p class="subtitle" data-i18n="dashboard_subtitle_text">Müşteri keşif turları başlatın, AI analizlerini takip edin ve genel durumu yönetin.</p>
+          <h1 style="font-family: var(--font-display); font-size: 1.6rem; letter-spacing: -0.02em; margin: 0;" data-i18n="dashboard_h1">Komuta Merkezi (Dashboard)</h1>
+          <p class="subtitle" style="margin: 2px 0 0;" data-i18n="dashboard_subtitle_text">Müşteri keşif turları başlatın, AI analizlerini takip edin ve genel durumu yönetin.</p>
         </div>
         <div style="display: flex; gap: 8px; align-items: center;">
-          <span class="badge status-researched" style="padding: 6px 12px; font-size: 0.8rem; border-radius: 8px;">● Keşif Motoru Hazır</span>
+          <span class="badge status-researched" style="padding: 5px 10px; font-size: 0.78rem; border-radius: 8px;">● Keşif Motoru Hazır</span>
         </div>
       </div>
 
       <!--  Counter Cards -->
-      <div class="stats-grid" style="margin-bottom: 24px;">
-        <div class="stat-card" style="box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
+      <div class="stats-grid" style="margin-bottom: 14px;">
+        <div class="stat-card" style="box-shadow: 0 4px 20px rgba(0,0,0,0.15); padding: 14px 18px;">
           <div class="stat-val" id="count-new" style="color: var(--color-brand);">0</div>
           <div class="stat-lbl" data-i18n="stat_new_discovered">Yeni Keşfedilen</div>
         </div>
-        <div class="stat-card" style="box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
+        <div class="stat-card" style="box-shadow: 0 4px 20px rgba(0,0,0,0.15); padding: 14px 18px;">
           <div class="stat-val" id="count-researched" style="color: var(--color-accent);">0</div>
           <div class="stat-lbl" data-i18n="stat_ai_ready">AI Analizi Hazır</div>
         </div>
-        <div class="stat-card" style="box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
+        <div class="stat-card" style="box-shadow: 0 4px 20px rgba(0,0,0,0.15); padding: 14px 18px;">
           <div class="stat-val" id="count-contacted" style="color: var(--color-warning);">0</div>
           <div class="stat-lbl" data-i18n="stat_contacted">İletişime Geçilen</div>
         </div>
-        <div class="stat-card" style="box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
+        <div class="stat-card" style="box-shadow: 0 4px 20px rgba(0,0,0,0.15); padding: 14px 18px;">
           <div class="stat-val" id="count-replied" style="color: var(--color-success);">0</div>
           <div class="stat-lbl" data-i18n="stat_replied">Geri Dönüş Yapan</div>
         </div>
       </div>
 
       <!--  Discovery Form Card -->
-      <div class="stat-card" style="gap: 20px; padding: 24px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); border-radius: 16px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-subtle); padding-bottom: 10px;">
-          <h2 style="font-family: var(--font-display); font-size: 1.25rem; font-weight: 700; margin: 0; display: flex; align-items: center;" data-i18n="discovery_form_title"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:8px;color:var(--color-accent);"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg> Akıllı Müşteri Keşfi Başlat</h2>
+      <div class="stat-card" style="gap: 14px; padding: 18px 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); border-radius: 14px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-subtle); padding-bottom: 8px;">
+          <h2 style="font-family: var(--font-display); font-size: 1.15rem; font-weight: 700; margin: 0; display: flex; align-items: center;" data-i18n="discovery_form_title"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:8px;color:var(--color-accent);"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg> Akıllı Müşteri Keşfi Başlat</h2>
           <span style="font-size: 0.8rem; color: var(--text-muted);">Çoklu Kaynak &amp; OSINT Destekli</span>
         </div>
 
         <div class="form-row">
           <div class="form-group">
             <label for="search-sector" data-i18n="lbl_search_sector">Sektör / Anahtar Kelimeler</label>
-            <textarea id="search-sector" rows="2" data-i18n-placeholder="ph_search_sector" placeholder="kuaför&#10;mimar&#10;diş kliniği" style="border-radius: 10px; padding: 10px;">kuaför</textarea>
+            <textarea id="search-sector" rows="1" data-i18n-placeholder="ph_search_sector" placeholder="kuaför&#10;mimar&#10;diş kliniği" style="border-radius: 8px; padding: 8px 10px; height: 38px; min-height: 38px; resize: vertical;">kuaför</textarea>
           </div>
           <div class="form-group">
             <label for="search-location" style="display:flex;justify-content:space-between;align-items:center;" data-i18n="lbl_search_location">
               <span>Konum / Şehir / Bölge / Ülke</span>
-              <button type="button" class="btn btn-secondary" style="font-size:0.75rem;padding:2px 8px;height:24px;border-radius:6px;" onclick="openLocationPickerModal()">Haritadan Seç</button>
+              <button type="button" class="btn btn-secondary" style="font-size:0.72rem;padding:1px 6px;height:22px;border-radius:6px;" onclick="openLocationPickerModal()">Haritadan Seç</button>
             </label>
-            <textarea id="search-location" rows="2" data-i18n-placeholder="ph_search_location" placeholder="Kadıköy&#10;İstanbul&#10;Türkiye" style="border-radius: 10px; padding: 10px;">Kadıköy, İstanbul</textarea>
+            <textarea id="search-location" rows="1" data-i18n-placeholder="ph_search_location" placeholder="Kadıköy&#10;İstanbul&#10;Türkiye" style="border-radius: 8px; padding: 8px 10px; height: 38px; min-height: 38px; resize: vertical;">Kadıköy, İstanbul</textarea>
           </div>
           <div class="form-group">
             <label for="search-provider" data-i18n="lbl_search_provider">Veri Kaynağı</label>
@@ -3535,6 +3536,7 @@ function handleThemeChange(theme) {
           { key: 'telegram',  label: 'Telegram',  url: lead.telegram_url, handle: lead.telegram_url, bg: '#229ed9' },
           { key: 'twitter',   label: 'X/Twitter', url: lead.twitter_url,  handle: lead.twitter_url,  bg: '#1d1d1d' },
           { key: 'github',    label: 'GitHub',    url: lead.github_url,   handle: lead.github_url,   bg: '#24292e' },
+          { key: 'whatsapp',  label: 'WhatsApp',  url: lead.whatsapp_url, handle: lead.whatsapp_url, bg: '#25d366' },
         ];
 
         const socialGridHtml = socialChips.map(chip => {

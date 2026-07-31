@@ -329,6 +329,8 @@ def _run_migrations(session: Session, db_logger) -> None:
         ("leads", "email_verification_details", "TEXT"),
         ("leads", "profile_image_url", "TEXT"),
         ("leads", "osint_data", "TEXT"),
+        ("leads", "github_url", "TEXT"),
+        ("leads", "whatsapp_url", "TEXT"),
         ("leads", "scan_depth", "TEXT DEFAULT 'medium'"),
         ("leads", "phone_carrier", "TEXT"),
         ("leads", "phone_type", "TEXT"),

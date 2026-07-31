@@ -41,6 +41,8 @@ class Lead(SQLModel, table=True):
     facebook_url: Optional[str] = Field(default=None)
     telegram_url: Optional[str] = Field(default=None)
     twitter_url: Optional[str] = Field(default=None)
+    github_url: Optional[str] = Field(default=None)
+    whatsapp_url: Optional[str] = Field(default=None)
     rating: Optional[float] = Field(default=None)
     review_count: Optional[int] = Field(default=None)
     source: Optional[str] = Field(default=None)  # 'osm', 'google_places', 'manual'

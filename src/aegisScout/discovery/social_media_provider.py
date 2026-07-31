@@ -127,6 +127,26 @@ class SocialMediaDiscoveryProvider(BaseDiscoveryProvider):
                     return f"0{digits}"
         return None
 
+    def _extract_whatsapp(self, text: str) -> tuple[Optional[str], Optional[str]]:
+        """Extract WhatsApp phone number and direct wa.me URL if present."""
+        if not text:
+            return None, None
+        m_url = re.search(r"https?://(?:wa\.me|api\.whatsapp\.com/send\?phone=)(\d+)", text)
+        if m_url:
+            digits = m_url.group(1)
+            return f"+{digits}", f"https://wa.me/{digits}"
+        m_wp = re.search(r"(?:whatsapp|wp|wa)\s*:?\s*(\+?90\s*\(?\d{3}\)?\s*\d{3}\s*\d{2}\s*\d{2}|\b0?5\d{9}\b)", text, re.IGNORECASE)
+        if m_wp:
+            raw = m_wp.group(1)
+            digits = re.sub(r"\D", "", raw)
+            if len(digits) == 10 and digits.startswith("5"):
+                return f"+90{digits}", f"https://wa.me/90{digits}"
+            elif len(digits) == 11 and digits.startswith("05"):
+                return f"+90{digits[1:]}", f"https://wa.me/90{digits[1:]}"
+            elif len(digits) == 12 and digits.startswith("90"):
+                return f"+{digits}", f"https://wa.me/{digits}"
+        return None, None
+
     def _is_likely_business(self, profile: dict, sector: str) -> bool:
         """Determine whether a profile represents a business / professional service."""
         bio = str(profile.get("bio", "")).lower()
@@ -246,6 +266,10 @@ class SocialMediaDiscoveryProvider(BaseDiscoveryProvider):
                         "website": external_url,
                     }
 
+                    wp_phone, wp_url = self._extract_whatsapp(full_bio)
+                    if not phone and wp_phone:
+                        phone = wp_phone
+
                     if self._is_likely_business(profile_info, sector):
                         candidate = LeadCandidate(
                             business_name=full_name,
@@ -257,8 +281,10 @@ class SocialMediaDiscoveryProvider(BaseDiscoveryProvider):
                             has_website=bool(external_url),
                             phone=phone,
                             email=email,
+                            whatsapp_url=wp_url,
                             profile_image_url=profile_pic,
                             source="social_media",
+                            _osint_data={"platform": "instagram", "category": category, "bio": biography, "username": username},
                         )
                         candidates.append(candidate)
             except Exception as e:
@@ -302,6 +328,9 @@ class SocialMediaDiscoveryProvider(BaseDiscoveryProvider):
 
                     email = self._extract_email(bio)
                     phone = self._extract_phone(bio)
+                    wp_phone, wp_url = self._extract_whatsapp(bio)
+                    if not phone and wp_phone:
+                        phone = wp_phone
 
                     profile_info = {"name": name, "bio": bio, "email": email, "phone": phone}
 
@@ -314,7 +343,9 @@ class SocialMediaDiscoveryProvider(BaseDiscoveryProvider):
                                 instagram_bio=bio[:300] if bio else None,
                                 email=email,
                                 phone=phone,
+                                whatsapp_url=wp_url,
                                 source="social_media",
+                                _osint_data={"platform": "tiktok", "username": username, "bio": bio},
                             )
                         )
             except Exception:
@@ -356,12 +387,14 @@ class SocialMediaDiscoveryProvider(BaseDiscoveryProvider):
                     title = og_title.get("content") if og_title else slug
                     bio = og_desc.get("content") if og_desc else ""
 
-                    # Clean Facebook title
                     clean_name = re.sub(r"\s*[-|•]\s*Home.*", "", title, flags=re.I).strip()
                     clean_name = re.sub(r"\s*[-|•]\s*Ana Sayfa.*", "", clean_name, flags=re.I).strip()
 
                     email = self._extract_email(bio)
                     phone = self._extract_phone(bio)
+                    wp_phone, wp_url = self._extract_whatsapp(bio)
+                    if not phone and wp_phone:
+                        phone = wp_phone
 
                     profile_info = {"name": clean_name, "bio": bio, "email": email, "phone": phone}
 
@@ -374,7 +407,9 @@ class SocialMediaDiscoveryProvider(BaseDiscoveryProvider):
                                 instagram_bio=bio[:300] if bio else None,
                                 email=email,
                                 phone=phone,
+                                whatsapp_url=wp_url,
                                 source="social_media",
+                                _osint_data={"platform": "facebook", "slug": slug, "bio": bio},
                             )
                         )
             except Exception:
@@ -419,6 +454,7 @@ class SocialMediaDiscoveryProvider(BaseDiscoveryProvider):
 
                     email = self._extract_email(bio)
                     phone = self._extract_phone(bio)
+                    wp_phone, wp_url = self._extract_whatsapp(bio)
 
                     candidates.append(
                         LeadCandidate(
@@ -427,8 +463,10 @@ class SocialMediaDiscoveryProvider(BaseDiscoveryProvider):
                             linkedin_url=f"https://www.linkedin.com/company/{slug}",
                             instagram_bio=bio[:300] if bio else None,
                             email=email,
-                            phone=phone,
+                            phone=phone or wp_phone,
+                            whatsapp_url=wp_url,
                             source="social_media",
+                            _osint_data={"platform": "linkedin", "slug": slug, "bio": bio},
                         )
                     )
             except Exception:
@@ -445,7 +483,6 @@ class SocialMediaDiscoveryProvider(BaseDiscoveryProvider):
         candidates: List[LeadCandidate] = []
         found_users: Set[str] = set()
 
-        # Nitter / Bing search for X profiles
         for phrase in phrases[:2]:
             try:
                 q = f"site:twitter.com OR site:x.com {phrase}"
@@ -474,6 +511,7 @@ class SocialMediaDiscoveryProvider(BaseDiscoveryProvider):
 
                         email = self._extract_email(bio)
                         phone = self._extract_phone(bio)
+                        wp_phone, wp_url = self._extract_whatsapp(bio)
 
                         profile_info = {"name": name, "bio": bio, "email": email, "phone": phone}
 
@@ -485,8 +523,10 @@ class SocialMediaDiscoveryProvider(BaseDiscoveryProvider):
                                     twitter_url=f"https://x.com/{username}",
                                     instagram_bio=bio[:300] if bio else None,
                                     email=email,
-                                    phone=phone,
+                                    phone=phone or wp_phone,
+                                    whatsapp_url=wp_url,
                                     source="social_media",
+                                    _osint_data={"platform": "twitter", "username": username, "bio": bio},
                                 )
                             )
                         break
@@ -506,7 +546,6 @@ class SocialMediaDiscoveryProvider(BaseDiscoveryProvider):
 
         for phrase in phrases[:2]:
             try:
-                # Keyless GitHub Search API (rate limited to 60 req/hr)
                 kw = urllib.parse.quote(phrase)
                 url = f"https://api.github.com/search/users?q={kw}+type:org"
                 resp = await client.get(
@@ -543,6 +582,8 @@ class SocialMediaDiscoveryProvider(BaseDiscoveryProvider):
                     if blog and not blog.startswith("http"):
                         blog = f"https://{blog}"
 
+                    wp_phone, wp_url = self._extract_whatsapp(bio)
+
                     candidates.append(
                         LeadCandidate(
                             business_name=name,
@@ -551,12 +592,18 @@ class SocialMediaDiscoveryProvider(BaseDiscoveryProvider):
                             website_url=blog,
                             has_website=bool(blog),
                             email=email,
+                            github_url=f"https://github.com/{org}",
+                            whatsapp_url=wp_url,
                             profile_image_url=avatar,
                             instagram_bio=bio[:300] if bio else None,
                             source="social_media",
+                            _osint_data={"platform": "github", "org": org, "bio": bio},
                         )
                     )
             except Exception:
+                pass
+
+        return candidates
                 pass
 
         return candidates
