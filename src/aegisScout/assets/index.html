@@ -2818,7 +2818,7 @@ function applyLanguage(lang) {
       else if (tabId === 'dashboard') loadStats();
       else if (tabId === 'map') {
         initLeadMap();
-        setTimeout(() => { if (window._mapInstance) { window._mapInstance.invalidateSize(); } }, 150);
+        setTimeout(() => { if (_mapInstance) { _mapInstance.invalidateSize(); } }, 150);
       }
       else if (tabId === 'settings') loadSettings();
       else if (tabId === 'campaigns') loadCampaigns();
@@ -5164,26 +5164,40 @@ function handleThemeChange(theme) {
     }
 
     // Update step-by-step progress during discovery
-    function updateDiscoveryProgress(msg) {
+    // Called by Python backend with (progress_percent, message_string)
+    function updateDiscoveryProgress(pct, msg) {
       const box = document.getElementById('discovery-progress-box');
       box.classList.remove('hidden');
 
       const logArea = document.getElementById('discovery-progress-text');
       const line = document.createElement('div');
-      line.innerText = `> ${msg}`;
+      // msg may be undefined if called with old single-string form
+      const displayMsg = (msg !== undefined && msg !== null) ? String(msg) : (typeof pct === 'string' ? pct : '');
+      line.innerText = `> ${displayMsg}`;
       logArea.appendChild(line);
       logArea.scrollTop = logArea.scrollHeight;
 
-      // Better keyword matching — covers both Turkish and English messages
-      let pct = 10;
-      const msgL = msg.toLowerCase();
-      if (msgL.includes('geocod') || msgL.includes('konum') || msgL.includes('başlatılıyor')) pct = 20;
-      else if (msgL.includes('aranıyor') || msgL.includes('sorgulanıyor') || msgL.includes('searching')) pct = 45;
-      else if (msgL.includes('karşılaştırılıyor') || msgL.includes('tekilleştirme') || msgL.includes('dedup')) pct = 75;
-      else if (msgL.includes('tamamlandı') || msgL.includes('kaydedildi') || msgL.includes('complete')) pct = 100;
+      // Use real percentage from backend, fall back to keyword matching for legacy calls
+      let progressPct = (typeof pct === 'number' && pct >= 0 && pct <= 100) ? pct : null;
+      if (progressPct === null) {
+        // Legacy fallback: keyword matching
+        const msgL = displayMsg.toLowerCase();
+        if (msgL.includes('başlatılıyor') || msgL.includes('geocod')) progressPct = 5;
+        else if (msgL.includes('aranıyor') || msgL.includes('searching')) progressPct = 30;
+        else if (msgL.includes('tamamlandı') && !msgL.includes('işlem tamamlandı')) progressPct = 60;
+        else if (msgL.includes('karşılaştırılıyor') || msgL.includes('tekilleştirme')) progressPct = 87;
+        else if (msgL.includes('işlem tamamlandı') || msgL.includes('kaydedildi')) progressPct = 100;
+        else progressPct = 10;
+      }
 
-      document.getElementById('discovery-progress-bar').style.width = pct + '%';
-      document.getElementById('discovery-percent').innerText = pct + '%';
+      // Only advance the bar, never go backwards (except reset on error)
+      const bar = document.getElementById('discovery-progress-bar');
+      const pctLabel = document.getElementById('discovery-percent');
+      const currentWidth = parseFloat(bar.style.width) || 0;
+      if (progressPct > currentWidth || progressPct === 100 || progressPct === 0) {
+        bar.style.width = progressPct + '%';
+        pctLabel.innerText = progressPct + '%';
+      }
     }
 
     // Called by python backend thread when discovery finishes (success or failure)
@@ -5191,6 +5205,14 @@ function handleThemeChange(theme) {
       document.getElementById('btn-start-discovery').disabled = false;
       document.getElementById('discovery-btn-text').innerText = "Keşfi Başlat";
       document.getElementById('discovery-loader').classList.add('hidden');
+
+      // Reset progress bar for next run
+      const bar = document.getElementById('discovery-progress-bar');
+      if (bar) { bar.style.width = '0%'; }
+      const pctLabel = document.getElementById('discovery-percent');
+      if (pctLabel) { pctLabel.innerText = '0%'; }
+      const logArea = document.getElementById('discovery-progress-text');
+      if (logArea) { logArea.innerHTML = ''; }
       
       if (success) {
         if (total !== undefined && duplicates !== undefined) {
@@ -5206,7 +5228,7 @@ function handleThemeChange(theme) {
         }, 12000);
       } else {
         showToast("Hata: " + errorMsg, "error");
-        updateDiscoveryProgress("Hata oluştu: " + errorMsg);
+        updateDiscoveryProgress(-1, "Hata oluştu: " + errorMsg);
       }
     }
 
@@ -7743,11 +7765,15 @@ function handleThemeChange(theme) {
 
     let _mapInstance = null;
     let _mapMarkers = [];
+    // Expose globally so switchTab can call invalidateSize
+    window._mapInstanceRef = () => _mapInstance;
 
     function initLeadMap() {
       if (!document.getElementById('lead-map-container')) return;
       if (_mapInstance) {
         _mapInstance.invalidateSize();
+        // Always reload data when switching to map tab
+        if (_isBridgeReady()) loadLeadMapData();
         return;
       }
       // Load Leaflet from CDN (lightweight, MIT-licensed)

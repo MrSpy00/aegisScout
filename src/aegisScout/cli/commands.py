@@ -109,6 +109,35 @@ from aegisScout.discovery.doktorsitesi_provider import DoktorSitesiDiscoveryProv
 from aegisScout.discovery.serpapi_provider import SerpApiMapsDiscoveryProvider, SerpApiLocalPackDiscoveryProvider
 from aegisScout.discovery.photon_provider import PhotonDiscoveryProvider
 
+# —— New Turkish OSINT directory providers ————————————————————————
+try:
+    from aegisScout.discovery.bulurum_provider import BulurumDiscoveryProvider
+    _BULURUM_AVAILABLE = True
+except ImportError:
+    BulurumDiscoveryProvider = None  # type: ignore
+    _BULURUM_AVAILABLE = False
+
+try:
+    from aegisScout.discovery.haritane_provider import HaritaneDiscoveryProvider
+    _HARITANE_AVAILABLE = True
+except ImportError:
+    HaritaneDiscoveryProvider = None  # type: ignore
+    _HARITANE_AVAILABLE = False
+
+try:
+    from aegisScout.discovery.tikla_provider import TiklaDiscoveryProvider
+    _TIKLA_AVAILABLE = True
+except ImportError:
+    TiklaDiscoveryProvider = None  # type: ignore
+    _TIKLA_AVAILABLE = False
+
+try:
+    from aegisScout.discovery.findcomtr_provider import FindComTrDiscoveryProvider
+    _FINDCOMTR_AVAILABLE = True
+except ImportError:
+    FindComTrDiscoveryProvider = None  # type: ignore
+    _FINDCOMTR_AVAILABLE = False
+
 BASE_DISCOVERY_PROVIDERS: list[tuple[str, type]] = [
     ("photon", PhotonDiscoveryProvider),
     ("osm", OSMDiscoveryProvider),
@@ -129,6 +158,22 @@ if _DOKTORTAKVIMI_AVAILABLE and DoktorTakvimiDiscoveryProvider is not None:
     BASE_DISCOVERY_PROVIDERS.append(("doktortakvimi", DoktorTakvimiDiscoveryProvider))
 else:
     logger.info("DoktorTakvimi provider not available; skipping registration.")
+if _BULURUM_AVAILABLE and BulurumDiscoveryProvider is not None:
+    BASE_DISCOVERY_PROVIDERS.append(("bulurum", BulurumDiscoveryProvider))
+    logger.info("Bulurum.com provider registered.")
+if _HARITANE_AVAILABLE and HaritaneDiscoveryProvider is not None:
+    BASE_DISCOVERY_PROVIDERS.append(("haritane", HaritaneDiscoveryProvider))
+    logger.info("Haritane.com provider registered.")
+if _TIKLA_AVAILABLE and TiklaDiscoveryProvider is not None:
+    BASE_DISCOVERY_PROVIDERS.append(("tikla", TiklaDiscoveryProvider))
+    logger.info("Tikla.com.tr provider registered.")
+if _FINDCOMTR_AVAILABLE and FindComTrDiscoveryProvider is not None:
+    BASE_DISCOVERY_PROVIDERS.append(("findcomtr", FindComTrDiscoveryProvider))
+    logger.info("Find.com.tr provider registered.")
+
+# Convenience group: all Turkish directory providers in one shot
+TURKEY_DIRECTORY_PROVIDERS = ["bulurum", "haritane", "tikla", "findcomtr", "doktortakvimi", "doktorsitesi", "sahibinden_sarisayfalar"]
+
 
 
 # ---------------------------------------------------------------------------
@@ -340,6 +385,10 @@ async def discover_leads(
     locations = _split_multi_value(location) or [location]
 
     candidates = []
+    # Track per-provider progress for real-time reporting
+    completed_providers = 0
+    total_provider_runs = 0  # Will be counted after building the full list
+
     for idx_l, loc in enumerate(locations):
         for idx_s, sec in enumerate(sectors):
             # (2) Pre-compute per-keyword fallback list for multi-word sectors.
@@ -347,9 +396,29 @@ async def discover_leads(
             keywords = _extract_sector_keywords(sec) if sec else []
             full_phrase_lower = sec.lower() if sec else ""
             for name, provider in providers:
+                total_provider_runs += 1
+
+    completed_providers = 0
+    candidates = []
+    for idx_l, loc in enumerate(locations):
+        for idx_s, sec in enumerate(sectors):
+            # (2) Pre-compute per-keyword fallback list for multi-word sectors.
+            # Only used when the full-phrase search returns too few hits.
+            keywords = _extract_sector_keywords(sec) if sec else []
+            full_phrase_lower = sec.lower() if sec else ""
+            for prov_idx, (name, provider) in enumerate(providers):
                 if tqm and task_id:
                     await tqm.wait_if_paused(task_id)
-                _cb(f"Veri kaynağı '{name}' üzerinden '{sec}' sektörü ve '{loc}' konumu aranıyor (Konum: {idx_l + 1}/{len(locations)}, Sektör: {idx_s + 1}/{len(sectors)})...")
+
+                # Real-time progress: start of provider
+                pct_start = int(5 + (completed_providers / max(1, total_provider_runs)) * 75)
+                _cb(json.dumps({
+                    "progress": pct_start,
+                    "message": (
+                        f"'{name}' kaynağında '{sec}' aranıyor "
+                        f"({idx_s + 1}/{len(sectors)} sektör, {idx_l + 1}/{len(locations)} konum)..."
+                    )
+                }))
                 try:
                     # Strategy A: full phrase (existing behavior).
                     sec_candidates = await provider.search(sec, loc, radius_km)
@@ -359,10 +428,13 @@ async def discover_leads(
                     # get bucketed into "en iyi 50 ..." listicles instead of
                     # returning real businesses.
                     if len(keywords) >= 2 and len(sec_candidates) < LOW_RESULT_THRESHOLD:
-                        _cb(
-                            f"  '{sec}' için sonuç yetersiz ({len(sec_candidates)}<{LOW_RESULT_THRESHOLD}). "
-                            f"Kelime kelime deneniyor: {', '.join(keywords)}"
-                        )
+                        _cb(json.dumps({
+                            "progress": pct_start,
+                            "message": (
+                                f"  '{sec}' için sonuç yetersiz ({len(sec_candidates)}<{LOW_RESULT_THRESHOLD}). "
+                                f"Kelime kelime deneniyor: {', '.join(keywords)}"
+                            )
+                        }))
                         for word in keywords:
                             if word.lower() == full_phrase_lower:
                                 continue
@@ -375,9 +447,22 @@ async def discover_leads(
                                 )
                     sec_candidates = _dedupe_candidates(sec_candidates)
                     candidates.extend(sec_candidates)
+
+                    # Real-time progress: provider done
+                    completed_providers += 1
+                    pct_done = int(5 + (completed_providers / max(1, total_provider_runs)) * 75)
+                    _cb(json.dumps({
+                        "progress": pct_done,
+                        "message": f"'{name}' tamamlandı: {len(sec_candidates)} aday bulundu."
+                    }))
                 except Exception as e:
+                    completed_providers += 1
                     logger.error(f"Error searching sector '{sec}' in '{loc}' with '{name}': {e}")
-                    _cb(f"[HATA] '{name}' kaynağından '{sec}' ('{loc}') aranırken hata oluştu: {str(e)}")
+                    _cb(json.dumps({
+                        "progress": int(5 + (completed_providers / max(1, total_provider_runs)) * 75),
+                        "message": f"[HATA] '{name}' kaynağından '{sec}' ('{loc}') aranırken hata: {str(e)[:80]}"
+                    }))
+
 
     # (3) Drop aggregate / ranking / "top 10" list pages — those are not
     # real businesses and would pollute the lead pipeline.
@@ -385,12 +470,16 @@ async def discover_leads(
     candidates = [c for c in candidates if not _is_aggregate_or_ranking(c)]
     dropped = pre_filter_count - len(candidates)
     if dropped:
-        _cb(
-            f"'{dropped}' aday toplu/sıralama sayfası olarak filtrelendi "
-            f"(en iyi / top 10 / list vb.)."
-        )
+        _cb(json.dumps({
+            "progress": 82,
+            "message": f"{dropped} aday toplu/sıralama sayfası olarak filtrelendi (en iyi / top 10 / list vb.)."
+        }))
 
-    _cb(f"Tarama bitti. {len(candidates)} aday veritabanı ile karşılaştırılıyor (Tekilleştirme)...")
+    _cb(json.dumps({
+        "progress": 85,
+        "message": f"Tarama bitti. {len(candidates)} aday veritabanı ile karşılaştırılıyor (Tekilleştirme)..."
+    }))
+
 
     added_count = 0
     duplicate_count = 0
@@ -399,7 +488,12 @@ async def discover_leads(
         for idx, c in enumerate(candidates):
             if tqm and task_id:
                 await tqm.wait_if_paused(task_id)
-                tqm.update_progress(task_id, 30.0 + (idx / max(1, total_cand)) * 70.0)
+                tqm.update_progress(task_id, 85.0 + (idx / max(1, total_cand)) * 13.0)
+            # Progress update every 50 leads
+            if idx % 50 == 0 and idx > 0:
+                pct = int(85 + (idx / max(1, total_cand)) * 13)
+                _cb(json.dumps({"progress": pct, "message": f"DB kontrol: {idx}/{total_cand} aday işlendi..."}))
+
             # Deduplication: prefer place_id (Google), fallback to name+address
             place_id_val = getattr(c, '_place_id', None)
             if place_id_val:
@@ -466,11 +560,21 @@ async def discover_leads(
 
         try:
             session.commit()
-            _cb(f"İşlem tamamlandı. Toplam {len(candidates)} adaydan {duplicate_count} tanesi zaten kayıtlıydı. {added_count} yeni potansiyel müşteri veritabanına kaydedildi.")
+            _cb(json.dumps({
+                "progress": 100,
+                "message": (
+                    f"İşlem tamamlandı. Toplam {len(candidates)} adaydan "
+                    f"{duplicate_count} tanesi zaten kayıtlıydı. "
+                    f"{added_count} yeni potansiyel müşteri veritabanına kaydedildi."
+                )
+            }))
         except Exception as e:
             session.rollback()
             logger.error(f"Error committing leads: {e}")
-            _cb(f"Veritabanı kayıt hatası: {e}")
+            _cb(json.dumps({
+                "progress": 0,
+                "message": f"Veritabanı kayıt hatası: {e}"
+            }))
             added_count = 0
 
     return added_count, len(candidates), duplicate_count

@@ -909,12 +909,29 @@ class GuiApi:
 
             async def task_coro(task_id: str):
                 try:
-                    def progress_cb(msg):
+                    def progress_cb(raw_msg):
                         if self._window:
                             try:
-                                escaped_msg = json.dumps(msg)
+                                # Support both structured JSON {"progress": N, "message": "..."} and plain strings
+                                if isinstance(raw_msg, str):
+                                    try:
+                                        parsed = json.loads(raw_msg)
+                                        pct = int(parsed.get("progress", 0))
+                                        msg_text = str(parsed.get("message", raw_msg))
+                                    except (json.JSONDecodeError, ValueError):
+                                        pct = -1  # -1 = no percentage override
+                                        msg_text = raw_msg
+                                elif isinstance(raw_msg, dict):
+                                    pct = int(raw_msg.get("progress", 0))
+                                    msg_text = str(raw_msg.get("message", ""))
+                                else:
+                                    pct = -1
+                                    msg_text = str(raw_msg)
+
+                                pct_js = json.dumps(pct)
+                                msg_js = json.dumps(msg_text)
                                 self._window.evaluate_js(
-                                    f"updateDiscoveryProgress({escaped_msg})"
+                                    f"updateDiscoveryProgress({pct_js}, {msg_js})"
                                 )
                             except Exception:
                                 pass
@@ -2521,28 +2538,67 @@ class GuiApi:
         except Exception as e:
             return {"error": str(e)}
 
+    # Turkish city center coordinates (fallback for Nominatim)
+    _CITY_COORDS = {
+        "istanbul": (41.0082, 28.9784), "ankara": (39.9334, 32.8597),
+        "izmir": (38.4237, 27.1428), "bursa": (40.1826, 29.0665),
+        "antalya": (36.8969, 30.7133), "adana": (37.0, 35.3213),
+        "konya": (37.8713, 32.4846), "gaziantep": (37.0662, 37.3833),
+        "mersin": (36.8, 34.6333), "kayseri": (38.7312, 35.4787),
+        "samsun": (41.2867, 36.33), "trabzon": (41.0027, 39.7168),
+        "eskişehir": (39.7767, 30.5206), "diyarbakır": (37.9144, 40.2306),
+        "denizli": (37.7765, 29.0864), "şanlıurfa": (37.1591, 38.7969),
+        "hatay": (36.4018, 36.3498), "manisa": (38.6191, 27.4289),
+        "kocaeli": (40.8533, 29.8815), "sakarya": (40.6901, 30.4358),
+        "balıkesir": (39.6484, 27.8826), "tekirdağ": (40.9781, 27.5115),
+        "malatya": (38.3552, 38.3095), "kastamonu": (41.3887, 33.7827),
+        "muğla": (37.2153, 28.3636), "afyonkarahisar": (38.7507, 30.5567),
+        "elazığ": (38.6810, 39.2264), "van": (38.4891, 43.4089),
+        "türkiye": (39.0, 35.0), "turkey": (39.0, 35.0),
+    }
+
+    def _geocode_city(self, address_or_location: str):
+        """Quick city-name fallback: return (lat, lon) or (None, None)."""
+        if not address_or_location:
+            return None, None
+        lower = address_or_location.lower()
+        for city, coords in self._CITY_COORDS.items():
+            if city in lower:
+                return coords
+        return None, None
+
     def get_leads_map_data(self):
-        """Return all leads that have lat/lon coordinates for the map view."""
+        """
+        Return leads with coordinates for the interactive map.
+        Includes:
+          1. Leads that already have lat/lon in DB
+          2. Leads with an address that can be resolved via city-center fallback
+        """
         try:
             with Session(engine) as session:
-                stmt = (
-                    select(Lead)
-                    .where(
-                        (Lead.session_id == self._active_session_id)
-                        & (Lead.lat.is_not(None))
-                        & (Lead.lon.is_not(None))
-                    )
-                )
-                leads = session.exec(stmt).all()
+                # Fetch ALL leads for this session (not just those with coords)
+                stmt = select(Lead).where(Lead.session_id == self._active_session_id)
+                all_leads = session.exec(stmt).all()
+
                 result = []
-                for lead in leads:
+                for lead in all_leads:
+                    lat = lead.lat
+                    lon = lead.lon
+
+                    # Fallback: derive city coordinates from address
+                    if (lat is None or lon is None) and lead.address:
+                        lat, lon = self._geocode_city(lead.address)
+
+                    if lat is None or lon is None:
+                        continue  # No way to place on map
+
                     result.append({
                         "id": lead.id,
                         "business_name": lead.business_name,
                         "sector": lead.sector or "",
                         "status": lead.status,
-                        "lat": lead.lat,
-                        "lon": lead.lon,
+                        "lat": lat,
+                        "lon": lon,
                         "address": lead.address or "",
                         "has_website": lead.has_website,
                         "phone": lead.phone or "",

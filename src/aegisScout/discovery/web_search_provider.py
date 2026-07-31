@@ -40,11 +40,24 @@ class WebSearchDiscoveryProvider(BaseDiscoveryProvider):
             r"\b(kurumsal|hakkımızda|hizmetlerimiz|iletişim|bize\s+ulaşın)\b",
         ]
         # Common directory/noise domains to exclude (Instagram allowed)
+        # NOTE: bulurum.com, haritane.com, tikla.com.tr, find.com.tr are NOT excluded
+        # here because their individual detail pages contain real business data.
+        # Directory listing URLs from those sites are caught by _is_directory_listing_url().
         self._ignored_domains = [
             "yelp.com", "foursquare.com", "tripadvisor.com", "sahibinden.com",
             "hepsiemlak.com", "trendyol.com", "facebook.com", "twitter.com",
             "linkedin.com", "youtube.com", "pinterest.com", "wikipedia.org",
             "wikimedia.org", "yandex.com", "google.com",
+        ]
+        # URL patterns that indicate a directory/category LISTING page (not a specific business)
+        self._directory_listing_patterns = [
+            r"bulurum\.com/dir/",          # Category list pages
+            r"bulurum\.com/search/[^?]+/?$",  # Search result list (without detail)
+            r"haritane\.com/kategori/?",
+            r"tikla\.com\.tr/sektorler/[^/]+/?$",  # Sector list
+            r"find\.com\.tr/Search/[A-Z]+",  # Search results list
+            r"find\.com\.tr/Kategori/",
+            r"sitelike\.org/similar/",
         ]
 
     def _clean_business_name(self, title: str) -> str:
@@ -114,7 +127,19 @@ class WebSearchDiscoveryProvider(BaseDiscoveryProvider):
         url_lower = url.lower()
         if "instagram.com" in url_lower:
             return False
-        return any(domain in url_lower for domain in self._ignored_domains)
+        # Check ignored domains
+        if any(domain in url_lower for domain in self._ignored_domains):
+            return True
+        # Check directory listing URL patterns
+        return self._is_directory_listing_url(url)
+
+    def _is_directory_listing_url(self, url: str) -> bool:
+        """Return True if the URL is a category/listing page, not a specific business."""
+        url_lower = url.lower()
+        for pattern in self._directory_listing_patterns:
+            if re.search(pattern, url_lower):
+                return True
+        return False
 
     async def _search_query(self, query: str, sector: str) -> List[LeadCandidate]:
         """Execute web search query across DDG POST, DDG Lite, and Bing HTML fallbacks."""
@@ -335,7 +360,21 @@ class WebSearchDiscoveryProvider(BaseDiscoveryProvider):
             queries.append(f'"{sector}" {location} iletişim')
             secondary.append(f'"{sector}" {location} telefon')
 
-        all_queries = queries + secondary
+        # Turkish directory site-targeted queries — highest precision for Turkish businesses
+        directory_queries = [
+            f"site:bulurum.com/details {sector} {location}",
+            f"site:haritane.com {sector} {location}",
+            f"site:tikla.com.tr/firma {sector} {location}",
+            f"site:find.com.tr/Firma {sector} {location}",
+            f"site:sarisayfalar.com.tr {sector} {location}",
+            f"site:111.com.tr {sector} {location}",
+            f"site:firmarehberi.com {sector} {location}",
+            f"site:yerelrehber.com {sector} {location}",
+            f"site:turkiye.com {sector} {location}",
+            f"{sector} {location} site:doktortakvimi.com",
+        ]
+
+        all_queries = queries + secondary + directory_queries
 
         # Execute queries with small concurrency to avoid rate limiting
         all_candidates: List[LeadCandidate] = []

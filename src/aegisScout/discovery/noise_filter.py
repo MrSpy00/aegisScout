@@ -91,8 +91,44 @@ def is_noise(place: dict, excluded_types: Optional[set] = None) -> bool:
         if pattern.lower() in name:
             logger.debug(f"Noise filter: removing '{name}' (name pattern: {pattern})")
             return True
-    
+
+    # Check if the website_url is a directory listing page
+    url = str(place.get("website_url", place.get("url", ""))).lower()
+    if url and is_directory_url(url):
+        logger.debug(f"Noise filter: removing '{name}' (directory URL: {url[:80]})")
+        return True
+
     return False
+
+
+# Directory/listing URL patterns — pages that list MANY businesses, not a single one
+_DIRECTORY_URL_BLACKLIST_PATTERNS = [
+    r"bulurum\.com/dir/",
+    r"bulurum\.com/search/",
+    r"haritane\.com/kategori",
+    r"tikla\.com\.tr/sektorler/[^/]+/?$",
+    r"find\.com\.tr/Search/",
+    r"find\.com\.tr/Kategori/",
+    r"sarisayfalar\.com\.tr/arama",
+    r"doktorsitesi\.com/arama",
+    r"firmarehberi\.com/arama",
+    r"111\.com\.tr/arama",
+    r"sitelike\.org/similar/",
+]
+
+
+def is_directory_url(url: str) -> bool:
+    """
+    Return True if the URL is a directory listing / category page,
+    not a specific business profile or detail page.
+    """
+    import re as _re
+    url_lower = url.lower()
+    for pattern in _DIRECTORY_URL_BLACKLIST_PATTERNS:
+        if _re.search(pattern, url_lower):
+            return True
+    return False
+
 
 
 def filter_noise(places: List[dict], excluded_types: Optional[set] = None) -> List[dict]:
