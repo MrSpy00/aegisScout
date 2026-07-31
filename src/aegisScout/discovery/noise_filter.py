@@ -47,13 +47,38 @@ DEFAULT_EXCLUDED_GOOGLE_TYPES = {
 }
 
 # Business name patterns that indicate non-businesses
+# Business name patterns that indicate non-businesses or non-target entities (public/government/infrastructure/directories)
 NOISE_NAME_PATTERNS = [
+    # Infrastructure & Transit
     "otopark", "durağı", "durak", "istasyonu", "istasyon",
     "ATM", "akaryakıt", "benzin istasyonu",
     "cami", "kilise", "mosque", "church",
     "mezarlık", "park ve bahçe",
     "bus stop", "metro station", "subway",
     "parking lot", "toll booth",
+
+    # Directory/Listing site names when appearing as business candidates
+    "bulurum", "bulurumcom", "bulurum.com", "yellowpages", "sarı sayfalar", "sarisayfalar",
+    "firma rehberi", "firmarehberi", "dizin", "find.com.tr", "haritane",
+
+    # Public Health / State Institutions (Non-target institutional entities)
+    "aile sağlığı merkezi", "aile sagligi merkezi", "sağlık ocağı", "saglik ocagi", "asm ", " asm",
+    "toplum sağlığı merkezi", "ilçe sağlık müdürlüğü", "il sağlık müdürlüğü",
+    "devlet hastanesi", "şehir hastanesi", "sehir hastanesi", "üniversite hastanesi", "fakülte hastanesi",
+    "kamu hastanesi", "ağız ve diş sağlığı merkezi", "adsm ", " adsm",
+
+    # State / Government / Municipal Institutions
+    "valiliği", "valilik", "kaymakamlığı", "kaymakamlık",
+    "belediyesi", "belediye başkanlığı", "belediye baskanligi",
+    "emniyet müdürlüğü", "ilçe emniyet", "polis merkezi", "polis karakolu", "jandarma",
+    "sosyal güvenlik kurumu", "sgk", "ptt", "işkur", "iskur", "vergi dairesi",
+    "nüfus müdürlüğü", "nufus mudurlugu", "tapu müdürlüğü", "tapu mudurlugu",
+    "muhtarlığı", "muhtarlık", "muhtarlik",
+
+    # Public Education & Training Institutions
+    "ilkokulu", "ortaokulu", "anadolu lisesi", "fen lisesi", "mesleki ve teknik",
+    "üniversitesi", "fakültesi", "rektörlüğü", "yüksekokulu",
+    "kültür merkezi", "gençlik merkezi", "halk eğitim merkezi", "halk egitim",
 ]
 
 
@@ -103,27 +128,31 @@ def is_noise(place: dict, excluded_types: Optional[set] = None) -> bool:
 
 # Directory/listing URL patterns — pages that list MANY businesses, not a single one
 _DIRECTORY_URL_BLACKLIST_PATTERNS = [
-    r"bulurum\.com/dir/",
-    r"bulurum\.com/search/",
-    r"bulurum\.com/kategori/",
+    r"bulurum\.com",
+    r"yellowpages\.com\.tr",
+    r"firmasec\.com",
+    r"turkfirmalar\.com",
     r"haritane\.com/kategori",
-    r"haritane\.com/sektor/",
-    r"tikla\.com\.tr/sektorler",
+    r"haritane\.com/sektor",
+    r"tikla\.com\.tr/sektor",
     r"tikla\.com\.tr/kategori",
-    r"find\.com\.tr/Search/",
-    r"find\.com\.tr/Kategori/",
+    r"find\.com\.tr/Search",
+    r"find\.com\.tr/Kategori",
     r"find\.com\.tr/sehir=",
-    r"sarisayfalar\.com\.tr/arama",
-    r"sarisayfalar\.com\.tr/kategori",
+    r"sarisayfalar\.com\.tr",
     r"doktorsitesi\.com/arama",
     r"doktorsitesi\.com/doktorlar",
     r"doktortakvimi\.com/sehir",
-    r"firmarehberi\.com/arama",
-    r"firmarehberi\.com/kategori",
-    r"11880\.com\.tr/arama",
+    r"firmarehberi\.com",
+    r"11880\.com\.tr",
     r"sitelike\.org",
-    r"yellowpages\.com\.tr",
-    r"firmasayfasi\.com/kategori",
+    r"firmasayfasi\.com",
+    r"facebook\.com/pages/category",
+    r"facebook\.com/places",
+    r"sahibinden\.com",
+    r"n11\.com",
+    r"trendyol\.com",
+    r"hepsiburada\.com",
 ]
 
 

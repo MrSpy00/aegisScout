@@ -244,7 +244,7 @@ class BulurumDiscoveryProvider(BaseDiscoveryProvider):
             if not name_tag:
                 return None
             name = name_tag.get_text(strip=True)
-            if not name or len(name) < 2:
+            if not name or len(name) < 2 or "bulurum" in name.lower() or "11880" in name.lower():
                 return None
 
             # ── Phone Number ──────────────────────────────────────────────────

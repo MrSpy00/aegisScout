@@ -989,20 +989,16 @@ class GuiApi:
                 return {"error": "Şablon adı gereklidir."}
             name_clean = str(name).strip()
             with Session(engine) as session:
-                # Auto-number if duplicate preset name exists
-                existing = session.exec(
+                # Auto-number if duplicate preset name exists (Python case-insensitive)
+                existing_presets = session.exec(
                     select(SearchPreset)
                     .where(SearchPreset.session_id == self._active_session_id)
-                    .where(SearchPreset.name == name_clean)
-                ).first()
-                if existing:
+                ).all()
+                existing_names = {p.name.lower() for p in existing_presets if p.name}
+                if name_clean.lower() in existing_names:
                     count = 2
                     candidate_name = f"{name_clean} ({count})"
-                    while session.exec(
-                        select(SearchPreset)
-                        .where(SearchPreset.session_id == self._active_session_id)
-                        .where(SearchPreset.name == candidate_name)
-                    ).first():
+                    while candidate_name.lower() in existing_names:
                         count += 1
                         candidate_name = f"{name_clean} ({count})"
                     name_clean = candidate_name
@@ -1054,20 +1050,16 @@ class GuiApi:
                 return {"error": "Taslak adı gereklidir."}
             name_clean = str(name).strip()
             with Session(engine) as session:
-                # Auto-number if duplicate draft name exists
-                existing = session.exec(
+                # Auto-number if duplicate draft name exists (Python case-insensitive)
+                existing_drafts = session.exec(
                     select(DiscoveryDraft)
                     .where(DiscoveryDraft.session_id == self._active_session_id)
-                    .where(DiscoveryDraft.name == name_clean)
-                ).first()
-                if existing:
+                ).all()
+                existing_names = {d.name.lower() for d in existing_drafts if d.name}
+                if name_clean.lower() in existing_names:
                     count = 2
                     candidate_name = f"{name_clean} ({count})"
-                    while session.exec(
-                        select(DiscoveryDraft)
-                        .where(DiscoveryDraft.session_id == self._active_session_id)
-                        .where(DiscoveryDraft.name == candidate_name)
-                    ).first():
+                    while candidate_name.lower() in existing_names:
                         count += 1
                         candidate_name = f"{name_clean} ({count})"
                     name_clean = candidate_name
@@ -2276,7 +2268,7 @@ class GuiApi:
                 return self.discover_leads(
                     args.get("sector", ""),
                     args.get("location", ""),
-                    args.get("radius", 10),
+                    args.get("radius", ""),
                     args.get("provider", settings.discovery_primary_provider),
                 )
             if command == "research":

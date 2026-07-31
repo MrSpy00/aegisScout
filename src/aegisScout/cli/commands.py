@@ -431,80 +431,95 @@ async def discover_leads(
                 total_provider_runs += 1
 
     completed_providers = 0
-    candidates = []
+    sem = asyncio.Semaphore(5)
+
+    async def _run_single_search(name: str, provider: BaseDiscoveryProvider, sec: str, loc: str, idx_s: int, idx_l: int) -> list:
+        nonlocal completed_providers
+        async with sem:
+            if tqm and task_id:
+                await tqm.wait_if_paused(task_id)
+
+            pct_start = int(5 + (completed_providers / max(1, total_provider_runs)) * 75)
+            _cb(json.dumps({
+                "progress": pct_start,
+                "message": (
+                    f"'{name}' kaynağında '{sec}' aranıyor "
+                    f"({idx_s + 1}/{len(sectors)} sektör, {idx_l + 1}/{len(locations)} konum)..."
+                )
+            }))
+            sec_candidates = []
+            try:
+                sec_candidates = await provider.search(sec, loc, radius_km)
+                keywords = _extract_sector_keywords(sec) if sec else []
+                full_phrase_lower = sec.lower() if sec else ""
+                if len(keywords) >= 2 and len(sec_candidates) < LOW_RESULT_THRESHOLD:
+                    _cb(json.dumps({
+                        "progress": pct_start,
+                        "message": (
+                            f"  '{sec}' için sonuç yetersiz ({len(sec_candidates)}<{LOW_RESULT_THRESHOLD}). "
+                            f"Kelime kelime deneniyor: {', '.join(keywords)}"
+                        )
+                    }))
+                    for word in keywords:
+                        if word.lower() == full_phrase_lower:
+                            continue
+                        try:
+                            word_candidates = await provider.search(word, loc, radius_km)
+                            sec_candidates.extend(word_candidates)
+                        except Exception as we:
+                            logger.warning(f"Per-word search failed for '{word}' in '{loc}': {we}")
+                sec_candidates = _dedupe_candidates(sec_candidates)
+                completed_providers += 1
+                pct_done = int(5 + (completed_providers / max(1, total_provider_runs)) * 75)
+                _cb(json.dumps({
+                    "progress": pct_done,
+                    "message": f"'{name}' tamamlandı: {len(sec_candidates)} aday bulundu."
+                }))
+                return sec_candidates
+            except Exception as e:
+                completed_providers += 1
+                logger.error(f"Error searching sector '{sec}' in '{loc}' with '{name}': {e}")
+                _cb(json.dumps({
+                    "progress": int(5 + (completed_providers / max(1, total_provider_runs)) * 75),
+                    "message": f"[HATA] '{name}' kaynağından '{sec}' ('{loc}') aranırken hata: {str(e)[:80]}"
+                }))
+                return []
+
+    search_tasks = []
     for idx_l, loc in enumerate(locations):
         for idx_s, sec in enumerate(sectors):
-            # (2) Pre-compute per-keyword fallback list for multi-word sectors.
-            # Only used when the full-phrase search returns too few hits.
-            keywords = _extract_sector_keywords(sec) if sec else []
-            full_phrase_lower = sec.lower() if sec else ""
-            for prov_idx, (name, provider) in enumerate(providers):
-                if tqm and task_id:
-                    await tqm.wait_if_paused(task_id)
+            for name, provider in providers:
+                search_tasks.append(_run_single_search(name, provider, sec, loc, idx_s, idx_l))
 
-                # Real-time progress: start of provider
-                pct_start = int(5 + (completed_providers / max(1, total_provider_runs)) * 75)
-                _cb(json.dumps({
-                    "progress": pct_start,
-                    "message": (
-                        f"'{name}' kaynağında '{sec}' aranıyor "
-                        f"({idx_s + 1}/{len(sectors)} sektör, {idx_l + 1}/{len(locations)} konum)..."
-                    )
-                }))
-                try:
-                    # Strategy A: full phrase (existing behavior).
-                    sec_candidates = await provider.search(sec, loc, radius_km)
-                    # Strategy B: for 2+ word sectors, if the full phrase returns
-                    # too few results, try each keyword individually and merge.
-                    # This rescues queries like "diş hekimi" or "psikolog" that
-                    # get bucketed into "en iyi 50 ..." listicles instead of
-                    # returning real businesses.
-                    if len(keywords) >= 2 and len(sec_candidates) < LOW_RESULT_THRESHOLD:
-                        _cb(json.dumps({
-                            "progress": pct_start,
-                            "message": (
-                                f"  '{sec}' için sonuç yetersiz ({len(sec_candidates)}<{LOW_RESULT_THRESHOLD}). "
-                                f"Kelime kelime deneniyor: {', '.join(keywords)}"
-                            )
-                        }))
-                        for word in keywords:
-                            if word.lower() == full_phrase_lower:
-                                continue
-                            try:
-                                word_candidates = await provider.search(word, loc, radius_km)
-                                sec_candidates.extend(word_candidates)
-                            except Exception as we:
-                                logger.warning(
-                                    f"Per-word search failed for '{word}' in '{loc}': {we}"
-                                )
-                    sec_candidates = _dedupe_candidates(sec_candidates)
-                    candidates.extend(sec_candidates)
+    results_list = await asyncio.gather(*search_tasks)
+    candidates = []
+    for res in results_list:
+        candidates.extend(res)
+    candidates = _dedupe_candidates(candidates)
 
-                    # Real-time progress: provider done
-                    completed_providers += 1
-                    pct_done = int(5 + (completed_providers / max(1, total_provider_runs)) * 75)
-                    _cb(json.dumps({
-                        "progress": pct_done,
-                        "message": f"'{name}' tamamlandı: {len(sec_candidates)} aday bulundu."
-                    }))
-                except Exception as e:
-                    completed_providers += 1
-                    logger.error(f"Error searching sector '{sec}' in '{loc}' with '{name}': {e}")
-                    _cb(json.dumps({
-                        "progress": int(5 + (completed_providers / max(1, total_provider_runs)) * 75),
-                        "message": f"[HATA] '{name}' kaynağından '{sec}' ('{loc}') aranırken hata: {str(e)[:80]}"
-                    }))
-
-
-    # (3) Drop aggregate / ranking / "top 10" list pages — those are not
-    # real businesses and would pollute the lead pipeline.
+    # (3) Drop aggregate / ranking / directory list pages and non-target public/government entities.
+    from aegisScout.discovery.noise_filter import is_noise
     pre_filter_count = len(candidates)
-    candidates = [c for c in candidates if not _is_aggregate_or_ranking(c)]
+    filtered_candidates = []
+    for c in candidates:
+        if _is_aggregate_or_ranking(c):
+            continue
+        c_dict = {
+            "name": c.business_name,
+            "business_name": c.business_name,
+            "website_url": getattr(c, "website_url", "") or "",
+            "url": getattr(c, "website_url", "") or "",
+        }
+        if is_noise(c_dict):
+            continue
+        filtered_candidates.append(c)
+
+    candidates = filtered_candidates
     dropped = pre_filter_count - len(candidates)
     if dropped:
         _cb(json.dumps({
             "progress": 82,
-            "message": f"{dropped} aday toplu/sıralama sayfası olarak filtrelendi (en iyi / top 10 / list vb.)."
+            "message": f"{dropped} aday toplu/sıralama sayfası, rehber dizini veya kamu/devlet kurumu olarak filtrelendi."
         }))
 
     _cb(json.dumps({

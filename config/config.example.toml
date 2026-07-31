@@ -11,7 +11,7 @@ scrape_delay_min_seconds = 3
 scrape_delay_max_seconds = 8
 
 [discovery]
-default_search_radius_km = 10
+default_search_radius_km = 0
 target_sectors = ["kuaför", "diş kliniği", "kafe", "mimar", "emlakçı"]
 
 [outreach]
