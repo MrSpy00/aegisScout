@@ -1433,6 +1433,7 @@
             <label for="search-provider" data-i18n="lbl_search_provider">Veri Kaynağı</label>
             <select id="search-provider">
               <option value="all" selected data-i18n="opt_provider_all">Tüm Kaynaklar (Önerilen / All Sources)</option>
+              <option value="social_media">Sosyal Medya OSINT (Instagram, TikTok, FB, LinkedIn, X, GitHub)</option>
               <option value="photon" data-i18n="opt_provider_photon">Photon / OpenStreetMap (Sıfır Key / Hızlı)</option>
               <option value="serpapi_maps" data-i18n="opt_provider_serpapi_maps">SerpApi Google Maps (Yüksek Kalite)</option>
               <option value="serpapi_local" data-i18n="opt_provider_serpapi_local">SerpApi Google Local 3-Pack</option>
@@ -1464,24 +1465,45 @@
         </div>
 
         <!-- Presets & Advanced Section -->
-        <div style="background: rgba(0,0,0,0.15); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 12px;">
-          <div style="font-size: 0.85rem; font-weight: 700; color: var(--color-accent); display: flex; align-items: center; gap: 6px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L8.6 3.3A2 2 0 0 0 6.9 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2z"/></svg> Taslak &amp; Hazır Arama Şablonları</div>
+        <div style="background: rgba(0,0,0,0.15); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 14px;">
+          <div style="font-size: 0.85rem; font-weight: 700; color: var(--color-accent); display: flex; align-items: center; gap: 6px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L8.6 3.3A2 2 0 0 0 6.9 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2z"/></svg>
+            Taslak &amp; Hazır Arama Şablonları
+          </div>
           <div class="form-row" style="margin-bottom: 0;">
             <div class="form-group">
-              <label for="search-preset-select" data-i18n="lbl_search_preset_select">Kayıtlı Taslaklar</label>
-              <select id="search-preset-select" style="height: 38px; border-radius: 8px;">
-                <option value="" data-i18n="opt_select_preset">Yüklenecek taslak seçin</option>
-              </select>
+              <label for="search-preset-select">Hazır Şablonlar</label>
+              <div style="display: flex; gap: 6px;">
+                <select id="search-preset-select" style="height: 38px; border-radius: 8px; flex: 1;">
+                  <option value="">Yüklenecek şablon seçin</option>
+                </select>
+                <button class="btn btn-secondary" type="button" onclick="loadSelectedSearchPreset()" style="height: 38px; padding: 0 12px; border-radius: 8px; font-size: 0.82rem;">Yükle</button>
+              </div>
             </div>
             <div class="form-group">
-              <label for="search-preset-name" data-i18n="lbl_search_preset_name">Taslak Adı</label>
-              <input type="text" id="search-preset-name" data-i18n-placeholder="ph_search_preset_name" placeholder="Örn: İstanbul Kuaför Taraması" style="height: 38px; border-radius: 8px;">
+              <label for="search-draft-select">Kayıtlı Taslaklar</label>
+              <div style="display: flex; gap: 6px;">
+                <select id="search-draft-select" style="height: 38px; border-radius: 8px; flex: 1;">
+                  <option value="">Yüklenecek taslak seçin</option>
+                </select>
+                <button class="btn btn-secondary" type="button" onclick="loadSelectedSearchDraft()" style="height: 38px; padding: 0 12px; border-radius: 8px; font-size: 0.82rem;">Yükle</button>
+              </div>
+            </div>
+          </div>
+          <div class="form-row" style="margin-bottom: 0;">
+            <div class="form-group">
+              <label for="search-preset-name">Şablon / Taslak Adı</label>
+              <input type="text" id="search-preset-name" placeholder="Örn: İstanbul Kuaför Taraması" style="height: 38px; border-radius: 8px;">
+            </div>
+            <div class="form-group">
+              <label for="search-notes">Arama Notları / Ek Bilgi</label>
+              <input type="text" id="search-notes" placeholder="İsteğe bağlı notlar..." style="height: 38px; border-radius: 8px;">
             </div>
             <div class="form-group" style="justify-content: flex-end;">
               <label>&nbsp;</label>
               <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                <button class="btn btn-secondary" type="button" onclick="saveSearchPresetFromUI()" style="height: 38px; padding: 0 14px; border-radius: 8px; font-size: 0.82rem;" data-i18n="btn_save_preset">Kaydet</button>
-                <button class="btn btn-secondary" type="button" onclick="loadSelectedSearchPreset()" style="height: 38px; padding: 0 14px; border-radius: 8px; font-size: 0.82rem;" data-i18n="btn_load_preset">Yükle</button>
+                <button class="btn btn-secondary" type="button" onclick="saveSearchPresetFromUI()" style="height: 38px; padding: 0 14px; border-radius: 8px; font-size: 0.82rem;">Şablon Kaydet</button>
+                <button class="btn btn-secondary" type="button" onclick="saveSearchDraftFromUI()" style="height: 38px; padding: 0 14px; border-radius: 8px; font-size: 0.82rem;">Taslak Kaydet</button>
               </div>
             </div>
           </div>
@@ -3175,13 +3197,13 @@ function applyLanguage(lang) {
     function setSearchFormValues(payload) {
       if (!payload) return;
       const fields = {
-        'search-sector': payload.sector_query,
-        'search-location': payload.location_query,
-        'search-radius': payload.radius_km,
-        'search-notes': payload.notes,
-        'search-country': payload.country_query,
-        'search-city': payload.city_query,
-        'search-region': payload.region_query,
+        'search-sector': payload.sector_query || payload.sector || payload.keywords || '',
+        'search-location': payload.location_query || payload.location || '',
+        'search-radius': payload.radius_km !== undefined ? payload.radius_km : (payload.radius || ''),
+        'search-notes': payload.notes || '',
+        'search-country': payload.country_query || payload.country || '',
+        'search-city': payload.city_query || payload.city || '',
+        'search-region': payload.region_query || payload.region || '',
       };
       Object.entries(fields).forEach(([id, value]) => {
         const el = document.getElementById(id);
@@ -3190,8 +3212,9 @@ function applyLanguage(lang) {
         }
       });
       const provider = document.getElementById('search-provider');
-      if (provider && payload.provider_name) {
-        provider.value = payload.provider_name;
+      const provVal = payload.provider_name || payload.provider;
+      if (provider && provVal) {
+        provider.value = provVal;
       }
     }
 
@@ -3200,12 +3223,16 @@ function applyLanguage(lang) {
         _bridgeUnavailableError('Arama şablonu kaydetme');
         return;
       }
-      const name = document.getElementById('search-preset-name').value.trim();
-      const sector = document.getElementById('search-sector').value;
-      const location = document.getElementById('search-location').value;
-      const radius = document.getElementById('search-radius').value;
-      const provider = document.getElementById('search-provider').value;
-      const notes = document.getElementById('search-notes').value;
+      const name = getElemVal('search-preset-name', '').trim();
+      const sector = getElemVal('search-sector', '');
+      const location = getElemVal('search-location', '');
+      const radius = getElemVal('search-radius', '');
+      const provider = getElemVal('search-provider', 'all');
+      const notes = getElemVal('search-notes', '');
+      if (!name) {
+        showToast('Lütfen şablon için bir ad girin.', 'error');
+        return;
+      }
       const res = await _apiCall(() => window.pywebview.api.save_search_preset(name, sector, location, radius, provider, notes), { action: 'Arama şablonu kaydetme' });
       if (!res) return;
       if (res.error) {
@@ -3221,16 +3248,16 @@ function applyLanguage(lang) {
         _bridgeUnavailableError('Arama taslağı kaydetme');
         return;
       }
-      const name = document.getElementById('search-preset-name').value.trim();
-      const sector = document.getElementById('search-sector').value;
-      const location = document.getElementById('search-location').value;
-      const radius = document.getElementById('search-radius').value;
-      const provider = document.getElementById('search-provider').value;
-      const country = document.getElementById('search-country').value;
-      const city = document.getElementById('search-city').value;
-      const region = document.getElementById('search-region').value;
-      const keywords = document.getElementById('search-sector').value;
-      const notes = document.getElementById('search-notes').value;
+      const name = getElemVal('search-preset-name', '').trim() || getElemVal('search-sector', 'Taslak');
+      const sector = getElemVal('search-sector', '');
+      const location = getElemVal('search-location', '');
+      const radius = getElemVal('search-radius', '');
+      const provider = getElemVal('search-provider', 'all');
+      const country = getElemVal('search-country', '');
+      const city = getElemVal('search-city', '');
+      const region = getElemVal('search-region', '');
+      const keywords = getElemVal('search-sector', '');
+      const notes = getElemVal('search-notes', '');
       const res = await _apiCall(() => window.pywebview.api.save_search_draft(name, sector, location, radius, provider, country, city, region, keywords, notes), { action: 'Arama taslağı kaydetme' });
       if (!res) return;
       if (res.error) {
@@ -3248,18 +3275,18 @@ function applyLanguage(lang) {
       }
       const select = document.getElementById('search-preset-select');
       if (!select || !select.value) {
-        showToast('Lütfen bir preset seçin.', 'error');
+        showToast('Lütfen bir şablon seçin.', 'error');
         return;
       }
       const presets = await _apiCall(() => window.pywebview.api.list_search_presets(), { action: 'Arama şablonlarını listele' });
       if (!presets) return;
       const preset = (Array.isArray(presets) ? presets : []).find(item => String(item.id) === String(select.value));
       if (!preset) {
-        showToast('Preset bulunamadı.', 'error');
+        showToast('Şablon bulunamadı.', 'error');
         return;
       }
       setSearchFormValues(preset);
-      showToast('Preset yüklendi.', 'success');
+      showToast('Şablon yüklendi.', 'success');
     }
 
     async function loadSelectedSearchDraft() {
@@ -3507,6 +3534,7 @@ function handleThemeChange(theme) {
           { key: 'facebook',  label: 'Facebook',  url: lead.facebook_url, handle: lead.facebook_url, bg: '#1877f2' },
           { key: 'telegram',  label: 'Telegram',  url: lead.telegram_url, handle: lead.telegram_url, bg: '#229ed9' },
           { key: 'twitter',   label: 'X/Twitter', url: lead.twitter_url,  handle: lead.twitter_url,  bg: '#1d1d1d' },
+          { key: 'github',    label: 'GitHub',    url: lead.github_url,   handle: lead.github_url,   bg: '#24292e' },
         ];
 
         const socialGridHtml = socialChips.map(chip => {

@@ -138,10 +138,19 @@ except ImportError:
     FindComTrDiscoveryProvider = None  # type: ignore
     _FINDCOMTR_AVAILABLE = False
 
+from aegisScout.discovery.social_media_provider import SocialMediaDiscoveryProvider
+try:
+    from aegisScout.discovery.bing_search_provider import BingSearchDiscoveryProvider  # type: ignore[assignment]
+    _BING_AVAILABLE = True
+except ImportError:  # pragma: no cover
+    BingSearchDiscoveryProvider = None  # type: ignore
+    _BING_AVAILABLE = False
+
 BASE_DISCOVERY_PROVIDERS: list[tuple[str, type]] = [
     ("photon", PhotonDiscoveryProvider),
     ("osm", OSMDiscoveryProvider),
     ("web_search", WebSearchDiscoveryProvider),
+    ("social_media", SocialMediaDiscoveryProvider),
     ("serpapi_maps", SerpApiMapsDiscoveryProvider),
     ("serpapi_local", SerpApiLocalPackDiscoveryProvider),
     ("doktorsitesi", DoktorSitesiDiscoveryProvider),

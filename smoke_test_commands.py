@@ -82,6 +82,7 @@ provider_map = {
     "LinkedinCompanyDiscoveryProvider": "linkedin_company_provider",
     "LinkedInCompanyDiscoveryProvider": "linkedin_company_provider",
     "WebSearchDiscoveryProvider": "web_search_provider",
+    "SocialMediaDiscoveryProvider": "social_media_provider",
     "WebScraper": "web_scraper",
     "InstagramFinder": "instagram_finder",
     "SocialDiscovery": "social_discovery",
