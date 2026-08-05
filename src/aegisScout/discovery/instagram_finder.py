@@ -1292,6 +1292,27 @@ class InstagramFinder:
         except Exception:
             pass
 
+        # LAYER 4.5: Google Autocomplete for Similar / Related Usernames
+        try:
+            auto_handles = await asyncio.wait_for(
+                self._harvest_google_autocomplete_suggestions(u_clean, loc_clean), timeout=3.0
+            )
+            candidate_handles.update(auto_handles)
+        except Exception:
+            pass
+
+        # If topsearch / search engine didn't find any candidate besides exact u_clean,
+        # generate related variations as fallback
+        if len(candidate_handles) <= 1 and not topsearch_results:
+            common_variations = [
+                f"{u_clean}_official", f"{u_clean}_resmi", f"{u_clean}_tr", f"{u_clean}_turkiye",
+                f"{u_clean}_", f"_{u_clean}", f"{u_clean}official", f"{u_clean}resmi",
+                f"{u_clean}_salonu", f"{u_clean}_studio", f"{u_clean}_vip", f"{u_clean}_center"
+            ]
+            for var in common_variations:
+                if len(var) <= 30:
+                    candidate_handles.add(var)
+
         # Filter irrelevant candidates
         filtered = {
             h for h in candidate_handles

@@ -2505,6 +2505,32 @@
           </div>
         </div>
 
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div>
+            <label style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Başlangıç Tarihi</label>
+            <input type="date" id="del-filter-start-date" style="width:100%; height:36px; padding:0 10px; border-radius:8px; background:var(--bg-base); border:1px solid var(--border-accent); color:var(--text-main); font-size:0.85rem; outline:none;">
+          </div>
+          <div>
+            <label style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Bitiş Tarihi</label>
+            <input type="date" id="del-filter-end-date" style="width:100%; height:36px; padding:0 10px; border-radius:8px; background:var(--bg-base); border:1px solid var(--border-accent); color:var(--text-main); font-size:0.85rem; outline:none;">
+          </div>
+        </div>
+        
+        <div id="del-calc-summary" style="font-size: 0.8rem; font-weight: bold; color: var(--text-muted); margin-top: 4px; padding: 6px 10px; background: rgba(255,255,255,0.05); border-radius: 6px; text-align: center;">
+          Eşleşen aday sayısını görmek için "Hesapla" butonuna basın.
+        </div>
+      </div>
+
+      <div class="modal-actions" style="display: flex; gap: 12px; justify-content: space-between; align-items: center;">
+        <button class="btn btn-secondary" onclick="calculateAdvancedDeleteMatches()" style="font-size: 0.8rem; padding: 8px 16px;">Eşleşenleri Hesapla</button>
+        <div style="display: flex; gap: 12px;">
+          <button class="btn btn-secondary" onclick="closeAdvancedDeleteModal()">İptal</button>
+          <button class="btn btn-danger" onclick="executeAdvancedDeleteLeads()" id="btn-execute-adv-delete" disabled style="opacity: 0.6; padding: 10px 22px; font-size: 0.9rem;">Kalıcı Olarak Sil</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Profile Picture HD Lightbox Modal -->
   <div class="modal-overlay" id="modal-profile-pic-zoom" style="display:none; z-index: 100000;" onclick="if(event.target===this) closeProfilePicZoom();">
     <div class="modal-card" style="width: 540px; max-width: 95vw; text-align: center; padding: 24px; border-radius: 20px; background: rgba(20,20,32,0.95); backdrop-filter: blur(20px); border: 1px solid var(--border-subtle);">
@@ -2515,6 +2541,7 @@
       <div style="margin-bottom: 18px; display: flex; justify-content: center; align-items: center; background: rgba(0,0,0,0.5); padding: 16px; border-radius: 16px; min-height: 300px; border: 1px solid var(--border-subtle);">
         <img id="zoom-modal-img" src="" alt="HD Fotoğraf" style="max-width: 100%; max-height: 480px; border-radius: 12px; object-fit: contain; box-shadow: 0 10px 30px rgba(0,0,0,0.5); cursor: zoom-in;" title="Sağ tık yaparak resmi bilgisayarınıza kaydedebilirsiniz">
       </div>
+      <div style="display:flex; justify-content:center; gap:12px;">
         <button class="btn btn-secondary" onclick="downloadProfilePicHd()" style="font-weight: 600; padding: 8px 16px; display:inline-flex; align-items:center; gap:6px;">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> HD Fotoğrafı İndir
         </button>
@@ -2549,35 +2576,6 @@
       </h4>
       <div id="anon-view-posts-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px;">
         <!-- Injected dynamically -->
-      </div>
-    </div>
-  </div>
-            <option value="">Arama seçilmedi</option>
-          </select>
-        </div>
-
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-          <div>
-            <label style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Başlangıç Tarihi</label>
-            <input type="date" id="del-filter-start-date" style="width:100%; height:36px; padding:0 10px; border-radius:8px; background:var(--bg-base); border:1px solid var(--border-accent); color:var(--text-main); font-size:0.85rem; outline:none;">
-          </div>
-          <div>
-            <label style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Bitiş Tarihi</label>
-            <input type="date" id="del-filter-end-date" style="width:100%; height:36px; padding:0 10px; border-radius:8px; background:var(--bg-base); border:1px solid var(--border-accent); color:var(--text-main); font-size:0.85rem; outline:none;">
-          </div>
-        </div>
-        
-        <div id="del-calc-summary" style="font-size: 0.8rem; font-weight: bold; color: var(--text-muted); margin-top: 4px; padding: 6px 10px; background: rgba(255,255,255,0.05); border-radius: 6px; text-align: center;">
-          Eşleşen aday sayısını görmek için "Hesapla" butonuna basın.
-        </div>
-      </div>
-
-      <div class="modal-actions" style="display: flex; gap: 12px; justify-content: space-between; align-items: center;">
-        <button class="btn btn-secondary" onclick="calculateAdvancedDeleteMatches()" style="font-size: 0.8rem; padding: 8px 16px;">Eşleşenleri Hesapla</button>
-        <div style="display: flex; gap: 12px;">
-          <button class="btn btn-secondary" onclick="closeAdvancedDeleteModal()">İptal</button>
-          <button class="btn btn-danger" onclick="executeAdvancedDeleteLeads()" id="btn-execute-adv-delete" disabled style="opacity: 0.6; padding: 10px 22px; font-size: 0.9rem;">Kalıcı Olarak Sil</button>
-        </div>
       </div>
     </div>
   </div>
@@ -3538,7 +3536,7 @@ function applyLanguage(lang) {
                 Anonim İncele
               </button>
 
-              <button class="btn btn-secondary" onclick="openInstagramStories('${safeUser}')" style="font-size: 0.78rem; padding: 6px 8px; display:flex;align-items:center;gap:4px;" title="Instagram Hikayelerini Anonim / Direkt Gör">
+              <button class="btn btn-secondary" onclick="openInstagramStories('${safeUser}', ${idx})" style="font-size: 0.78rem; padding: 6px 8px; display:flex;align-items:center;gap:4px;" title="Instagram Hikayelerini Anonim / Direkt Gör">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#e1306c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
                 Hikayeler
               </button>
@@ -3557,16 +3555,16 @@ function applyLanguage(lang) {
     }
 
     function openInstagramProfile(username) {
-      const cleanU = username.replace("@", "").trim();
+      const cleanU = (username || "").replace("@", "").trim();
+      if (!cleanU) return;
       const targetUrl = `https://www.instagram.com/${cleanU}/`;
       window.open(targetUrl, "_blank");
     }
 
-    function openInstagramStories(username) {
+    function openInstagramStories(username, index) {
       const cleanU = (username || "").replace("@", "").trim();
       if (!cleanU) return;
-      const targetUrl = `https://www.instagram.com/stories/${cleanU}/`;
-      window.open(targetUrl, "_blank");
+      openAnonymousViewerModal(cleanU, index);
     }
 
     function resetInstagramSearch() {
@@ -3658,31 +3656,50 @@ function applyLanguage(lang) {
         dmModal.id = "modal-ai-dm-draft";
         dmModal.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:99999;backdrop-filter:blur(8px);";
         dmModal.innerHTML = `
-          <div style="background:var(--bg-surface,#1a1e2e);border:1px solid var(--border-subtle,#2a2d3e);border-radius:18px;padding:28px 32px;max-width:620px;width:95%;box-shadow:0 20px 60px rgba(0,0,0,0.6);">
-            <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--color-brand,#6366f1)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-              <div>
-                <div style="font-weight:700;font-size:1.05rem;color:var(--text-main,#e2e8f0);" id="dm-modal-title">AI DM Taslağı Oluşturuluyor...</div>
-                <div style="font-size:0.8rem;color:var(--text-muted,#8892b0);" id="dm-modal-subtitle">@${cleanU} için kişiselleştirilmiş mesaj</div>
+          <div style="background:var(--bg-surface,#1a1e2e);border:1px solid var(--border-subtle,#2a2d3e);border-radius:20px;padding:32px 36px;max-width:720px;width:95%;box-shadow:0 24px 70px rgba(0,0,0,0.7);backdrop-filter:blur(16px);">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;border-bottom:1px solid var(--border-subtle,#2a2d3e);padding-bottom:14px;">
+              <div style="display:flex;align-items:center;gap:14px;">
+                <div style="width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:1.1rem;box-shadow:0 4px 15px rgba(225,48,108,0.3);">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                </div>
+                <div>
+                  <div style="font-weight:700;font-size:1.15rem;color:var(--text-main,#e2e8f0);" id="dm-modal-title">AI DM Taslağı Oluşturuluyor...</div>
+                  <div style="font-size:0.83rem;color:var(--color-brand,#6366f1);font-weight:600;" id="dm-modal-subtitle">@${cleanU} için Akıllı DM İletişim Taslağı</div>
+                </div>
+              </div>
+              <button onclick="closeDmModal()" style="background:none;border:none;color:var(--text-muted,#8892b0);font-size:1.6rem;cursor:pointer;">&times;</button>
+            </div>
+            
+            <div style="margin-bottom:12px;">
+              <label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:8px;font-weight:600;">İletişim Tonunu Seçin:</label>
+              <div id="dm-tone-selector" style="display:flex;gap:10px;flex-wrap:wrap;">
+                <button onclick="applyDmTone('professional')" id="dm-tone-professional" class="dm-tone-btn active" style="font-size:0.82rem;padding:7px 16px;border-radius:8px;border:1px solid var(--color-brand,#6366f1);background:var(--color-brand,#6366f1);color:white;cursor:pointer;font-weight:600;transition:all 0.2s;">Kurumsal &amp; Profesyonel</button>
+                <button onclick="applyDmTone('friendly')" id="dm-tone-friendly" class="dm-tone-btn" style="font-size:0.82rem;padding:7px 16px;border-radius:8px;border:1px solid var(--border-subtle,#2a2d3e);background:transparent;color:var(--text-muted,#8892b0);cursor:pointer;transition:all 0.2s;">Samimi &amp; Dostça</button>
+                <button onclick="applyDmTone('persuasive')" id="dm-tone-persuasive" class="dm-tone-btn" style="font-size:0.82rem;padding:7px 16px;border-radius:8px;border:1px solid var(--border-subtle,#2a2d3e);background:transparent;color:var(--text-muted,#8892b0);cursor:pointer;transition:all 0.2s;">Satış Odaklı &amp; İkna Edici</button>
+                <button onclick="applyDmTone('concise')" id="dm-tone-concise" class="dm-tone-btn" style="font-size:0.82rem;padding:7px 16px;border-radius:8px;border:1px solid var(--border-subtle,#2a2d3e);background:transparent;color:var(--text-muted,#8892b0);cursor:pointer;transition:all 0.2s;">Kısa &amp; Vurucu</button>
               </div>
             </div>
-            <div id="dm-tone-selector" style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
-              <button onclick="applyDmTone('professional')" id="dm-tone-professional" class="dm-tone-btn active" style="font-size:0.78rem;padding:5px 12px;border-radius:6px;border:1px solid var(--color-brand,#6366f1);background:var(--color-brand,#6366f1);color:white;cursor:pointer;font-weight:600;">Profesyonel</button>
-              <button onclick="applyDmTone('friendly')" id="dm-tone-friendly" class="dm-tone-btn" style="font-size:0.78rem;padding:5px 12px;border-radius:6px;border:1px solid var(--border-subtle,#2a2d3e);background:transparent;color:var(--text-muted,#8892b0);cursor:pointer;">Samimi</button>
-              <button onclick="applyDmTone('persuasive')" id="dm-tone-persuasive" class="dm-tone-btn" style="font-size:0.78rem;padding:5px 12px;border-radius:6px;border:1px solid var(--border-subtle,#2a2d3e);background:transparent;color:var(--text-muted,#8892b0);cursor:pointer;">İkna Edici</button>
-              <button onclick="applyDmTone('concise')" id="dm-tone-concise" class="dm-tone-btn" style="font-size:0.78rem;padding:5px 12px;border-radius:6px;border:1px solid var(--border-subtle,#2a2d3e);background:transparent;color:var(--text-muted,#8892b0);cursor:pointer;">Kısa & Net</button>
+            
+            <div id="dm-loading-indicator" style="text-align:center;padding:45px 20px;">
+              <div style="width:32px;height:32px;border:3px solid var(--border-subtle,#2a2d3e);border-top-color:var(--color-brand,#6366f1);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 14px;"></div>
+              <div style="color:var(--text-muted,#8892b0);font-size:0.9rem;">Yapay zeka profil verilerini analiz edip en etkili DM mesajını hazırlıyor...</div>
             </div>
-            <div id="dm-loading-indicator" style="text-align:center;padding:30px;">
-              <div style="width:28px;height:28px;border:3px solid var(--border-subtle,#2a2d3e);border-top-color:var(--color-brand,#6366f1);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 12px;"></div>
-              <div style="color:var(--text-muted,#8892b0);font-size:0.85rem;">AI mesaj oluşturuluyor...</div>
-            </div>
-            <textarea id="dm-draft-textarea" style="display:none;width:100%;min-height:160px;background:rgba(0,0,0,0.3);border:1px solid var(--border-subtle,#2a2d3e);border-radius:10px;padding:14px;color:var(--text-main,#e2e8f0);font-size:0.88rem;font-family:inherit;line-height:1.6;resize:vertical;box-sizing:border-box;" readonly></textarea>
-            <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;">
-              <button onclick="closeDmModal()" style="padding:9px 20px;border-radius:8px;border:1px solid var(--border-subtle,#2a2d3e);background:transparent;color:var(--text-muted,#8892b0);cursor:pointer;font-size:0.85rem;">Kapat</button>
-              <button onclick="copyDmToClipboard()" id="dm-copy-btn" style="padding:9px 20px;border-radius:8px;border:none;background:var(--color-brand,#6366f1);color:white;cursor:pointer;font-size:0.85rem;font-weight:600;display:flex;align-items:center;gap:6px;">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                Panoya Kopyala
-              </button>
+            
+            <textarea id="dm-draft-textarea" style="display:none;width:100%;min-height:220px;background:rgba(0,0,0,0.35);border:1px solid var(--border-subtle,#2a2d3e);border-radius:12px;padding:16px 18px;color:var(--text-main,#e2e8f0);font-size:0.92rem;font-family:inherit;line-height:1.65;resize:vertical;box-sizing:border-box;outline:none;" placeholder="Yapay zeka mesajı oluşturuyor..."></textarea>
+            
+            <div style="display:flex;gap:12px;justify-content:space-between;align-items:center;margin-top:20px;">
+              <div style="font-size:0.78rem;color:var(--text-muted);" id="dm-word-count">Düzenlenebilir DM Taslağı</div>
+              <div style="display:flex;gap:10px;">
+                <button onclick="closeDmModal()" style="padding:10px 20px;border-radius:10px;border:1px solid var(--border-subtle,#2a2d3e);background:transparent;color:var(--text-muted,#8892b0);cursor:pointer;font-size:0.88rem;">Kapat</button>
+                <button onclick="copyDmToClipboard()" id="dm-copy-btn" style="padding:10px 20px;border-radius:10px;border:none;background:var(--color-brand,#6366f1);color:white;cursor:pointer;font-size:0.88rem;font-weight:600;display:flex;align-items:center;gap:6px;box-shadow:0 4px 15px rgba(99,102,241,0.3);">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                  Panoya Kopyala
+                </button>
+                <button onclick="window.open('https://ig.me/m/${cleanU}', '_blank')" style="padding:10px 20px;border-radius:10px;border:none;background:linear-gradient(135deg,#833ab4,#fd1d1d);color:white;cursor:pointer;font-size:0.88rem;font-weight:600;display:flex;align-items:center;gap:6px;box-shadow:0 4px 15px rgba(239,68,68,0.3);">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                  Instagram DM Gönder
+                </button>
+              </div>
             </div>
           </div>
         `;
