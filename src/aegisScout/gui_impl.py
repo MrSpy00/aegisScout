@@ -3612,6 +3612,10 @@ class GuiApi:
     # -------------------------------------------------------------------
     def search_instagram_profiles(self, keywords: str, location: str = "", limit: int = 20):
         """Search Instagram profiles by sector keywords and location."""
+        return self.search_instagram_profiles_v2(keywords, "", location, limit)
+
+    def search_instagram_profiles_v2(self, keywords: str = "", username_query: str = "", location: str = "", limit: int = 20):
+        """Unified Search Engine: Sector search, direct username search, or intersectional search."""
         try:
             from aegisScout.discovery.instagram_finder import InstagramFinder
             finder = InstagramFinder()
@@ -3625,15 +3629,38 @@ class GuiApi:
             asyncio.set_event_loop(loop)
             try:
                 profiles = loop.run_until_complete(
-                    finder.search_profiles_by_sector(keywords, location=location, limit=limit_val)
+                    finder.search_profiles_by_username_or_sector(
+                        sector_keywords=keywords,
+                        username_query=username_query,
+                        location=location,
+                        limit=limit_val
+                    )
                 )
             finally:
                 loop.close()
 
             return {"success": True, "count": len(profiles), "profiles": profiles}
         except Exception as e:
-            logger.exception(f"search_instagram_profiles failed: {e}")
+            logger.exception(f"search_instagram_profiles_v2 failed: {e}")
             return {"success": False, "error": str(e), "profiles": []}
+
+    def fetch_anonymous_instagram_details(self, username: str):
+        """Fetch public posts, gallery photos, and story status anonymously for a user."""
+        try:
+            from aegisScout.discovery.instagram_finder import InstagramFinder
+            finder = InstagramFinder()
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                data = loop.run_until_complete(
+                    finder.fetch_anonymous_user_posts_and_stories(username)
+                )
+            finally:
+                loop.close()
+            return data
+        except Exception as e:
+            logger.exception(f"fetch_anonymous_instagram_details failed: {e}")
+            return {"success": False, "error": str(e)}
 
     def find_similar_instagram_profiles(self, username: str, category: str = "", location: str = "", limit: int = 10):
         """Find similar Instagram profiles for a given handle or category."""

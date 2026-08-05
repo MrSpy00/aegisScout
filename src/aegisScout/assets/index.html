@@ -1652,14 +1652,18 @@
 
       <!-- Search Input Card -->
       <div class="stat-card" style="margin-bottom: 16px; padding: 18px 20px; border-radius: 14px;">
-        <div style="display: grid; grid-template-columns: 2fr 1.2fr 160px 140px; gap: 12px; align-items: end;">
+        <div style="display: grid; grid-template-columns: 1.5fr 1.5fr 1.2fr 160px 140px; gap: 12px; align-items: end;">
           <div>
-            <label style="font-weight: 600; font-size: 0.85rem; display: block; margin-bottom: 6px; color: var(--text-main);">Sektör &amp; Anahtar Kelimeler *</label>
-            <input type="text" id="insta-search-keywords" class="form-control" placeholder="Örn: Güzellik Salonu, Kuaför, Kadıköy, Yazılım Şirketi..." style="width:100%; box-sizing: border-box;" onkeypress="if(event.key==='Enter') searchInstagramProfiles();">
+            <label style="font-weight: 600; font-size: 0.85rem; display: block; margin-bottom: 6px; color: var(--text-main);">Sektör &amp; Anahtar Kelimeler</label>
+            <input type="text" id="insta-search-keywords" class="form-control" placeholder="Örn: Güzellik Salonu, Kuaför, Kadıköy..." style="width:100%; box-sizing: border-box;" onkeypress="if(event.key==='Enter') searchInstagramProfiles();">
           </div>
           <div>
-            <label style="font-weight: 600; font-size: 0.85rem; display: block; margin-bottom: 6px; color: var(--text-main);">Konum (İl/İlçe - İsteğe Bağlı)</label>
-            <input type="text" id="insta-search-location" class="form-control" placeholder="Tüm Türkiye için boş bırakın (veya Örn: Kadıköy, İstanbul)" style="width:100%; box-sizing: border-box;" onkeypress="if(event.key==='Enter') searchInstagramProfiles();">
+            <label style="font-weight: 600; font-size: 0.85rem; display: block; margin-bottom: 6px; color: var(--color-brand); font-weight: 700;">Profil / Kullanıcı Adı (@handle)</label>
+            <input type="text" id="insta-search-username" class="form-control" placeholder="Örn: @kuafor_ahmet veya kuafor..." style="width:100%; box-sizing: border-box; border: 1px solid var(--color-brand);" onkeypress="if(event.key==='Enter') searchInstagramProfiles();">
+          </div>
+          <div>
+            <label style="font-weight: 600; font-size: 0.85rem; display: block; margin-bottom: 6px; color: var(--text-main);">Konum (İl/İlçe)</label>
+            <input type="text" id="insta-search-location" class="form-control" placeholder="Tüm Türkiye (veya Kadıköy...)" style="width:100%; box-sizing: border-box;" onkeypress="if(event.key==='Enter') searchInstagramProfiles();">
           </div>
           <div>
             <label style="font-weight: 600; font-size: 0.85rem; display: block; margin-bottom: 6px; color: var(--text-main);">Profil Limiti</label>
@@ -1686,6 +1690,9 @@
               Profilleri Bul
             </button>
           </div>
+        </div>
+        <div style="font-size: 0.76rem; color: var(--text-muted); margin-top: 8px;">
+          💡 <b>İpucu:</b> <u>Sektör</u> ile geniş arama yapabilir veya <u>Profil / Kullanıcı Adı</u> girerek Instagram'daki gibi tam/yakın profil sonuçlarını doğrudan listeleyebilirsiniz.
         </div>
       </div>
 
@@ -2488,9 +2495,53 @@
           </div>
         </div>
 
-        <div>
-          <label style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Arama Turları Geçmişinden Seç</label>
-          <select id="del-filter-search-log" style="width:100%; height:36px; padding:0 8px; border-radius:8px; background:var(--bg-base); border:1px solid var(--border-accent); color:var(--text-main); font-size:0.85rem; outline:none;">
+  <!-- Profile Picture HD Lightbox Modal -->
+  <div class="modal-overlay" id="modal-profile-pic-zoom" style="display:none; z-index: 100000;" onclick="if(event.target===this) closeProfilePicZoom();">
+    <div class="modal-card" style="width: 540px; max-width: 95vw; text-align: center; padding: 24px; border-radius: 20px; background: rgba(20,20,32,0.95); backdrop-filter: blur(20px); border: 1px solid var(--border-subtle);">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h3 id="zoom-modal-username" style="font-family: var(--font-display); font-size: 1.1rem; margin: 0; color: var(--color-brand);">HD Profil Fotoğrafı</h3>
+        <button onclick="closeProfilePicZoom()" style="background: none; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer;">&times;</button>
+      </div>
+      <div style="margin-bottom: 18px; display: flex; justify-content: center; align-items: center; background: rgba(0,0,0,0.5); padding: 16px; border-radius: 16px; min-height: 300px; border: 1px solid var(--border-subtle);">
+        <img id="zoom-modal-img" src="" alt="HD Fotoğraf" style="max-width: 100%; max-height: 480px; border-radius: 12px; object-fit: contain; box-shadow: 0 10px 30px rgba(0,0,0,0.5); cursor: zoom-in;" title="Sağ tık yaparak resmi bilgisayarınıza kaydedebilirsiniz">
+      </div>
+      <div style="display: flex; gap: 10px; justify-content: center;">
+        <button class="btn btn-secondary" onclick="downloadProfilePicHd()" style="font-weight: 600; padding: 8px 16px;">
+          📥 HD Fotoğrafı İndir
+        </button>
+        <button class="btn btn-secondary" onclick="closeProfilePicZoom()">Kapat</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Anonymous Profile, Story & Post Viewer Modal -->
+  <div class="modal-overlay" id="modal-instagram-anonymous-viewer" style="display:none; z-index: 100000;" onclick="if(event.target===this) closeAnonymousViewer();">
+    <div class="modal-card" style="width: 720px; max-width: 95vw; max-height: 90vh; overflow-y: auto; text-align: left; padding: 24px; border-radius: 20px; background: rgba(20,20,32,0.95); backdrop-filter: blur(20px); border: 1px solid var(--border-subtle);">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 12px;">
+        <div style="display: flex; gap: 12px; align-items: center;">
+          <div style="position: relative;">
+            <img id="anon-view-avatar" src="" style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover; border: 2px solid var(--color-brand); cursor: pointer;" onclick="zoomProfilePic(this.src, document.getElementById('anon-view-handle').innerText)">
+            <span id="anon-view-story-badge" style="display:none; position: absolute; bottom: 0; right: 0; background: #10b981; width: 14px; height: 14px; border-radius: 50%; border: 2px solid #000;" title="Aktif Hikaye / Paylaşım Var"></span>
+          </div>
+          <div>
+            <h3 id="anon-view-name" style="font-family: var(--font-display); font-size: 1.15rem; margin: 0; color: var(--text-main);"></h3>
+            <div id="anon-view-handle" style="font-size: 0.88rem; color: var(--color-brand); font-weight: 600;"></div>
+            <div id="anon-view-stats" style="font-size: 0.78rem; color: var(--text-muted); margin-top: 2px;"></div>
+          </div>
+        </div>
+        <button onclick="closeAnonymousViewer()" style="background: none; border: none; color: var(--text-muted); font-size: 1.6rem; cursor: pointer;">&times;</button>
+      </div>
+
+      <div id="anon-view-bio" style="font-size: 0.85rem; color: var(--text-main); background: var(--bg-surface); padding: 12px; border-radius: 10px; margin-bottom: 16px; line-height: 1.45;"></div>
+
+      <h4 style="font-size: 0.95rem; margin-bottom: 12px; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
+        📸 Anonim Gönderi &amp; Görsel Galerisi (Giriş Yapmadan)
+      </h4>
+      <div id="anon-view-posts-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px;">
+        <!-- Injected dynamically -->
+      </div>
+    </div>
+  </div>
             <option value="">Arama seçilmedi</option>
           </select>
         </div>
@@ -3063,6 +3114,7 @@ function applyLanguage(lang) {
 
     async function searchInstagramProfiles() {
       const keywordsInput = document.getElementById("insta-search-keywords");
+      const usernameInput = document.getElementById("insta-search-username");
       const locationInput = document.getElementById("insta-search-location");
       const limitSelect = document.getElementById("insta-search-limit");
       const limitCustom = document.getElementById("insta-custom-limit-input");
@@ -3077,6 +3129,7 @@ function applyLanguage(lang) {
       const progText = document.getElementById("insta-progress-text");
 
       const keywords = keywordsInput ? keywordsInput.value.trim() : "";
+      const usernameQuery = usernameInput ? usernameInput.value.trim() : "";
       const location = locationInput ? locationInput.value.trim() : "";
 
       let limit = 100;
@@ -3088,8 +3141,8 @@ function applyLanguage(lang) {
         }
       }
 
-      if (!keywords) {
-        showToast("Lütfen aramak istediğiniz sektör veya anahtar kelimeleri girin.", "warning");
+      if (!keywords && !usernameQuery) {
+        showToast("Lütfen bir Sektör anahtar kelimesi veya Profil / Kullanıcı adı girin.", "warning");
         if (keywordsInput) keywordsInput.focus();
         return;
       }
@@ -3124,53 +3177,58 @@ function applyLanguage(lang) {
         }
       }
 
-      updateInstaProgress(10, "Sektörel kullanıcı adı varyasyonları türetiliyor...", `Layer 1: "${keywords}" sektörü için 3,000+ Türkçe aday kullanıcı adı ve varyasyon türetildi.`);
+      const searchTitle = usernameQuery ? `@${usernameQuery}` : `"${keywords}"`;
+      updateInstaProgress(10, "Profil varyasyonları ve Instagram dizini taranıyor...", `Layer 1: ${searchTitle} için birebir & en yakın profil sonuçları sorgulanıyor.`);
 
       container.innerHTML = `
         <div style="text-align: center; padding: 50px 20px;">
           <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem; margin-bottom: 16px;"></div>
           <h3 style="font-family: var(--font-display); font-size: 1.2rem; margin-bottom: 8px;">Instagram Profilleri Taranıyor...</h3>
-          <p style="color: var(--text-muted); max-width: 500px; margin: 0 auto; font-size: 0.9rem;">"${keywords}" sektörü için 5 katmanlı hibrit Instagram keşif motoru çalıştırılıyor. Lütfen bekleyin...</p>
+          <p style="color: var(--text-muted); max-width: 500px; margin: 0 auto; font-size: 0.9rem;">${searchTitle} araması için Instagram verileri canlı olarak çekiliyor. Lütfen bekleyin...</p>
         </div>
       `;
 
       setTimeout(() => {
-        updateInstaProgress(35, "İşletme rehberleri ve OSINT kaynakları taranıyor...", "Layer 2 & 3: Bulurum, Haritane, Tikla ve OSINT dizinlerinden Instagram adresleri harmanlanıyor.");
+        updateInstaProgress(40, "Instagram arama algoritması eşleştiriliyor...", "Layer 2 & 3: Birebir kullanıcı adı eşleşmesi #1 sıraya yerleştiriliyor.");
       }, 1200);
 
       setTimeout(() => {
-        updateInstaProgress(65, "Arama motoru indeksleri ve profiller zenginleştiriliyor...", "Layer 4 & 5: Googlebot & Bingbot motoru ile Followers, Bio, Telefon ve E-posta ayıklanıyor.");
-      }, 2800);
+        updateInstaProgress(75, "Profil detayları ve açık iletişim verileri harmanlanıyor...", "Layer 4 & 5: Googlebot & Bingbot ile OpenGraph, Takipçi, Bio ve E-posta verileri çekiliyor.");
+      }, 2600);
 
       try {
         let res = null;
         if (window.pywebview && window.pywebview.api) {
-          res = await window.pywebview.api.search_instagram_profiles(keywords, location, limit);
+          res = await window.pywebview.api.search_instagram_profiles_v2(keywords, usernameQuery, location, limit);
         } else {
           await new Promise(r => setTimeout(r, 1500));
           res = {
             success: true,
-            count: 2,
+            count: 1,
             profiles: [
               {
-                username: "kadikoy_guzellik_salonu",
-                full_name: "Kadıköy Güzellik & Bakım Salonu",
-                profile_url: "https://www.instagram.com/kadikoy_guzellik_salonu/",
+                username: usernameQuery ? usernameQuery.replace("@", "") : "sample_profile",
+                full_name: usernameQuery ? usernameQuery.replace("@", "").toUpperCase() : "Örnek Profil",
+                profile_url: `https://www.instagram.com/${usernameQuery}/`,
                 profile_pic_url: "",
-                bio: "Kadıköy Moda'da profesyonel cilt bakımı, lazer epilasyon ve saç tasarımı. Randevu WhatsApp: 05321112233 | E-posta: info@kadikoyguzellik.com",
-                followers: "18.4K",
-                followers_raw: 18400,
-                following: "420",
-                posts: "310",
+                bio: "Örnek Instagram profil açıklaması. WhatsApp: 05321112233",
+                followers: "15.2K",
+                followers_raw: 15200,
+                following: "340",
+                posts: "180",
                 is_verified: true,
                 is_business: true,
-                category: "Güzellik Salonu",
-                email: "info@kadikoyguzellik.com",
+                category: keywords || "İşletme",
+                email: "contact@example.com",
                 phone: "+905321112233",
                 whatsapp_link: "https://wa.me/905321112233",
-                website: "https://kadikoyguzellik.com",
-                relevance_score: 95
+                website: "https://example.com",
+                relevance_score: 95,
+                last_active: "🟢 Yüksek Aktiflik"
               }
+            ]
+          };
+        }
             ]
           };
         }
@@ -3361,10 +3419,10 @@ function applyLanguage(lang) {
 
         let avatarHtml = "";
         if (p.profile_pic_url) {
-          avatarHtml = `<img src="${p.profile_pic_url}" alt="${fullName}" style="width: 56px; height: 56px; border-radius: 50%; object-fit: cover; border: 2px solid var(--color-brand);" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-          <div style="width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045); display: none; align-items: center; justify-content: center; font-weight: 700; color: #fff; font-size: 1.3rem;">${username.charAt(0).toUpperCase()}</div>`;
+          avatarHtml = `<img src="${p.profile_pic_url}" alt="${fullName}" style="width: 56px; height: 56px; border-radius: 50%; object-fit: cover; border: 2px solid var(--color-brand); cursor: pointer;" title="Büyütmek ve HD İndirmek için tıklayın" onclick="zoomProfilePic('${p.profile_pic_url}', '${username}')" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+          <div style="width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045); display: none; align-items: center; justify-content: center; font-weight: 700; color: #fff; font-size: 1.3rem; cursor: pointer;" onclick="zoomProfilePic('', '${username}')">${username.charAt(0).toUpperCase()}</div>`;
         } else {
-          avatarHtml = `<div style="width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045); display: flex; align-items: center; justify-content: center; font-weight: 700; color: #fff; font-size: 1.3rem;">${username.charAt(0).toUpperCase()}</div>`;
+          avatarHtml = `<div style="width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045); display: flex; align-items: center; justify-content: center; font-weight: 700; color: #fff; font-size: 1.3rem; cursor: pointer;" onclick="zoomProfilePic('', '${username}')">${username.charAt(0).toUpperCase()}</div>`;
         }
 
         const verifiedBadge = p.is_verified
@@ -3440,12 +3498,12 @@ function applyLanguage(lang) {
                 CRM'e Aktar
               </button>
 
-              <button class="btn btn-secondary" onclick="generateInstagramDmModal('${username}', ${idx})" style="font-size: 0.78rem; padding: 6px 8px;" title="Yapay Zeka ile DM Taslağı Hazırla">
-                ✨ AI DM Üret
+              <button class="btn btn-secondary" onclick="openAnonymousViewerModal('${username}', ${idx})" style="font-size: 0.78rem; padding: 6px 8px;" title="Anonim Olarak Gönderi ve Profil İçeriklerini İncele">
+                📱 Anonim İncele
               </button>
 
-              <button class="btn btn-secondary" onclick="findSimilarProfilesAction('${username}', '${category}')" style="font-size: 0.78rem; padding: 6px 8px;" title="Bu hesaba benzer diğer profilleri bul">
-                🔍 Benzer Bul
+              <button class="btn btn-secondary" onclick="generateInstagramDmModal('${username}', ${idx})" style="font-size: 0.78rem; padding: 6px 8px;" title="Yapay Zeka ile DM Taslağı Hazırla">
+                ✨ AI DM Üret
               </button>
             </div>
           </div>
@@ -3531,6 +3589,120 @@ function applyLanguage(lang) {
       } catch (err) {
         showToast("DM oluşturma hatası: " + err.message, "error");
       }
+    }
+
+    let currentZoomPicUrl = "";
+    let currentZoomUsername = "";
+
+    function zoomProfilePic(picUrl, username) {
+      currentZoomUsername = username ? username.replace("@", "").trim() : "profil";
+      currentZoomPicUrl = picUrl || `https://www.instagram.com/${currentZoomUsername}/`;
+
+      const modal = document.getElementById("modal-profile-pic-zoom");
+      const img = document.getElementById("zoom-modal-img");
+      const title = document.getElementById("zoom-modal-username");
+
+      if (title) title.innerText = `@${currentZoomUsername} HD Profil Fotoğrafı`;
+      if (img) {
+        img.src = picUrl || `https://unavatar.io/instagram/${currentZoomUsername}`;
+      }
+      if (modal) modal.style.display = "flex";
+    }
+
+    function closeProfilePicZoom() {
+      const modal = document.getElementById("modal-profile-pic-zoom");
+      if (modal) modal.style.display = "none";
+    }
+
+    function downloadProfilePicHd() {
+      if (!currentZoomPicUrl && !currentZoomUsername) return;
+      const targetUrl = currentZoomPicUrl || `https://unavatar.io/instagram/${currentZoomUsername}`;
+      const a = document.createElement("a");
+      a.href = targetUrl;
+      a.download = `${currentZoomUsername}_hd_avatar.jpg`;
+      a.target = "_blank";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      showToast("HD profil fotoğrafı indirme bağlantısı açıldı (Sağ tık -> Farklı Kaydet).", "success");
+    }
+
+    async function openAnonymousViewerModal(username, index) {
+      const modal = document.getElementById("modal-instagram-anonymous-viewer");
+      const avatar = document.getElementById("anon-view-avatar");
+      const nameEl = document.getElementById("anon-view-name");
+      const handleEl = document.getElementById("anon-view-handle");
+      const statsEl = document.getElementById("anon-view-stats");
+      const bioEl = document.getElementById("anon-view-bio");
+      const grid = document.getElementById("anon-view-posts-grid");
+      const badge = document.getElementById("anon-view-story-badge");
+
+      const profile = (currentInstagramResults && currentInstagramResults[index]) || { username: username };
+      const cleanU = username.replace("@", "").trim();
+
+      if (handleEl) handleEl.innerText = `@${cleanU}`;
+      if (nameEl) nameEl.innerText = profile.full_name || cleanU;
+      if (statsEl) statsEl.innerText = `👥 ${profile.followers || 'N/A'} Takipçi  |  📸 ${profile.posts || 'N/A'} Gönderi  |  🟢 ${profile.last_active || 'Aktif'}`;
+      if (bioEl) bioEl.innerText = profile.bio || "Profil açıklaması bulunmuyor.";
+      if (avatar) avatar.src = profile.profile_pic_url || `https://unavatar.io/instagram/${cleanU}`;
+
+      if (grid) {
+        grid.innerHTML = `<div style="grid-column: 1 / -1; text-align: center; padding: 20px;"><div class="spinner-border spinner-border-sm text-primary"></div> Gönderiler ve galeri çekiliyor...</div>`;
+      }
+
+      if (modal) modal.style.display = "flex";
+
+      try {
+        let details = null;
+        if (window.pywebview && window.pywebview.api) {
+          details = await window.pywebview.api.fetch_anonymous_instagram_details(cleanU);
+        } else {
+          details = {
+            success: true,
+            has_active_story: true,
+            posts: [
+              { id: "p1", image_url: profile.profile_pic_url, caption: profile.bio || "Örnek Gönderi #1" }
+            ]
+          };
+        }
+
+        if (badge && details && details.has_active_story) {
+          badge.style.display = "block";
+        } else if (badge) {
+          badge.style.display = "none";
+        }
+
+        if (grid) {
+          if (details && details.posts && details.posts.length > 0) {
+            let postsHtml = "";
+            details.posts.forEach(post => {
+              const imgSrc = post.image_url || profile.profile_pic_url || "https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=300&q=80";
+              postsHtml += `
+                <div style="background: rgba(0,0,0,0.3); border-radius: 12px; overflow: hidden; border: 1px solid var(--border-subtle); display: flex; flex-direction: column;">
+                  <img src="${imgSrc}" alt="${post.caption || 'Gönderi'}" style="width: 100%; height: 180px; object-fit: cover; cursor: pointer;" onclick="zoomProfilePic('${imgSrc}', '${cleanU}')" onerror="this.src='https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=300&q=80';">
+                  <div style="padding: 8px 10px; font-size: 0.75rem; color: var(--text-muted); line-height: 1.35; flex: 1;">
+                    ${post.caption || 'Açıklama yok'}
+                  </div>
+                  <div style="padding: 6px 10px; border-top: 1px solid var(--border-subtle); display: flex; justify-content: space-between;">
+                    <a href="${post.image_url || imgSrc}" target="_blank" download style="font-size: 0.72rem; color: var(--color-brand); text-decoration: none; font-weight: 600;">📥 Fotoğrafı İndir</a>
+                    <a href="https://www.instagram.com/${cleanU}/" target="_blank" style="font-size: 0.72rem; color: var(--text-muted); text-decoration: none;">Instagram'da Gör ➔</a>
+                  </div>
+                </div>
+              `;
+            });
+            grid.innerHTML = postsHtml;
+          } else {
+            grid.innerHTML = `<div style="grid-column: 1 / -1; text-align: center; color: var(--text-muted); padding: 20px;">Açık medya içeriği bulunamadı.</div>`;
+          }
+        }
+      } catch (err) {
+        if (grid) grid.innerHTML = `<div style="grid-column: 1 / -1; text-align: center; color: var(--color-danger); padding: 20px;">İçerik yükleme hatası: ${err.message}</div>`;
+      }
+    }
+
+    function closeAnonymousViewer() {
+      const modal = document.getElementById("modal-instagram-anonymous-viewer");
+      if (modal) modal.style.display = "none";
     }
 
     async function findSimilarProfilesAction(username, category) {

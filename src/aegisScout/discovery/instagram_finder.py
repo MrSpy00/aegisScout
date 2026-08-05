@@ -508,6 +508,157 @@ class InstagramFinder:
         default_data["relevance_score"] = self._calculate_relevance_score(default_data, target_sector)
         return default_data
 
+    async def search_profiles_by_username_or_sector(
+        self, sector_keywords: str = "", username_query: str = "", location: str = "", limit: int = 20
+    ) -> List[Dict]:
+        """
+        Unified Smart Search Engine:
+        - If username_query is provided & sector_keywords empty: Direct Username / Handle search mode.
+          Exact match handle ranks #1, followed by closest fuzzy matches (matching Instagram internal search).
+        - If sector_keywords is provided & username_query empty: 5-Layer Hybrid Sector Search mode.
+        - If both provided: Intersectional Search (handles matching username_query within sector).
+        """
+        sec_clean = (sector_keywords or "").strip()
+        u_clean = (username_query or "").strip().lower().replace("@", "")
+        loc_clean = _clean_location_for_search(location)
+
+        target_limit = 50000 if (limit <= 0 or limit >= 50000) else limit
+
+        # Mode A: Direct Username / Handle Search Mode
+        if u_clean and not sec_clean:
+            logger.info(f"Starting Direct Instagram Username Search for handle='@{u_clean}', loc='{loc_clean}'")
+            candidate_handles: Set[str] = set()
+
+            # Exact handle
+            candidate_handles.add(u_clean)
+
+            # Common handle variations (like Instagram internal search)
+            variations = [
+                f"{u_clean}_tr", f"{u_clean}_official", f"{u_clean}_official_tr",
+                f"{u_clean}_turkiye", f"{u_clean}_", f"_{u_clean}", f"{u_clean}1",
+                f"{u_clean}_studio", f"{u_clean}_desing", f"{u_clean}_salon",
+                f"{u_clean}_resmi", f"{u_clean}_iletisim", f"real_{u_clean}"
+            ]
+            for v in variations:
+                if v not in IGNORED_HANDLES:
+                    candidate_handles.add(v)
+
+            # Search engines for handle query
+            queries = [f'"{u_clean}" instagram', f'{u_clean} instagram']
+            try:
+                async with httpx.AsyncClient(timeout=3.5, follow_redirects=True, headers=self.browser_headers) as client:
+                    for q in queries:
+                        try:
+                            url = f"https://www.bing.com/search?q={urllib.parse.quote(q)}"
+                            resp = await client.get(url)
+                            if resp.status_code == 200:
+                                candidate_handles.update(_extract_handles_from_content(resp.text))
+                        except Exception:
+                            pass
+            except Exception:
+                pass
+
+            # Fetch profile details in parallel
+            handles_list = list(candidate_handles)[:target_limit]
+            sem = asyncio.Semaphore(25)
+
+            async def sem_fetch(h):
+                async with sem:
+                    return await self.fetch_profile_details(h, "")
+
+            tasks = [sem_fetch(h) for h in handles_list]
+            fetched = await asyncio.gather(*tasks, return_exceptions=True)
+
+            results: List[Dict] = []
+            for res in fetched:
+                if isinstance(res, dict) and res.get("username"):
+                    results.append(res)
+
+            # Ranking: Exact match first, then handle starts with query, then followers
+            def handle_sort_key(p: Dict) -> tuple:
+                un = p["username"].lower()
+                if un == u_clean:
+                    match_rank = 1
+                elif un.startswith(u_clean):
+                    match_rank = 2
+                elif u_clean in un:
+                    match_rank = 3
+                else:
+                    match_rank = 4
+
+                return (match_rank, -p.get("followers_raw", 0))
+
+            results.sort(key=handle_sort_key)
+            return results
+
+        # Mode B & C: Sector search or Intersectional search
+        results = await self.search_profiles_by_sector(sec_clean or u_clean, loc_clean, target_limit)
+        if u_clean and sec_clean:
+            # Filter or boost items matching u_clean
+            def combo_sort(p: Dict):
+                un = p.get("username", "").lower()
+                is_u_match = 1 if u_clean in un else 0
+                return (is_u_match, p.get("relevance_score", 0), p.get("followers_raw", 0))
+            results.sort(key=combo_sort, reverse=True)
+
+        return results
+
+    async def fetch_anonymous_user_posts_and_stories(self, username: str) -> Dict:
+        """
+        Fetch public posts, gallery images, and story status anonymously without login.
+        Uses OpenGraph embed proxies and public embed endpoints.
+        """
+        clean_user = username.strip().lower().replace("@", "")
+        profile_details = await self.fetch_profile_details(clean_user)
+
+        posts_data: List[Dict] = []
+        has_story = False
+
+        try:
+            async with httpx.AsyncClient(timeout=4.0, follow_redirects=True, headers=self.browser_headers) as client:
+                embed_url = f"https://www.instagram.com/{clean_user}/embed/"
+                resp = await client.get(embed_url)
+                if resp.status_code == 200:
+                    html = resp.text
+                    soup = BeautifulSoup(html, "html.parser")
+
+                    # Extract embedded images / posts
+                    img_tags = soup.find_all("img")
+                    for idx, img in enumerate(img_tags):
+                        src = img.get("src")
+                        alt = img.get("alt", "") or f"{clean_user} gönderisi #{idx + 1}"
+                        if src and "fbcdn.net" in src or "cdninstagram.com" in src:
+                            posts_data.append({
+                                "id": f"post_{idx+1}",
+                                "image_url": src,
+                                "caption": alt[:150],
+                                "post_url": f"https://www.instagram.com/{clean_user}/"
+                            })
+
+                    if "story" in html.lower() or "hikaye" in html.lower():
+                        has_story = True
+        except Exception as e:
+            logger.debug(f"Anonymous post fetch notice for @{clean_user}: {e}")
+
+        # Fallback dummy post placeholders if profile is private or embed restricted
+        if not posts_data:
+            posts_data = [
+                {
+                    "id": "post_1",
+                    "image_url": profile_details.get("profile_pic_url") or "",
+                    "caption": profile_details.get("bio") or f"@{clean_user} profil özeti",
+                    "post_url": profile_details.get("profile_url")
+                }
+            ]
+
+        return {
+            "success": True,
+            "username": clean_user,
+            "profile": profile_details,
+            "has_active_story": has_story or profile_details.get("last_active_raw", 0) > 80,
+            "posts": posts_data
+        }
+
     async def find_similar_profiles(
         self, username: str, category: str = "", location: str = "", limit: int = 10
     ) -> List[Dict]:
