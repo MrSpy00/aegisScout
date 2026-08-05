@@ -235,65 +235,60 @@ class InstagramFinder:
             pass
 
         # -------------------------------------------------------------------
-        # LAYER 2: Social Media OSINT Harvest Provider Integration
+        # LAYER 2 & 3: Fast Parallel OSINT & Directory Provider Integration (Max 3.5s Timeout)
         # -------------------------------------------------------------------
+        async def harvest_provider(ProvClass):
+            try:
+                prov_inst = ProvClass()
+                p_leads = await asyncio.wait_for(prov_inst.search(sec_clean, loc_clean), timeout=3.5)
+                local_handles = set()
+                for lead in p_leads:
+                    h_cand = getattr(lead, "instagram_handle", None) or getattr(lead, "instagram_url", None) or ""
+                    if h_cand:
+                        clean_h = str(h_cand).split("/")[-1].split("?")[0].strip().lower().replace("@", "")
+                        if clean_h and clean_h not in IGNORED_HANDLES:
+                            local_handles.add(clean_h)
+                return local_handles
+            except Exception:
+                return set()
+
         try:
             from aegisScout.discovery.social_media_provider import SocialMediaDiscoveryProvider
-            sm_provider = SocialMediaDiscoveryProvider()
-            sm_leads = await sm_provider.search(sec_clean, loc_clean)
-            for lead in sm_leads:
-                h_candidate = getattr(lead, "instagram_handle", None) or getattr(lead, "instagram_url", None) or ""
-                if h_candidate:
-                    clean_h = str(h_candidate).split("/")[-1].split("?")[0].strip().lower().replace("@", "")
-                    if clean_h and clean_h not in IGNORED_HANDLES:
-                        found_handles.add(clean_h)
-        except Exception as e:
-            logger.debug(f"SocialMediaDiscoveryProvider harvest notice: {e}")
-
-        # -------------------------------------------------------------------
-        # LAYER 3: Turkish Directory Providers Integration (Bulurum, Haritane, FindComTr)
-        # -------------------------------------------------------------------
-        try:
             from aegisScout.discovery.bulurum_provider import BulurumDiscoveryProvider
             from aegisScout.discovery.haritane_provider import HaritaneDiscoveryProvider
             from aegisScout.discovery.findcomtr_provider import FindComTrDiscoveryProvider
 
-            for ProvClass in [BulurumDiscoveryProvider, HaritaneDiscoveryProvider, FindComTrDiscoveryProvider]:
-                try:
-                    prov_inst = ProvClass()
-                    p_leads = await prov_inst.search(sec_clean, loc_clean)
-                    for lead in p_leads:
-                        h_cand = getattr(lead, "instagram_handle", None) or getattr(lead, "instagram_url", None) or ""
-                        if h_cand:
-                            clean_h = str(h_cand).split("/")[-1].split("?")[0].strip().lower().replace("@", "")
-                            if clean_h and clean_h not in IGNORED_HANDLES:
-                                found_handles.add(clean_h)
-                except Exception:
-                    pass
+            prov_tasks = [
+                harvest_provider(SocialMediaDiscoveryProvider),
+                harvest_provider(BulurumDiscoveryProvider),
+                harvest_provider(HaritaneDiscoveryProvider),
+                harvest_provider(FindComTrDiscoveryProvider),
+            ]
+            prov_results = await asyncio.gather(*prov_tasks, return_exceptions=True)
+            for h_set in prov_results:
+                if isinstance(h_set, set):
+                    found_handles.update(h_set)
         except Exception as e:
-            logger.debug(f"Directory providers harvest notice: {e}")
+            logger.debug(f"Directory harvest notice: {e}")
 
         # -------------------------------------------------------------------
-        # LAYER 4: Search Engine Snippet Harvesting (Bing & DuckDuckGo)
+        # LAYER 4: Fast Search Engine Snippet Harvesting (Bing & DuckDuckGo)
         # -------------------------------------------------------------------
         queries = [
             f'"{sec_clean}" instagram',
             f'{sec_clean} instagram',
             f'{sec_clean} randevu instagram',
-            f'{sec_clean} whatsapp instagram',
         ]
 
-        async with httpx.AsyncClient(timeout=7.0, follow_redirects=True, headers=self.browser_headers) as client:
+        async with httpx.AsyncClient(timeout=3.5, follow_redirects=True, headers=self.browser_headers) as client:
             for q in queries[:2]:
-                for page in range(1, 3):
-                    first_p = (page - 1) * 10 + 1
-                    try:
-                        url = f"https://www.bing.com/search?q={urllib.parse.quote(q)}&first={first_p}"
-                        resp = await client.get(url)
-                        if resp.status_code == 200:
-                            found_handles.update(_extract_handles_from_content(resp.text))
-                    except Exception:
-                        pass
+                try:
+                    url = f"https://www.bing.com/search?q={urllib.parse.quote(q)}"
+                    resp = await client.get(url)
+                    if resp.status_code == 200:
+                        found_handles.update(_extract_handles_from_content(resp.text))
+                except Exception:
+                    pass
 
         sec_words_clean = [w for w in re.split(r"\s+", _slugify_tr(sec_clean)) if len(w) >= 3]
         loc_words_clean = [w for w in re.split(r"\s+", _slugify_tr(loc_clean)) if len(w) >= 3]
@@ -313,18 +308,20 @@ class InstagramFinder:
         logger.info(f"Found {len(found_handles)} total candidate handles, fetching detailed profiles for {len(handles_to_fetch)} handles...")
 
         # -------------------------------------------------------------------
-        # LAYER 5: OpenGraph Profile Extraction & Detail Enrichment
+        # LAYER 5: High-Concurrency Profile Detail Extraction & Recency Enrichment
         # -------------------------------------------------------------------
         results: List[Dict] = []
-        batch_size = 10
-        for i in range(0, len(handles_to_fetch), batch_size):
-            batch = handles_to_fetch[i:i + batch_size]
-            tasks = [self.fetch_profile_details(handle, sec_clean) for handle in batch]
-            fetched = await asyncio.gather(*tasks, return_exceptions=True)
-            for res in fetched:
-                if isinstance(res, dict) and res.get("username"):
-                    results.append(res)
-            await asyncio.sleep(0.1)
+        sem = asyncio.Semaphore(25)
+
+        async def sem_fetch(h):
+            async with sem:
+                return await self.fetch_profile_details(h, sec_clean)
+
+        tasks = [sem_fetch(handle) for handle in handles_to_fetch]
+        fetched = await asyncio.gather(*tasks, return_exceptions=True)
+        for res in fetched:
+            if isinstance(res, dict) and res.get("username"):
+                results.append(res)
 
         # -------------------------------------------------------------------
         # STRICT 4-TIER PRIORITY RANKING & SORTING ALGORITHM
@@ -369,6 +366,7 @@ class InstagramFinder:
         """
         Extract detailed metadata for a single Instagram profile using Googlebot/Bingbot headers.
         Parses both English & Turkish OpenGraph tags (Takipçi, Takip, Gönderi / Followers, Following, Posts).
+        Includes Last Activity / Recency Indicator extraction.
         """
         clean_user = username.strip().lower().replace("@", "")
         default_data = {
@@ -389,13 +387,15 @@ class InstagramFinder:
             "whatsapp_link": None,
             "website": None,
             "relevance_score": 75,
+            "last_active": "🟢 Aktif İşletme Hesabı",
+            "last_active_raw": 80,
         }
 
         if not clean_user or clean_user in IGNORED_HANDLES:
             return default_data
 
         try:
-            async with httpx.AsyncClient(timeout=6.0, follow_redirects=True) as client:
+            async with httpx.AsyncClient(timeout=4.0, follow_redirects=True) as client:
                 page_url = f"https://www.instagram.com/{clean_user}/"
                 resp = await client.get(page_url, headers=self.browser_headers)
 
@@ -442,6 +442,18 @@ class InstagramFinder:
 
                     if "verified" in html.lower() or "doğrulanmış" in html.lower():
                         default_data["is_verified"] = True
+
+                    # Recency / Last Activity Extraction
+                    date_matches = re.findall(r"\b(202[4-6]|\d{1,2}\s+(?:Ocak|Şubat|Mart|Nisan|Mayıs|Haziran|Temmuz|Ağustos|Eylül|Ekim|Kasım|Aralık|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec))\b", html, re.I)
+                    if date_matches:
+                        default_data["last_active"] = f"🟢 Aktif (Son İçerik: {date_matches[0]})"
+                        default_data["last_active_raw"] = 95
+                    elif default_data["followers_raw"] > 1000 and default_data["posts"] != "0":
+                        default_data["last_active"] = "🟢 Yüksek Aktiflik (Yüksek Etkileşim)"
+                        default_data["last_active_raw"] = 90
+                    elif default_data["posts"] == "0":
+                        default_data["last_active"] = "🔴 Düşük Aktiflik (Gönderisiz)"
+                        default_data["last_active_raw"] = 20
 
         except Exception as e:
             logger.debug(f"Profile fetch exception for @{clean_user}: {e}")

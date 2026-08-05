@@ -1642,7 +1642,10 @@
           <p class="subtitle" style="margin: 4px 0 0; color: var(--text-muted);">Sektörel kelimeler ile kapsamlı Instagram profilleri, fotoğraf verileri ve OSINT iletişim bilgilerini keşfedin.</p>
         </div>
         <div style="display: flex; gap: 8px; align-items: center;">
-          <button class="btn btn-secondary" onclick="exportInstagramResults('csv')" title="Sonuçları CSV İndir"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> CSV İndir</button>
+          <button class="btn btn-secondary" onclick="triggerImportInstaCsv()" title="Daha Önce İhraç Edilmiş CSV/JSON Dosyasını Yükle"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> CSV Yükle</button>
+          <input type="file" id="insta-csv-file-input" accept=".csv,.json" style="display:none;" onchange="handleInstaCsvFileSelected(event)">
+
+          <button class="btn btn-secondary" onclick="exportInstagramResults('csv')" title="Sonuçları CSV İndir"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> CSV İndir</button>
           <button class="btn btn-primary" onclick="bulkImportInstagramToCrm()" title="Tüm Bulunan Profilleri CRM'e Aktar"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> CRM'e Aktar</button>
         </div>
       </div>
@@ -1683,6 +1686,28 @@
               Profilleri Bul
             </button>
           </div>
+        </div>
+      </div>
+
+      <!-- Controls & Sorting Toolbar -->
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px; background: rgba(0,0,0,0.2); padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border-subtle);">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <label style="font-size: 0.85rem; font-weight: 600; color: var(--text-muted); display: flex; align-items: center; gap: 4px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="m21 8-4-4-4 4"/><path d="M17 4v16"/></svg> Sırala:
+          </label>
+          <select id="insta-sort-select" class="form-control" style="width: 210px; height: 34px; font-size: 0.82rem; background: var(--bg-surface); border: 1px solid var(--border-subtle); color: var(--text-main);" onchange="sortAndRenderInstagramProfiles()">
+            <option value="relevance" selected>⚡ Uyum Skoru (% High)</option>
+            <option value="followers_desc">👥 Takipçi (Çoktan Aza)</option>
+            <option value="followers_asc">👥 Takipçi (Azdan Çoğa)</option>
+            <option value="posts_desc">📸 Gönderi (Çoktan Aza)</option>
+            <option value="posts_asc">📸 Gönderi (Azdan Çoğa)</option>
+            <option value="name_asc">🔤 Profil İsmi (A ➔ Z)</option>
+            <option value="name_desc">🔤 Profil İsmi (Z ➔ A)</option>
+            <option value="activity">🟢 Aktiflik / Son Gönderi Zamanı</option>
+          </select>
+        </div>
+        <div style="font-size: 0.8rem; color: var(--text-muted);" id="insta-results-counter-lbl">
+          Toplam 0 profil gösteriliyor
         </div>
       </div>
 
@@ -3179,12 +3204,114 @@ function applyLanguage(lang) {
       }
     }
 
+    function parseCount(text) {
+      if (!text) return 0;
+      text = String(text).replace(",", ".").trim().toUpperCase();
+      try {
+        if (text.includes("M")) return parseFloat(text.replace("M", "")) * 1000000;
+        if (text.includes("K") || text.includes("B")) return parseFloat(text.replace("K", "").replace("B", "")) * 1000;
+        return parseFloat(text) || 0;
+      } catch (e) {
+        return 0;
+      }
+    }
+
+    function sortAndRenderInstagramProfiles() {
+      if (!currentInstagramResults || currentInstagramResults.length === 0) return;
+      const sortVal = document.getElementById("insta-sort-select") ? document.getElementById("insta-sort-select").value : "relevance";
+
+      const sorted = [...currentInstagramResults];
+      if (sortVal === "followers_desc") {
+        sorted.sort((a, b) => (b.followers_raw || parseCount(b.followers)) - (a.followers_raw || parseCount(a.followers)));
+      } else if (sortVal === "followers_asc") {
+        sorted.sort((a, b) => (a.followers_raw || parseCount(a.followers)) - (b.followers_raw || parseCount(b.followers)));
+      } else if (sortVal === "posts_desc") {
+        sorted.sort((a, b) => (parseCount(b.posts) - parseCount(a.posts)));
+      } else if (sortVal === "posts_asc") {
+        sorted.sort((a, b) => (parseCount(a.posts) - parseCount(b.posts)));
+      } else if (sortVal === "name_asc") {
+        sorted.sort((a, b) => (a.full_name || a.username).localeCompare(b.full_name || b.username, 'tr'));
+      } else if (sortVal === "name_desc") {
+        sorted.sort((a, b) => (b.full_name || b.username).localeCompare(a.full_name || a.username, 'tr'));
+      } else if (sortVal === "activity") {
+        sorted.sort((a, b) => (b.last_active_raw || 0) - (a.last_active_raw || 0));
+      } else { // relevance
+        sorted.sort((a, b) => (b.relevance_score || 0) - (a.relevance_score || 0));
+      }
+
+      renderInstagramProfiles(sorted);
+    }
+
+    function triggerImportInstaCsv() {
+      const input = document.getElementById("insta-csv-file-input");
+      if (input) input.click();
+    }
+
+    async function handleInstaCsvFileSelected(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      try {
+        const reader = new FileReader();
+        reader.onload = async function(e) {
+          const content = e.target.result;
+          let res = null;
+
+          if (window.pywebview && window.pywebview.api) {
+            res = await window.pywebview.api.import_instagram_profiles_from_csv(content);
+          } else {
+            // Client-side fallback CSV parse
+            const lines = content.split(/\r?\n/).filter(Boolean);
+            if (lines.length > 1) {
+              const headers = lines[0].split(",").map(h => h.trim().replace(/^"|"$/g, ''));
+              const profiles = [];
+              for (let i = 1; i < lines.length; i++) {
+                const parts = lines[i].split(",").map(p => p.trim().replace(/^"|"$/g, ''));
+                if (parts[0]) {
+                  profiles.push({
+                    username: parts[0],
+                    full_name: parts[1] || parts[0],
+                    category: parts[2] || "İçe Aktarılan Profil",
+                    followers: parts[3] || "N/A",
+                    following: parts[4] || "N/A",
+                    posts: parts[5] || "N/A",
+                    email: parts[6] || null,
+                    phone: parts[7] || null,
+                    website: parts[8] || null,
+                    is_verified: parts[9] === "true",
+                    bio: parts[10] || "",
+                    profile_url: parts[11] || `https://www.instagram.com/${parts[0]}/`,
+                    relevance_score: 85,
+                    last_active: "🟢 İçe Aktarılan Profil",
+                    last_active_raw: 80
+                  });
+                }
+              }
+              res = { success: true, profiles: profiles };
+            }
+          }
+
+          if (res && res.success && res.profiles && res.profiles.length > 0) {
+            currentInstagramResults = res.profiles;
+            renderInstagramProfiles(currentInstagramResults);
+            showToast(`${res.profiles.length} adet Instagram profili CSV dosyasından başarıyla içe aktarıldı.`, "success");
+          } else {
+            showToast("CSV içe aktarılamadı: " + (res ? res.error : "Geçersiz dosya formatı"), "error");
+          }
+        };
+        reader.readAsText(file, "UTF-8");
+      } catch (err) {
+        showToast("CSV Yükleme Hatası: " + err.message, "error");
+      }
+    }
+
     function renderInstagramProfiles(profiles) {
       const container = document.getElementById("insta-results-container");
       const statTotal = document.getElementById("insta-stat-total");
       const statEmails = document.getElementById("insta-stat-emails");
       const statPhones = document.getElementById("insta-stat-phones");
       const statVerified = document.getElementById("insta-stat-verified");
+      const counterLbl = document.getElementById("insta-results-counter-lbl");
 
       if (!container) return;
 
@@ -3192,13 +3319,14 @@ function applyLanguage(lang) {
         container.innerHTML = `
           <div style="text-align: center; padding: 40px; color: var(--text-muted); border: 2px dashed var(--border-subtle); border-radius: 12px;">
             <p style="font-size: 1.1rem; margin-bottom: 4px;">Aramanıza uygun Instagram profili bulunamadı.</p>
-            <p style="font-size: 0.85rem;">Farklı sektor veya konum anahtar kelimeleri ile tekrar deneyin.</p>
+            <p style="font-size: 0.85rem;">Farklı sektör veya konum anahtar kelimeleri ile tekrar deneyin veya CSV Yükleyin.</p>
           </div>
         `;
         if (statTotal) statTotal.innerText = "0";
         if (statEmails) statEmails.innerText = "0";
         if (statPhones) statPhones.innerText = "0";
         if (statVerified) statVerified.innerText = "0";
+        if (counterLbl) counterLbl.innerText = "Toplam 0 profil gösteriliyor";
         return;
       }
 
@@ -3216,6 +3344,7 @@ function applyLanguage(lang) {
       if (statEmails) statEmails.innerText = emailsCount;
       if (statPhones) statPhones.innerText = phonesCount;
       if (statVerified) statVerified.innerText = verifiedCount;
+      if (counterLbl) counterLbl.innerText = `Toplam ${profiles.length} profil gösteriliyor`;
 
       let cardsHtml = `<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px;">`;
 
@@ -3228,6 +3357,7 @@ function applyLanguage(lang) {
         const following = String(p.following || "N/A");
         const posts = String(p.posts || "N/A");
         const score = p.relevance_score || 75;
+        const lastActive = p.last_active || "🟢 Aktif İşletme Hesabı";
 
         let avatarHtml = "";
         if (p.profile_pic_url) {
@@ -3268,7 +3398,10 @@ function applyLanguage(lang) {
                     <span class="badge" style="background: rgba(168, 85, 247, 0.2); color: var(--color-accent); font-size: 0.75rem; font-weight: 600; padding: 2px 8px; border-radius: 10px;">%${score} Uyum</span>
                   </div>
                   <div style="font-size: 0.85rem; color: var(--color-brand); font-weight: 600; margin-top: 2px;">@${username}</div>
-                  <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 2px;">${category}</div>
+                  <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 2px; display: flex; justify-content: space-between; align-items: center;">
+                    <span>${category}</span>
+                    <span style="font-size: 0.72rem; color: #10b981; font-weight: 600; background: rgba(16,185,129,0.1); padding: 1px 6px; border-radius: 4px;">${lastActive}</span>
+                  </div>
                 </div>
               </div>
 

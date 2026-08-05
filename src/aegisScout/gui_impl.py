@@ -3814,6 +3814,88 @@ class GuiApi:
             logger.exception(f"export_instagram_profiles failed: {e}")
             return {"success": False, "error": str(e)}
 
+    def import_instagram_profiles_from_csv(self, file_content_or_path: str = ""):
+        """Import Instagram profiles from a previously exported CSV or JSON file."""
+        if not file_content_or_path or not file_content_or_path.strip():
+            return {"success": False, "error": "İçe aktarılacak dosya içeriği boş", "profiles": []}
+
+        try:
+            import csv
+            import io
+
+            profiles = []
+            content = file_content_or_path.strip()
+
+            if os.path.exists(content):
+                with open(content, "r", encoding="utf-8-sig") as f:
+                    reader = csv.DictReader(f)
+                    for row in reader:
+                        if row.get("username"):
+                            profiles.append(self._normalize_imported_profile_dict(row))
+            else:
+                reader = csv.DictReader(io.StringIO(content))
+                for row in reader:
+                    if row.get("username"):
+                        profiles.append(self._normalize_imported_profile_dict(row))
+
+            return {"success": True, "count": len(profiles), "profiles": profiles}
+        except Exception as e:
+            logger.exception(f"import_instagram_profiles_from_csv failed: {e}")
+            return {"success": False, "error": str(e), "profiles": []}
+
+    def _normalize_imported_profile_dict(self, row: dict) -> dict:
+        u = str(row.get("username", "")).strip().replace("@", "")
+        fn = str(row.get("full_name", "") or u).strip()
+        cat = str(row.get("category", "") or "İçe Aktarılan Profil").strip()
+        fol = str(row.get("followers", "") or "N/A").strip()
+        fol_g = str(row.get("following", "") or "N/A").strip()
+        pst = str(row.get("posts", "") or "N/A").strip()
+        is_v = str(row.get("is_verified", "")).lower() in ("true", "1", "yes")
+        
+        raw_f = 0
+        try:
+            if "M" in fol.upper():
+                raw_f = int(float(fol.upper().replace("M", "")) * 1_000_000)
+            elif "K" in fol.upper() or "B" in fol.upper():
+                raw_f = int(float(fol.upper().replace("K", "").replace("B", "")) * 1_000)
+            elif fol.isdigit():
+                raw_f = int(fol)
+        except Exception:
+            raw_f = 0
+
+        phone_val = row.get("phone")
+        wp_val = row.get("whatsapp_link")
+        if not wp_val and phone_val:
+            digits = re.sub(r"\D", "", str(phone_val))
+            if digits.startswith("90") and len(digits) == 12:
+                wp_val = f"https://wa.me/{digits}"
+            elif digits.startswith("05") and len(digits) == 11:
+                wp_val = f"https://wa.me/90{digits[1:]}"
+            elif len(digits) == 10:
+                wp_val = f"https://wa.me/90{digits}"
+
+        return {
+            "username": u,
+            "full_name": fn,
+            "profile_url": row.get("profile_url") or f"https://www.instagram.com/{u}/",
+            "profile_pic_url": row.get("profile_pic_url") or "",
+            "bio": str(row.get("bio", "")).strip(),
+            "followers": fol,
+            "followers_raw": raw_f,
+            "following": fol_g,
+            "posts": pst,
+            "is_verified": is_v,
+            "is_business": True,
+            "category": cat,
+            "email": row.get("email") or None,
+            "phone": phone_val or None,
+            "whatsapp_link": wp_val,
+            "website": row.get("website") or None,
+            "relevance_score": int(row.get("relevance_score", 85)),
+            "last_active": row.get("last_active") or "🟢 İçe Aktarılan Profil",
+            "last_active_raw": 80,
+        }
+
 
 
 def set_console_visibility(visible: bool):
