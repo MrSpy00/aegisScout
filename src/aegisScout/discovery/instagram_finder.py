@@ -223,41 +223,16 @@ class InstagramFinder:
         found_handles: Set[str] = set()
 
         # -------------------------------------------------------------------
-        # LAYER 1: Expanded Sector & Dictionary Handle Generator Engine (3000+ candidates)
+        # LAYER 1: Universal Dynamic Handle Generator Engine (For ANY Search Query)
         # -------------------------------------------------------------------
-        sec_ascii = _slugify_tr(sec_clean)
-        loc_ascii = _slugify_tr(loc_clean) if loc_clean else ""
-
-        sec_words = [w for w in re.split(r"\s+", sec_ascii) if len(w) >= 3]
-        main_sec = sec_words[0] if sec_words else sec_ascii
-
-        # Find matching synonyms or build term list
-        synonyms = [main_sec]
-        for key, syn_list in SECTOR_SYNONYMS_MAP.items():
-            if key in sec_clean.lower() or _slugify_tr(key) in sec_ascii:
-                synonyms.extend(syn_list)
-        synonyms = list(set(synonyms))
-
-        cities_to_use = [loc_ascii] if loc_ascii else TURKEY_MAJOR_CITIES[:15]
-        prefixes = ["", "salon_", "studio_", "official_", "resmi_", "vip_", "butik_", "center_", "uzman_", "pro_", "akademisi_"]
-        suffixes = [
-            "", "_salonu", "_randevu", "_studio", "_hair", "_beauty", "_center",
-            "_design", "_official", "_turkiye", "_ofisi", "_uzmani", "_atolyeyi",
-            "_boutique", "_guzellik", "_tr", "_vip", "_pro"
-        ]
-
-        for term in synonyms[:8]:
-            for p in prefixes:
-                for s in suffixes:
-                    h = f"{p}{term}{s}".strip("_")
-                    if len(h) >= 3 and h not in IGNORED_HANDLES:
-                        found_handles.add(h)
-
-            for city in cities_to_use:
-                if city:
-                    found_handles.add(f"{term}_{city}")
-                    found_handles.add(f"{city}_{term}")
-                    found_handles.add(f"salon_{term}_{city}")
+        found_handles.update(self._generate_universal_dynamic_handles(sec_clean, loc_clean))
+        
+        # Dynamic Google Autocomplete Harvester
+        try:
+            auto_handles = await self._harvest_google_autocomplete_suggestions(sec_clean, loc_clean)
+            found_handles.update(auto_handles)
+        except Exception:
+            pass
 
         # -------------------------------------------------------------------
         # LAYER 2: Social Media OSINT Harvest Provider Integration
@@ -620,6 +595,101 @@ class InstagramFinder:
         except Exception as e:
             logger.error(f"Error scraping Bing for Instagram on query '{query}': {e}")
         return None
+
+    def _generate_universal_dynamic_handles(self, sec_clean: str, loc_clean: str = "") -> Set[str]:
+        """
+        Universal Dynamic Handle Generator for ANY search query.
+        Splits input query into words, stems suffixes, creates token pairs, 
+        and fuses with universal business prefixes, suffixes, and Turkish provinces/districts.
+        Works dynamically for ANY sector (e.g., diyetisyen, oto tamir, mimar, pilates, tesettür giyim).
+        """
+        sec_ascii = _slugify_tr(sec_clean)
+        loc_ascii = _slugify_tr(loc_clean) if loc_clean else ""
+
+        words = [w for w in re.split(r"[\s_\-\.\,]+", sec_ascii) if len(w) >= 2]
+        terms: Set[str] = set()
+
+        full_joined = sec_ascii.replace(" ", "")
+        full_spaced = sec_ascii.replace(" ", "_")
+        if len(full_joined) >= 3:
+            terms.add(full_joined)
+            terms.add(full_spaced)
+
+        for w in words:
+            if len(w) >= 3:
+                terms.add(w)
+            for suf in ["ci", "cu", "lu", "li", "lik", "luk", "su", "si", "leri", "lari", "hane", "sektori", "hizmetleri"]:
+                if w.endswith(suf) and len(w) - len(suf) >= 3:
+                    terms.add(w[:-len(suf)])
+
+        for i in range(len(words) - 1):
+            w1, w2 = words[i], words[i+1]
+            if len(w1) >= 2 and len(w2) >= 2:
+                terms.add(f"{w1}{w2}")
+                terms.add(f"{w1}_{w2}")
+
+        # Static dictionary synonyms fallback if present
+        for key, syn_list in SECTOR_SYNONYMS_MAP.items():
+            if key in sec_clean.lower() or _slugify_tr(key) in sec_ascii:
+                terms.update(syn_list)
+
+        cities = [loc_ascii] if loc_ascii else TURKEY_MAJOR_CITIES[:20]
+        prefixes = [
+            "", "salon_", "studio_", "official_", "resmi_", "vip_", "butik_", "center_", 
+            "uzman_", "pro_", "akademisi_", "dr_", "uzm_", "av_", "pt_", "dt_", "mimar_", 
+            "grup_", "ajans_", "lab_", "klub_", "klinik_", "ofis_"
+        ]
+        suffixes = [
+            "", "_official", "_resmi", "_turkiye", "_tr", "_center", "_studio", "_salonu", 
+            "_klinik", "_ofis", "_danismanlik", "_hizmetleri", "_uzmani", "_atolyeyi", 
+            "_boutique", "_guzellik", "_vip", "_pro", "_group", "_dunyasi", "_akademi", 
+            "_ajans", "_store", "_shop", "_randevu", "_iletisim", "_destek", "_noktasi"
+        ]
+
+        found: Set[str] = set()
+        for t in terms:
+            if not t or len(t) < 3:
+                continue
+            for p in prefixes:
+                for s in suffixes:
+                    h = f"{p}{t}{s}".strip("_")
+                    if len(h) >= 3 and h not in IGNORED_HANDLES:
+                        found.add(h)
+
+            for city in cities:
+                if city:
+                    found.add(f"{t}_{city}")
+                    found.add(f"{city}_{t}")
+                    found.add(f"{city}_{t}_official")
+                    found.add(f"{city}_{t}_salonu")
+                    found.add(f"salon_{t}_{city}")
+
+        return found
+
+    async def _harvest_google_autocomplete_suggestions(self, sec_clean: str, loc_clean: str = "") -> Set[str]:
+        """
+        Dynamically query Google Autocomplete suggestion API for real live search expansions.
+        """
+        query = f"{sec_clean} {loc_clean} instagram".strip()
+        url = f"https://suggestqueries.google.com/complete/search?client=chrome&q={urllib.parse.quote(query)}"
+        handles: Set[str] = set()
+        try:
+            async with httpx.AsyncClient(timeout=4.0, follow_redirects=True) as client:
+                resp = await client.get(url)
+                if resp.status_code == 200:
+                    try:
+                        text = resp.content.decode("utf-8", errors="ignore")
+                        import json
+                        data = json.loads(text)
+                        if isinstance(data, list) and len(data) > 1 and isinstance(data[1], list):
+                            for item in data[1]:
+                                item_handles = _extract_handles_from_content(str(item))
+                                handles.update(item_handles)
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+        return handles
 
 
 
