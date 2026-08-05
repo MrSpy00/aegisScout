@@ -1,5 +1,5 @@
 """
-aegisScout — PyInstaller Build Betigi v3
+aegisScout - PyInstaller Build Betigi v3
 ======================================
 
 Kullanim:
@@ -19,6 +19,18 @@ import subprocess
 import shutil
 import argparse
 from pathlib import Path
+
+# Force stdout & stderr encoding to UTF-8 on all environments (especially Windows CI runners)
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+if hasattr(sys.stderr, "reconfigure"):
+    try:
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
 
 ROOT = Path(__file__).parent.parent.resolve()
 SPEC_FILE = ROOT / "scripts" / "build_exe.spec"
@@ -60,17 +72,17 @@ def _safe_remove(path: Path):
         elif path.is_dir():
             shutil.rmtree(path, ignore_errors=True)
     except PermissionError as pe:
-        print(f"  [UYARI] {path.name} kilitli veya silinemedi ({pe}), build sırasında üzerine yazılacak.")
+        print(f"  [UYARI] {path.name} kilitli veya silinemedi ({pe}), build sirasinda uzerine yazilacak.")
     except Exception as e:
         print(f"  [UYARI] {path.name} silinirken hata: {e}")
 
 
 def _clean_build_artifacts(clean_mode: bool = False):
     """
-    Build öncesi temizlik.
+    Build oncesi temizlik.
     
     clean_mode=True  : dist/ TAMAMEN silinir (user data dahil)
-    clean_mode=False : dist/ içinde sadece PyInstaller çıktısı (.exe, _internal/)
+    clean_mode=False : dist/ icinde sadece PyInstaller ciktisi (.exe, _internal/)
                         silinir; .env, config/, data/, logs/ korunur
     """
     _kill_running_exe()
@@ -85,10 +97,10 @@ def _clean_build_artifacts(clean_mode: bool = False):
         for spec_file in ROOT.glob("*.spec"):
             if spec_file.name != "build_exe.spec":
                 _safe_remove(spec_file)
-        print("[CLEAN] Temiz build modu tamamlandı.")
+        print("[CLEAN] Temiz build modu tamamlandi.")
         return
 
-    # Normal mod: dist/ içindeki PyInstaller çıktısını sil, kullanıcı verilerini koru
+    # Normal mod: dist/ icindeki PyInstaller ciktisini sil, kullanici verilerini koru
     if DIST_DIR.exists():
         for item in DIST_DIR.iterdir():
             should_preserve = False
@@ -106,14 +118,14 @@ def _clean_build_artifacts(clean_mode: bool = False):
                 _safe_remove(item)
                 print(f"  [SILINDI] {item.name}")
     else:
-        print("  dist/ henüz mevcut değil, yeni oluşturulacak.")
+        print("  dist/ henuz mevcut degil, yeni olusturulacak.")
 
-    # build/ tamamen sil (her zaman güvenli, PyInstaller geçici dosyası)
+    # build/ tamamen sil (her zaman guvenli, PyInstaller gecici dosyasi)
     if BUILD_DIR.exists():
         _safe_remove(BUILD_DIR)
-        print(f"  [SILINDI] build/ (PyInstaller geçici)")
+        print(f"  [SILINDI] build/ (PyInstaller gecici)")
 
-    # Root'taki ekstra .spec dosyalarını sil (build_exe.spec koru)
+    # Root'taki ekstra .spec dosyalarini sil (build_exe.spec koru)
     for spec_file in ROOT.glob("*.spec"):
         if spec_file.name != "build_exe.spec" and (ROOT / "scripts" / spec_file.name).exists():
             _safe_remove(spec_file)
@@ -172,7 +184,7 @@ def _ensure_pyinstaller():
 
 
 def _check_webview():
-    """Check if webview (pywebview) is available — warn if not."""
+    """Check if webview (pywebview) is available - warn if not."""
     try:
         import webview  # noqa: F401
         return True
@@ -202,7 +214,7 @@ def build():
         print(f"[HATA] .spec dosyasi bulunamadi: {SPEC_FILE}")
         sys.exit(1)
 
-    # Build oncesi temizlik — user data korumali
+    # Build oncesi temizlik - user data korumali
     _clean_build_artifacts(clean_mode=args.clean)
     print()
 
@@ -241,14 +253,14 @@ def build():
         if env_src.exists():
             import shutil
             shutil.copy2(env_src, env_dst)
-            print(f"    [OK] .env dosyasi dist/ icne kopyalandi.")
+            print(f"    [OK] .env dosyasi dist/ icine kopyalandi.")
         else:
             env_example = ROOT / ".env.example"
             if env_example.exists():
                 shutil.copy2(env_example, env_dst)
                 print(f"    [!] .env bulunamadi, .env.example -> dist/.env kopyalandi (anahtarlar bos).")
             else:
-                print(f"    [!] .env dosyasi bulunamadi — API anahtarlari olmadan calismaz.")
+                print(f"    [!] .env dosyasi bulunamadi - API anahtarlari olmadan calismaz.")
     else:
         print(f"\n[UYARI] Build tamamlandi ancak {exe_path} bulunamadi.")
         print("dist/ klasoru icerigini kontrol edin.")

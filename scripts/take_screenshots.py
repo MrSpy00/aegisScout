@@ -91,16 +91,16 @@ panels = [
           var tbody = document.getElementById('leads-table-body');
           if (tbody) {
             var sampleLeads = [
-              { name: 'Sunrise Hair Studio', sector: 'kuaför', address: 'Moda, Kadıköy', website: true, status: 'new' },
-              { name: 'Quantum Barber Shop', sector: 'berber', address: 'Caferağa, Kadıköy', website: true, status: 'researched' },
-              { name: 'Elite Dental Clinic', sector: 'diş kliniği', address: 'Levent, Beşiktaş', website: true, status: 'contacted' },
-              { name: 'Green Garden Cafe', sector: 'kafe', address: 'Bebek, Beşiktaş', website: false, status: 'replied' },
-              { name: 'Prestige Nail Art', sector: 'güzellik salonu', address: 'Bağdat Cad., Kadıköy', website: true, status: 'new' },
-              { name: 'Urban Fitness Center', sector: 'spor salonu', address: 'Nişantaşı, Şişli', website: true, status: 'researched' },
-              { name: 'TechFix Electronics', sector: 'teknik servis', address: 'Mecidiyeköy, Şişli', website: true, status: 'contacted' },
-              { name: 'Bella Pizza House', sector: 'restoran', address: 'Ortaköy, Beşiktaş', website: true, status: 'replied' },
-              { name: 'Golden Nails & Spa', sector: 'güzellik salonu', address: 'Etiler, Beşiktaş', website: true, status: 'new' },
-              { name: 'Smart Web Agency', sector: 'dijital ajans', address: 'Maslak, Sarıyer', website: true, status: 'researched' },
+              { name: 'Sunrise Hair Studio', sector: 'kuafor', address: 'Moda, Kadikoy', website: true, status: 'new' },
+              { name: 'Quantum Barber Shop', sector: 'berber', address: 'Caferaga, Kadikoy', website: true, status: 'researched' },
+              { name: 'Elite Dental Clinic', sector: 'dis klinigi', address: 'Levent, Besiktas', website: true, status: 'contacted' },
+              { name: 'Green Garden Cafe', sector: 'kafe', address: 'Bebek, Besiktas', website: false, status: 'replied' },
+              { name: 'Prestige Nail Art', sector: 'guzellik salonu', address: 'Bagdat Cad., Kadikoy', website: true, status: 'new' },
+              { name: 'Urban Fitness Center', sector: 'spor salonu', address: 'Nisantasi, Sisli', website: true, status: 'researched' },
+              { name: 'TechFix Electronics', sector: 'teknik servis', address: 'Mecidiyekoy, Sisli', website: true, status: 'contacted' },
+              { name: 'Bella Pizza House', sector: 'restoran', address: 'Ortakoy, Besiktas', website: true, status: 'replied' },
+              { name: 'Golden Nails & Spa', sector: 'guzellik salonu', address: 'Etiler, Besiktas', website: true, status: 'new' },
+              { name: 'Smart Web Agency', sector: 'dijital ajans', address: 'Maslak, Sariyer', website: true, status: 'researched' },
             ];
             var rows = '';
             sampleLeads.forEach(function(l) {
@@ -108,7 +108,7 @@ panels = [
                 '<td><b>' + l.name + '</b></td>' +
                 '<td style="color:var(--color-accent);font-size:0.8rem;">' + l.sector + '</td>' +
                 '<td style="color:var(--text-muted);">' + l.address + '</td>' +
-                '<td>' + (l.website ? 'Evet' : 'Hayır') + '</td>' +
+                '<td>' + (l.website ? 'Evet' : 'Hayir') + '</td>' +
                 '<td><span class="badge badge-' + l.status + '">' + l.status + '</span></td>' +
                 '</tr>';
             });
@@ -127,10 +127,10 @@ panels = [
           var tbody = document.getElementById('campaigns-table-body');
           if (tbody) {
             tbody.innerHTML = '' +
-              '<tr><td>Kadıköy Kuaförler</td><td style="text-align:right">12</td><td style="text-align:right">%33.3 (4/12)</td><td style="text-align:right"><button style="padding:4px 8px;border-radius:6px;background:var(--border-subtle);color:var(--text-main);border:none;cursor:pointer">Detay</button></td></tr>' +
-              '<tr><td>Beşiktaş Restoranlar</td><td style="text-align:right">8</td><td style="text-align:right">%50.0 (4/8)</td><td style="text-align:right"><button style="padding:4px 8px;border-radius:6px;background:var(--border-subtle);color:var(--text-main);border:none;cursor:pointer">Detay</button></td></tr>' +
-              '<tr><td>Nişantaşı Güzellik</td><td style="text-align:right">15</td><td style="text-align:right">%26.7 (4/15)</td><td style="text-align:right"><button style="padding:4px 8px;border-radius:6px;background:var(--border-subtle);color:var(--text-main);border:none;cursor:pointer">Detay</button></td></tr>' +
-              '<tr><td>Maslak IT Şirketleri</td><td style="text-align:right">20</td><td style="text-align:right">%15.0 (3/20)</td><td style="text-align:right"><button style="padding:4px 8px;border-radius:6px;background:var(--border-subtle);color:var(--text-main);border:none;cursor:pointer">Detay</button></td></tr>';
+              '<tr><td>Kadikoy Kuaforler</td><td style="text-align:right">12</td><td style="text-align:right">%33.3 (4/12)</td><td style="text-align:right"><button style="padding:4px 8px;border-radius:6px;background:var(--border-subtle);color:var(--text-main);border:none;cursor:pointer">Detay</button></td></tr>' +
+              '<tr><td>Besiktas Restoranlar</td><td style="text-align:right">8</td><td style="text-align:right">%50.0 (4/8)</td><td style="text-align:right"><button style="padding:4px 8px;border-radius:6px;background:var(--border-subtle);color:var(--text-main);border:none;cursor:pointer">Detay</button></td></tr>' +
+              '<tr><td>Nisantasi Guzellik</td><td style="text-align:right">15</td><td style="text-align:right">%26.7 (4/15)</td><td style="text-align:right"><button style="padding:4px 8px;border-radius:6px;background:var(--border-subtle);color:var(--text-main);border:none;cursor:pointer">Detay</button></td></tr>' +
+              '<tr><td>Maslak IT Sirketleri</td><td style="text-align:right">20</td><td style="text-align:right">%15.0 (3/20)</td><td style="text-align:right"><button style="padding:4px 8px;border-radius:6px;background:var(--border-subtle);color:var(--text-main);border:none;cursor:pointer">Detay</button></td></tr>';
           }
         """
     },

@@ -150,6 +150,16 @@ def _parse_count(text: str) -> int:
         return 0
 
 
+def _format_count_human(num: int) -> str:
+    if not num or num <= 0:
+        return "N/A"
+    if num >= 1_000_000:
+        return f"{num / 1_000_000:.1f}M"
+    if num >= 1_000:
+        return f"{num / 1_000:.1f}K"
+    return str(num)
+
+
 SECTOR_SYNONYMS_MAP = {
     "kuaför": [
         "kuafor", "berber", "guzellik", "guzelliksalonu", "hair", "hairstylist",
@@ -205,6 +215,11 @@ class InstagramFinder:
     def __init__(self):
         self.api_key = settings.google_custom_search_api_key
         self.cx = settings.google_custom_search_cx
+        self.hikerapi_api_key = getattr(settings, "hikerapi_api_key", None)
+        self.apify_api_key = getattr(settings, "apify_api_key", None)
+        self.graph_api_token = getattr(settings, "instagram_graph_api_token", None)
+        self.graph_business_id = getattr(settings, "instagram_business_account_id", None)
+        self.creatorcrawl_key = getattr(settings, "creatorcrawl_api_key", None)
 
         self.googlebot_headers = {
             "User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
@@ -308,6 +323,105 @@ class InstagramFinder:
                 break
         return results
 
+    async def _fetch_via_meta_graph_api(self, username: str) -> Optional[Dict]:
+        """Fetch business profile details using Meta Official Instagram Graph API (if configured)."""
+        if not self.graph_api_token or not self.graph_business_id:
+            return None
+        try:
+            url = f"https://graph.facebook.com/v19.0/{self.graph_business_id}"
+            params = {
+                "fields": f"business_discovery.username({username}){{id,username,name,biography,followers_count,follows_count,media_count,profile_picture_url,website}}",
+                "access_token": self.graph_api_token,
+            }
+            async with httpx.AsyncClient(timeout=6.0) as client:
+                resp = await client.get(url, params=params)
+                if resp.status_code == 200:
+                    data = resp.json().get("business_discovery", {})
+                    if data:
+                        return {
+                            "username": data.get("username", username).lower(),
+                            "full_name": data.get("name") or username,
+                            "bio": data.get("biography") or "",
+                            "followers_raw": data.get("followers_count", 0),
+                            "followers": _format_count_human(data.get("followers_count", 0)),
+                            "following": _format_count_human(data.get("follows_count", 0)),
+                            "posts": _format_count_human(data.get("media_count", 0)),
+                            "profile_pic_url": data.get("profile_picture_url") or f"https://unavatar.io/instagram/{username}",
+                            "website": data.get("website"),
+                            "is_business": True,
+                            "source_api": "Meta Graph API",
+                        }
+        except Exception as e:
+            logger.debug(f"Meta Graph API notice @{username}: {e}")
+        return None
+
+    async def _fetch_via_hikerapi(self, username: str) -> Optional[Dict]:
+        """Fetch profile details using HikerAPI (if hikerapi_api_key is configured)."""
+        if not self.hikerapi_api_key:
+            return None
+        try:
+            url = f"https://api.hikerapi.com/v1/user/by/username?username={username}"
+            headers = {"x-access-token": self.hikerapi_api_key, "Accept": "application/json"}
+            async with httpx.AsyncClient(timeout=6.0, headers=headers) as client:
+                resp = await client.get(url)
+                if resp.status_code == 200:
+                    user_data = resp.json()
+                    if isinstance(user_data, dict) and user_data.get("username"):
+                        f_count = user_data.get("follower_count", 0)
+                        return {
+                            "username": user_data.get("username").lower(),
+                            "full_name": user_data.get("full_name") or username,
+                            "bio": user_data.get("biography") or "",
+                            "followers_raw": f_count,
+                            "followers": _format_count_human(f_count),
+                            "following": _format_count_human(user_data.get("following_count", 0)),
+                            "posts": _format_count_human(user_data.get("media_count", 0)),
+                            "profile_pic_url": user_data.get("hd_profile_pic_url_info", {}).get("url") or user_data.get("profile_pic_url"),
+                            "is_verified": user_data.get("is_verified", False),
+                            "is_business": user_data.get("is_business", False),
+                            "category": user_data.get("category_name") or "",
+                            "source_api": "HikerAPI",
+                        }
+        except Exception as e:
+            logger.debug(f"HikerAPI notice @{username}: {e}")
+        return None
+
+    async def _fetch_via_instaloader(self, username: str) -> Optional[Dict]:
+        """Fetch public profile metadata using instaloader Python library if available (Zero-Key)."""
+        def _loader_sync():
+            try:
+                import instaloader
+                L = instaloader.Instaloader(
+                    download_pictures=False,
+                    download_videos=False,
+                    save_metadata=False,
+                    user_agent=random.choice(_USER_AGENTS)
+                )
+                profile = instaloader.Profile.from_username(L.context, username)
+                return {
+                    "username": profile.username.lower(),
+                    "full_name": profile.full_name or username,
+                    "bio": profile.biography or "",
+                    "followers_raw": profile.followers,
+                    "followers": _format_count_human(profile.followers),
+                    "following": _format_count_human(profile.followees),
+                    "posts": _format_count_human(profile.mediacount),
+                    "profile_pic_url": profile.profile_pic_url,
+                    "is_verified": profile.is_verified,
+                    "is_business": profile.is_business_account,
+                    "category": profile.business_category_name or "",
+                    "external_url": profile.external_url,
+                    "source_api": "Instaloader",
+                }
+            except Exception:
+                return None
+
+        try:
+            loop = asyncio.get_running_loop()
+            return await asyncio.wait_for(loop.run_in_executor(None, _loader_sync), timeout=6.0)
+        except Exception:
+            return None
+
     # ===================================================================
     # LAYER 6 + 7: Profile Detail Extraction
     # ===================================================================
@@ -351,6 +465,22 @@ class InstagramFinder:
 
         fetched_html = ""
         page_url = f"https://www.instagram.com/{clean_user}/"
+
+        # Tier -2: Meta Official Graph API (If Token + Business ID configured)
+        meta_res = await self._fetch_via_meta_graph_api(clean_user)
+        if meta_res:
+            default_data.update(meta_res)
+
+        # Tier -1: HikerAPI / Instaloader (If configured or library present)
+        if not default_data.get("bio") and self.hikerapi_api_key:
+            hiker_res = await self._fetch_via_hikerapi(clean_user)
+            if hiker_res:
+                default_data.update(hiker_res)
+
+        if not default_data.get("bio"):
+            loader_res = await self._fetch_via_instaloader(clean_user)
+            if loader_res:
+                default_data.update(loader_res)
 
         # Tier 0: Instagram public web_profile_info JSON API endpoint
         try:

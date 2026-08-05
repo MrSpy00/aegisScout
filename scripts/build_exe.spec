@@ -29,7 +29,7 @@ a = Analysis(
         # SQLAlchemy / typing (typing_extensions MUST be here, NOT in excludes)
         'typing_extensions',
         'sqlalchemy', 'sqlalchemy.sql.default_comparator', 'sqlalchemy.pool',
-        # pywebview runtime dependencies (NOT optional — needed for GUI)
+        # pywebview runtime dependencies (NOT optional - needed for GUI)
         'bottle', 'proxy_tools',
         # Runtime export formats (openpyxl, reportlab)
         'openpyxl', 'openpyxl.cell', 'openpyxl.styles',

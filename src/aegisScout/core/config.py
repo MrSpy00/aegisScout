@@ -92,6 +92,11 @@ class AppSettings(BaseSettings):
     zenrows_api_key: Optional[str] = None
     crawlbase_api_key: Optional[str] = None
     apify_api_key: Optional[str] = None
+    hikerapi_api_key: Optional[str] = None
+    creatorcrawl_api_key: Optional[str] = None
+    apidirect_api_key: Optional[str] = None
+    instagram_graph_api_token: Optional[str] = None
+    instagram_business_account_id: Optional[str] = None
 
     # --- Other Third-Party Session Cookies ---
     linkedin_session_cookie: Optional[str] = None
