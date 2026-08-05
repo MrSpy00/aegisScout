@@ -220,6 +220,12 @@ class InstagramFinder:
         self.graph_api_token = getattr(settings, "instagram_graph_api_token", None)
         self.graph_business_id = getattr(settings, "instagram_business_account_id", None)
         self.creatorcrawl_key = getattr(settings, "creatorcrawl_api_key", None)
+        self.apidirect_key = getattr(settings, "apidirect_api_key", None)
+        self.socialapi_key = getattr(settings, "socialapi_api_key", None) or getattr(settings, "zernio_api_key", None)
+        self.late_api_key = getattr(settings, "late_api_key", None)
+        self.scrapecreators_key = getattr(settings, "scrapecreators_api_key", None)
+        self.ig_login_token = getattr(settings, "instagram_login_access_token", None)
+        self.ig_proxy = getattr(settings, "instagram_proxy", None) or getattr(settings, "proxy_pool", None)
 
         self.googlebot_headers = {
             "User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
@@ -422,6 +428,255 @@ class InstagramFinder:
         except Exception:
             return None
 
+    async def _fetch_via_apify(self, username: str) -> Optional[Dict]:
+        """Fetch profile details using Apify Instagram Scraper API (if apify_api_key configured)."""
+        if not self.apify_api_key:
+            return None
+        try:
+            url = f"https://api.apify.com/v2/acts/apify~instagram-scraper/run-sync-get-dataset-items?token={self.apify_api_key}"
+            payload = {"directUrls": [f"https://www.instagram.com/{username}/"], "resultsLimit": 1}
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.post(url, json=payload)
+                if resp.status_code == 200:
+                    items = resp.json()
+                    if isinstance(items, list) and items:
+                        item = items[0]
+                        f_count = item.get("followersCount") or item.get("followers", 0)
+                        return {
+                            "username": (item.get("username") or username).lower(),
+                            "full_name": item.get("fullName") or item.get("name") or username,
+                            "bio": item.get("biography") or item.get("bio") or "",
+                            "followers_raw": f_count,
+                            "followers": _format_count_human(f_count),
+                            "following": _format_count_human(item.get("followsCount") or item.get("following", 0)),
+                            "posts": _format_count_human(item.get("postsCount") or item.get("posts", 0)),
+                            "profile_pic_url": item.get("profilePicUrl") or item.get("profilePicUrlHD"),
+                            "is_verified": item.get("isVerified", False),
+                            "is_business": item.get("isBusinessAccount", False),
+                            "website": item.get("externalUrl"),
+                            "source_api": "Apify",
+                        }
+        except Exception as e:
+            logger.debug(f"Apify notice @{username}: {e}")
+        return None
+
+    async def _fetch_via_creatorcrawl(self, username: str) -> Optional[Dict]:
+        """Fetch profile details using CreatorCrawl API (if creatorcrawl_key configured)."""
+        if not self.creatorcrawl_key:
+            return None
+        try:
+            url = f"https://api.creatorcrawl.com/v1/instagram/profile?username={username}"
+            headers = {"Authorization": f"Bearer {self.creatorcrawl_key}", "Accept": "application/json"}
+            async with httpx.AsyncClient(timeout=6.0, headers=headers) as client:
+                resp = await client.get(url)
+                if resp.status_code == 200:
+                    data = resp.json().get("data", resp.json())
+                    if isinstance(data, dict) and data.get("username"):
+                        f_count = data.get("followers_count") or data.get("followers", 0)
+                        return {
+                            "username": data.get("username").lower(),
+                            "full_name": data.get("full_name") or username,
+                            "bio": data.get("biography") or "",
+                            "followers_raw": f_count,
+                            "followers": _format_count_human(f_count),
+                            "following": _format_count_human(data.get("following_count", 0)),
+                            "posts": _format_count_human(data.get("posts_count", 0)),
+                            "profile_pic_url": data.get("profile_pic_url"),
+                            "is_verified": data.get("is_verified", False),
+                            "is_business": data.get("is_business", False),
+                            "source_api": "CreatorCrawl",
+                        }
+        except Exception as e:
+            logger.debug(f"CreatorCrawl notice @{username}: {e}")
+        return None
+
+    async def _fetch_via_apidirect(self, username: str) -> Optional[Dict]:
+        """Fetch profile details using API Direct (if apidirect_key configured)."""
+        if not getattr(self, "apidirect_key", None):
+            return None
+        try:
+            url = f"https://api.apidirect.io/v1/instagram/profile?username={username}"
+            headers = {"X-API-Key": self.apidirect_key, "Accept": "application/json"}
+            async with httpx.AsyncClient(timeout=6.0, headers=headers) as client:
+                resp = await client.get(url)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    if isinstance(data, dict) and data.get("username"):
+                        f_count = data.get("followers", 0)
+                        return {
+                            "username": data.get("username").lower(),
+                            "full_name": data.get("full_name") or username,
+                            "bio": data.get("biography") or "",
+                            "followers_raw": f_count,
+                            "followers": _format_count_human(f_count),
+                            "following": _format_count_human(data.get("following", 0)),
+                            "posts": _format_count_human(data.get("posts", 0)),
+                            "profile_pic_url": data.get("profile_pic"),
+                            "source_api": "APIDirect",
+                        }
+        except Exception as e:
+            logger.debug(f"APIDirect notice @{username}: {e}")
+        return None
+
+    async def _fetch_via_scrapecreators(self, username: str) -> Optional[Dict]:
+        """Fetch profile details using Scrape Creators API (if key configured)."""
+        if not getattr(self, "scrapecreators_key", None):
+            return None
+        try:
+            url = f"https://api.scrapecreators.com/v1/instagram/profile?handle={username}"
+            headers = {"x-api-key": self.scrapecreators_key}
+            async with httpx.AsyncClient(timeout=6.0, headers=headers) as client:
+                resp = await client.get(url)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    if isinstance(data, dict) and (data.get("username") or data.get("handle")):
+                        f_count = data.get("followersCount") or data.get("followers", 0)
+                        return {
+                            "username": (data.get("username") or username).lower(),
+                            "full_name": data.get("name") or data.get("full_name") or username,
+                            "bio": data.get("biography") or data.get("bio") or "",
+                            "followers_raw": f_count,
+                            "followers": _format_count_human(f_count),
+                            "following": _format_count_human(data.get("followingCount", 0)),
+                            "posts": _format_count_human(data.get("postsCount", 0)),
+                            "profile_pic_url": data.get("avatarUrl") or data.get("profilePic"),
+                            "source_api": "ScrapeCreators",
+                        }
+        except Exception as e:
+            logger.debug(f"ScrapeCreators notice @{username}: {e}")
+        return None
+
+    async def _fetch_via_socialapi(self, username: str) -> Optional[Dict]:
+        """Fetch profile details using SocialAPI.ai / Zernio API (if key configured)."""
+        if not getattr(self, "socialapi_key", None):
+            return None
+        try:
+            url = f"https://api.social-api.ai/v1/instagram/user/info?username={username}"
+            headers = {"Authorization": f"Bearer {self.socialapi_key}"}
+            async with httpx.AsyncClient(timeout=6.0, headers=headers) as client:
+                resp = await client.get(url)
+                if resp.status_code == 200:
+                    data = resp.json().get("data", resp.json())
+                    if isinstance(data, dict) and data.get("username"):
+                        f_count = data.get("follower_count", 0)
+                        return {
+                            "username": data.get("username").lower(),
+                            "full_name": data.get("full_name") or username,
+                            "bio": data.get("biography") or "",
+                            "followers_raw": f_count,
+                            "followers": _format_count_human(f_count),
+                            "following": _format_count_human(data.get("following_count", 0)),
+                            "posts": _format_count_human(data.get("media_count", 0)),
+                            "profile_pic_url": data.get("profile_pic_url"),
+                            "source_api": "SocialAPI.ai",
+                        }
+        except Exception as e:
+            logger.debug(f"SocialAPI notice @{username}: {e}")
+        return None
+
+    async def _fetch_via_instagrapi_guest(self, username: str) -> Optional[Dict]:
+        """Fetch user metadata using instagrapi Client in guest mode or with optional session (Zero-Key)."""
+        def _sync_instagrapi():
+            try:
+                from instagrapi import Client
+                cl = Client()
+                proxy = getattr(self, "ig_proxy", None)
+                if proxy:
+                    cl.set_proxy(proxy)
+                user = cl.user_info_by_username_v1(username)
+                if user and getattr(user, "username", None):
+                    return {
+                        "username": user.username.lower(),
+                        "full_name": user.full_name or username,
+                        "bio": user.biography or "",
+                        "followers_raw": user.follower_count,
+                        "followers": _format_count_human(user.follower_count),
+                        "following": _format_count_human(user.following_count),
+                        "posts": _format_count_human(user.media_count),
+                        "profile_pic_url": str(user.profile_pic_url) if user.profile_pic_url else None,
+                        "is_verified": bool(user.is_verified),
+                        "is_business": bool(user.is_business),
+                        "category": getattr(user, "category_name", "") or "",
+                        "external_url": str(user.external_url) if user.external_url else None,
+                        "source_api": "instagrapi",
+                    }
+            except Exception:
+                pass
+            return None
+
+        try:
+            loop = asyncio.get_running_loop()
+            return await asyncio.wait_for(loop.run_in_executor(None, _sync_instagrapi), timeout=6.0)
+        except Exception:
+            return None
+
+    async def _fetch_via_gallery_dl(self, username: str) -> Optional[Dict]:
+        """Fetch profile metadata via gallery-dl CLI tool if available on local machine (Zero-Key)."""
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                "gallery-dl", "--dump-json", "--range", "1", f"https://www.instagram.com/{username}/",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=7.0)
+            if stdout:
+                lines = [line for line in stdout.decode("utf-8", errors="ignore").splitlines() if line.strip()]
+                for line in lines:
+                    try:
+                        data = json.loads(line)
+                        if isinstance(data, dict):
+                            uploader = data.get("uploader") or data.get("owner_username")
+                            if uploader:
+                                return {
+                                    "username": str(uploader).lower(),
+                                    "full_name": data.get("uploader_name") or str(uploader),
+                                    "bio": data.get("description") or "",
+                                    "source_api": "gallery-dl",
+                                }
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+        return None
+
+    async def _fetch_via_web_mirrors(self, username: str) -> Optional[Dict]:
+        """Scrape profile info from zero-key public mirrors (Greatfon, AnonIGViewer, Instanavigation, Dumpor)."""
+        mirrors = [
+            f"https://greatfon.com/v/{username}",
+            f"https://anonigviewer.com/profile/{username}",
+            f"https://instanavigation.com/user-profile/{username}",
+            f"https://dumpor.com/v/{username}",
+        ]
+        for mirror_url in mirrors:
+            try:
+                async with httpx.AsyncClient(
+                    timeout=5.0,
+                    follow_redirects=True,
+                    headers={"User-Agent": random.choice(_USER_AGENTS)}
+                ) as client:
+                    resp = await client.get(mirror_url)
+                    if resp.status_code == 200 and len(resp.text) > 400:
+                        soup = BeautifulSoup(resp.text, "html.parser")
+                        og_desc = soup.find("meta", property="og:description") or soup.find("meta", attrs={"name": "description"})
+                        desc_text = og_desc["content"] if og_desc and og_desc.get("content") else ""
+                        og_title = soup.find("meta", property="og:title")
+                        title_text = og_title["content"] if og_title and og_title.get("content") else ""
+                        
+                        if desc_text or title_text:
+                            stats_match = re.search(r"([\d\.,KMBkmb]+)\s+(?:Followers|Takipçi).*?([\d\.,KMBkmb]+)\s+(?:Following|Takip)", desc_text, re.I)
+                            f_raw = _parse_count(stats_match.group(1)) if stats_match else 0
+                            return {
+                                "username": username.lower(),
+                                "full_name": title_text.split("-")[0].split("@")[0].strip() or username,
+                                "bio": desc_text[:400],
+                                "followers_raw": f_raw,
+                                "followers": _format_count_human(f_raw) if f_raw else "N/A",
+                                "source_api": "Public Web Mirror",
+                            }
+            except Exception:
+                pass
+        return None
+
     # ===================================================================
     # LAYER 6 + 7: Profile Detail Extraction
     # ===================================================================
@@ -471,16 +726,30 @@ class InstagramFinder:
         if meta_res:
             default_data.update(meta_res)
 
-        # Tier -1: HikerAPI / Instaloader (If configured or library present)
-        if not default_data.get("bio") and self.hikerapi_api_key:
-            hiker_res = await self._fetch_via_hikerapi(clean_user)
-            if hiker_res:
-                default_data.update(hiker_res)
+        # Tier -1.5: SaaS APIs (HikerAPI, Apify, CreatorCrawl, APIDirect, ScrapeCreators, SocialAPI)
+        for saas_fn in [
+            self._fetch_via_hikerapi,
+            self._fetch_via_apify,
+            self._fetch_via_creatorcrawl,
+            self._fetch_via_apidirect,
+            self._fetch_via_scrapecreators,
+            self._fetch_via_socialapi,
+        ]:
+            if not default_data.get("bio") or default_data.get("followers") == "N/A":
+                res = await saas_fn(clean_user)
+                if res:
+                    default_data.update(res)
 
-        if not default_data.get("bio"):
-            loader_res = await self._fetch_via_instaloader(clean_user)
-            if loader_res:
-                default_data.update(loader_res)
+        # Tier -1: Open-source Zero-Key Python Libraries (Instaloader, instagrapi, gallery-dl)
+        for local_fn in [
+            self._fetch_via_instaloader,
+            self._fetch_via_instagrapi_guest,
+            self._fetch_via_gallery_dl,
+        ]:
+            if not default_data.get("bio") or default_data.get("followers") == "N/A":
+                res = await local_fn(clean_user)
+                if res:
+                    default_data.update(res)
 
         # Tier 0: Instagram public web_profile_info JSON API endpoint
         try:
@@ -605,6 +874,12 @@ class InstagramFinder:
                         fetched_html = resp.text
             except Exception:
                 pass
+
+        # Tier 4: Zero-key public mirrors (Greatfon, AnonIGViewer, Instanavigation, Dumpor)
+        if not default_data.get("bio") and not fetched_html:
+            mirror_res = await self._fetch_via_web_mirrors(clean_user)
+            if mirror_res:
+                default_data.update(mirror_res)
 
         # Parse whatever HTML we got
         if fetched_html:

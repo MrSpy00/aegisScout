@@ -391,4 +391,52 @@ class TestInstagramFinder:
             assert profile["category"] == "Kişisel Profil"
             assert profile["username"] == "muammeremincaglar"
 
+    @pytest.mark.asyncio
+    async def test_saas_api_and_mirror_integrations(self):
+        """Tüm yeni Instagram SaaS API'leri ve web mirror'ları düzgün çalışmalı."""
+        from aegisScout.discovery.instagram_finder import InstagramFinder
+        finder = InstagramFinder()
+        finder.apify_api_key = "test_apify_key"
+        finder.creatorcrawl_key = "test_creatorcrawl_key"
+        finder.apidirect_key = "test_apidirect_key"
+        finder.scrapecreators_key = "test_scrapecreators_key"
+        finder.socialapi_key = "test_socialapi_key"
+
+        with respx.mock:
+            # Apify mock
+            respx.post(url__regex=r".*apify\.com.*").mock(
+                return_value=httpx.Response(200, json=[{
+                    "username": "apify_user", "fullName": "Apify User", "biography": "Apify Bio",
+                    "followersCount": 5000, "followsCount": 100, "postsCount": 20
+                }])
+            )
+            res = await finder._fetch_via_apify("apify_user")
+            assert res is not None
+            assert res["username"] == "apify_user"
+            assert res["followers"] == "5.0K"
+            assert res["source_api"] == "Apify"
+
+            # CreatorCrawl mock
+            respx.get(url__regex=r".*creatorcrawl\.com.*").mock(
+                return_value=httpx.Response(200, json={"data": {
+                    "username": "creator_user", "full_name": "Creator User", "biography": "Creator Bio",
+                    "followers_count": 12000
+                }})
+            )
+            res_cc = await finder._fetch_via_creatorcrawl("creator_user")
+            assert res_cc is not None
+            assert res_cc["username"] == "creator_user"
+            assert res_cc["source_api"] == "CreatorCrawl"
+
+            # APIDirect mock
+            respx.get(url__regex=r".*apidirect\.io.*").mock(
+                return_value=httpx.Response(200, json={
+                    "username": "direct_user", "full_name": "Direct User", "biography": "Direct Bio", "followers": 800
+                })
+            )
+            res_ad = await finder._fetch_via_apidirect("direct_user")
+            assert res_ad is not None
+            assert res_ad["username"] == "direct_user"
+            assert res_ad["source_api"] == "APIDirect"
+
 
