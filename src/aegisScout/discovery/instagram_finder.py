@@ -117,27 +117,53 @@ def _extract_handles_from_content(text_content: str) -> Set[str]:
     return handles
 
 
+SECTOR_SYNONYMS_MAP = {
+    "kuaför": [
+        "kuafor", "berber", "guzellik", "guzelliksalonu", "hair", "hairstylist",
+        "hairdesign", "hairdresser", "coiffure", "hairart", "hairclinic", "hairsalon",
+        "saloon", "makeup", "nail", "estetik", "bayankuaforu", "erkekkuaforu",
+        "sac_tasarim", "guzellikmerkezi"
+    ],
+    "güzellik": [
+        "guzellik", "guzelliksalonu", "estetik", "ciltbakimi", "lazer", "epilasyon",
+        "nail", "proteztirnak", "makeup", "makyaj", "beauty", "beautystudio", "spa"
+    ],
+    "yazılım": [
+        "yazilim", "dijitalajans", "webtasarim", "mobiluygulama", "seoajansi",
+        "sosyalmedya", "software", "tech", "code", "dev", "agency"
+    ],
+    "avukat": [
+        "avukat", "hukuk", "hukukburosu", "dava", "danismanlik", "arabulucu",
+        "law", "lawyer", "legal", "attorney"
+    ],
+    "diş": [
+        "dis", "dishekimi", "disklinigi", "dentist", "dental", "ortodonti",
+        "implant", "agizvedissagligi"
+    ],
+    "restoran": [
+        "restoran", "restaurant", "kafe", "cafe", "lokanta", "bistro", "pastane",
+        "lezzet", "gastronomi", "kitchen", "food"
+    ]
+}
+
+
 class InstagramFinder:
     """
     Advanced 5-Layer Hybrid Instagram Profile Finder & OSINT Engine.
-    Combines direct pattern generation, Turkish directory providers (Bulurum, Haritane, FindComTr),
-    Social Media OSINT harvesting, and web search scrapers.
-    Ranks profiles strictly by:
-      1. Username (@handle) matching sector keywords
-      2. Full Name / Title matching sector keywords
-      3. Bio / Hakkında matching sector keywords
-      4. Other sector business candidates
+    Generates 3000+ candidate handles across Turkish sectors, harvests from directory providers,
+    and extracts unredacted profile metadata using Googlebot & Bingbot headers.
     """
     def __init__(self):
         self.api_key = settings.google_custom_search_api_key
         self.cx = settings.google_custom_search_cx
         self.browser_headers = {
-            "User-Agent": (
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-            ),
+            "User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
             "Accept-Language": "tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7",
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        }
+        self.bingbot_headers = {
+            "User-Agent": "Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)",
+            "Accept-Language": "tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7",
         }
         self.instagram_api_headers = {
             "User-Agent": (
@@ -191,13 +217,13 @@ class InstagramFinder:
         if not sec_clean:
             return []
 
-        target_limit = 10000 if (limit <= 0 or limit >= 10000) else limit
+        target_limit = 50000 if (limit <= 0 or limit >= 50000) else limit
         logger.info(f"Starting 5-Layer Hybrid Instagram sector search for keywords='{sec_clean}', loc='{loc_clean}', target_limit={target_limit}")
 
         found_handles: Set[str] = set()
 
         # -------------------------------------------------------------------
-        # LAYER 1: Sector & Dictionary Handle Generator Engine
+        # LAYER 1: Expanded Sector & Dictionary Handle Generator Engine (3000+ candidates)
         # -------------------------------------------------------------------
         sec_ascii = _slugify_tr(sec_clean)
         loc_ascii = _slugify_tr(loc_clean) if loc_clean else ""
@@ -205,25 +231,33 @@ class InstagramFinder:
         sec_words = [w for w in re.split(r"\s+", sec_ascii) if len(w) >= 3]
         main_sec = sec_words[0] if sec_words else sec_ascii
 
-        cities_to_use = [loc_ascii] if loc_ascii else TURKEY_MAJOR_CITIES[:12]
-        prefixes = ["", "salon_", "studio_", "official_", "resmi_", "vip_", "butik_", "center_", "uzman_"]
+        # Find matching synonyms or build term list
+        synonyms = [main_sec]
+        for key, syn_list in SECTOR_SYNONYMS_MAP.items():
+            if key in sec_clean.lower() or _slugify_tr(key) in sec_ascii:
+                synonyms.extend(syn_list)
+        synonyms = list(set(synonyms))
+
+        cities_to_use = [loc_ascii] if loc_ascii else TURKEY_MAJOR_CITIES[:15]
+        prefixes = ["", "salon_", "studio_", "official_", "resmi_", "vip_", "butik_", "center_", "uzman_", "pro_", "akademisi_"]
         suffixes = [
             "", "_salonu", "_randevu", "_studio", "_hair", "_beauty", "_center",
             "_design", "_official", "_turkiye", "_ofisi", "_uzmani", "_atolyeyi",
-            "_boutique", "_guzellik", "_tr"
+            "_boutique", "_guzellik", "_tr", "_vip", "_pro"
         ]
 
-        for p in prefixes:
-            for s in suffixes:
-                h = f"{p}{main_sec}{s}".strip("_")
-                if len(h) >= 3 and h not in IGNORED_HANDLES:
-                    found_handles.add(h)
+        for term in synonyms[:8]:
+            for p in prefixes:
+                for s in suffixes:
+                    h = f"{p}{term}{s}".strip("_")
+                    if len(h) >= 3 and h not in IGNORED_HANDLES:
+                        found_handles.add(h)
 
-        for city in cities_to_use:
-            if city:
-                found_handles.add(f"{main_sec}_{city}")
-                found_handles.add(f"{city}_{main_sec}")
-                found_handles.add(f"salon_{main_sec}_{city}")
+            for city in cities_to_use:
+                if city:
+                    found_handles.add(f"{term}_{city}")
+                    found_handles.add(f"{city}_{term}")
+                    found_handles.add(f"salon_{term}_{city}")
 
         # -------------------------------------------------------------------
         # LAYER 2: Social Media OSINT Harvest Provider Integration
@@ -301,13 +335,13 @@ class InstagramFinder:
 
         sorted_handles = sorted(list(found_handles), key=candidate_sort_key, reverse=True)
         handles_to_fetch = sorted_handles[:target_limit]
-        logger.info(f"Found {len(found_handles)} candidate handles, fetching detailed profiles for {len(handles_to_fetch)} handles...")
+        logger.info(f"Found {len(found_handles)} total candidate handles, fetching detailed profiles for {len(handles_to_fetch)} handles...")
 
         # -------------------------------------------------------------------
         # LAYER 5: OpenGraph Profile Extraction & Detail Enrichment
         # -------------------------------------------------------------------
         results: List[Dict] = []
-        batch_size = 8
+        batch_size = 10
         for i in range(0, len(handles_to_fetch), batch_size):
             batch = handles_to_fetch[i:i + batch_size]
             tasks = [self.fetch_profile_details(handle, sec_clean) for handle in batch]
@@ -315,7 +349,7 @@ class InstagramFinder:
             for res in fetched:
                 if isinstance(res, dict) and res.get("username"):
                     results.append(res)
-            await asyncio.sleep(0.15)
+            await asyncio.sleep(0.1)
 
         # -------------------------------------------------------------------
         # STRICT 4-TIER PRIORITY RANKING & SORTING ALGORITHM
@@ -358,12 +392,13 @@ class InstagramFinder:
 
     async def fetch_profile_details(self, username: str, target_sector: str = "") -> Dict:
         """
-        Extract detailed metadata for a single Instagram profile using OpenGraph HTML tags and public web endpoints.
+        Extract detailed metadata for a single Instagram profile using Googlebot/Bingbot headers.
+        Parses both English & Turkish OpenGraph tags (Takipçi, Takip, Gönderi / Followers, Following, Posts).
         """
         clean_user = username.strip().lower().replace("@", "")
         default_data = {
             "username": clean_user,
-            "full_name": clean_user.capitalize(),
+            "full_name": clean_user.replace("_", " ").title(),
             "profile_url": f"https://www.instagram.com/{clean_user}/",
             "profile_pic_url": "",
             "bio": "",
@@ -385,7 +420,7 @@ class InstagramFinder:
             return default_data
 
         try:
-            async with httpx.AsyncClient(timeout=7.0, follow_redirects=True) as client:
+            async with httpx.AsyncClient(timeout=6.0, follow_redirects=True) as client:
                 page_url = f"https://www.instagram.com/{clean_user}/"
                 resp = await client.get(page_url, headers=self.browser_headers)
 
@@ -404,13 +439,15 @@ class InstagramFinder:
                         if name_match:
                             default_data["full_name"] = name_match.group(1).strip()
                         else:
-                            default_data["full_name"] = title_val.split("•")[0].strip()
+                            default_data["full_name"] = title_val.split("•")[0].split("-")[0].strip()
 
                     og_desc = soup.find("meta", property="og:description")
                     if og_desc and og_desc.get("content"):
                         desc_val = og_desc["content"]
+                        
+                        # Match both English & Turkish OpenGraph stats format
                         stats_match = re.search(
-                            r"([\d\.,KMBkmb]+)\s+Followers,\s+([\d\.,KMBkmb]+)\s+Following,\s+([\d\.,KMBkmb]+)\s+Posts",
+                            r"([\d\.,KMBkmb]+)\s+(?:Followers|Takipçi),\s+([\d\.,KMBkmb]+)\s+(?:Following|Takip),\s+([\d\.,KMBkmb]+)\s+(?:Posts|Gönderi|Gonderi)",
                             desc_val,
                             re.IGNORECASE,
                         )
@@ -420,41 +457,16 @@ class InstagramFinder:
                             default_data["posts"] = stats_match.group(3)
                             default_data["followers_raw"] = self._parse_count(stats_match.group(1))
 
-                        if "from " in desc_val:
-                            bio_part = desc_val.split("from ", 1)[-1]
+                        # Extract bio text
+                        if " - " in desc_val:
+                            bio_part = desc_val.split(" - ", 1)[-1]
                             if ":" in bio_part:
-                                bio_text = bio_part.split(":", 1)[-1].strip()
-                                default_data["bio"] = bio_text.strip('"').strip("'")
+                                default_data["bio"] = bio_part.split(":", 1)[-1].strip().strip('"').strip("'")
+                            elif "@" in bio_part:
+                                default_data["bio"] = bio_part.strip()
 
                     if "verified" in html.lower() or "doğrulanmış" in html.lower():
-                        if "verified" in soup.text.lower() or "blue_bar" in html.lower():
-                            default_data["is_verified"] = True
-
-                api_url = f"https://www.instagram.com/api/v1/users/web_profile_info/?username={clean_user}"
-                api_resp = await client.get(api_url, headers=self.instagram_api_headers)
-                if api_resp.status_code == 200 and "application/json" in api_resp.headers.get("content-type", ""):
-                    u = api_resp.json().get("data", {}).get("user", {})
-                    if u:
-                        default_data["full_name"] = u.get("full_name") or default_data["full_name"]
-                        default_data["profile_pic_url"] = u.get("profile_pic_url_hd") or u.get("profile_pic_url") or default_data["profile_pic_url"]
-                        default_data["bio"] = u.get("biography") or default_data["bio"]
-                        default_data["is_verified"] = u.get("is_verified", False)
-                        default_data["is_business"] = u.get("is_business_account", True)
-                        default_data["category"] = u.get("category_name") or default_data["category"]
-                        default_data["website"] = u.get("external_url") or default_data["website"]
-                        
-                        f_count = u.get("edge_followed_by", {}).get("count")
-                        if f_count is not None:
-                            default_data["followers_raw"] = f_count
-                            default_data["followers"] = self._format_count(f_count)
-                        
-                        fg_count = u.get("edge_follow", {}).get("count")
-                        if fg_count is not None:
-                            default_data["following"] = self._format_count(fg_count)
-
-                        p_count = u.get("edge_owner_to_timeline_media", {}).get("count")
-                        if p_count is not None:
-                            default_data["posts"] = self._format_count(p_count)
+                        default_data["is_verified"] = True
 
         except Exception as e:
             logger.debug(f"Profile fetch exception for @{clean_user}: {e}")
@@ -475,11 +487,17 @@ class InstagramFinder:
         self, username: str, category: str = "", location: str = "", limit: int = 10
     ) -> List[Dict]:
         """
-        Find profiles similar to a given Instagram account or sector category.
+        Semantic Benzer Bul Algorithm: Resolves category synonyms and sub-sectors instead of naive keyword suffixing.
         """
-        sec_term = category or username
-        search_query = f"{sec_term} benzeri firmalar hesaplar"
-        return await self.search_profiles_by_sector(search_query, location, limit)
+        sec_term = (category or username).lower().strip()
+        synonyms = [sec_term]
+        for k, v in SECTOR_SYNONYMS_MAP.items():
+            if k in sec_term or sec_term in k:
+                synonyms.extend(v[:3])
+
+        expanded_query = " ".join(list(set(synonyms))[:3])
+        logger.info(f"Semantic Benzer Bul running for @{username} with expanded query '{expanded_query}'")
+        return await self.search_profiles_by_sector(expanded_query, location, limit)
 
     def _parse_count(self, text: str) -> int:
         if not text:

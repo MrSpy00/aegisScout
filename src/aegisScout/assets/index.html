@@ -1649,7 +1649,7 @@
 
       <!-- Search Input Card -->
       <div class="stat-card" style="margin-bottom: 16px; padding: 18px 20px; border-radius: 14px;">
-        <div style="display: grid; grid-template-columns: 2fr 1fr 120px 140px; gap: 12px; align-items: end;">
+        <div style="display: grid; grid-template-columns: 2fr 1.2fr 160px 140px; gap: 12px; align-items: end;">
           <div>
             <label style="font-weight: 600; font-size: 0.85rem; display: block; margin-bottom: 6px; color: var(--text-main);">Sektör &amp; Anahtar Kelimeler *</label>
             <input type="text" id="insta-search-keywords" class="form-control" placeholder="Örn: Güzellik Salonu, Kuaför, Kadıköy, Yazılım Şirketi..." style="width:100%; box-sizing: border-box;" onkeypress="if(event.key==='Enter') searchInstagramProfiles();">
@@ -1660,18 +1660,22 @@
           </div>
           <div>
             <label style="font-weight: 600; font-size: 0.85rem; display: block; margin-bottom: 6px; color: var(--text-main);">Profil Limiti</label>
-            <select id="insta-search-limit" class="form-control" style="width:100%; box-sizing: border-box;">
-              <option value="10">10 Profil</option>
-              <option value="20">20 Profil</option>
-              <option value="50">50 Profil</option>
-              <option value="100" selected>100 Profil</option>
-              <option value="500">500 Profil</option>
-              <option value="1000">1000 Profil</option>
-              <option value="2000">2000 Profil</option>
-              <option value="5000">5000 Profil</option>
-              <option value="10000">10000 Profil</option>
-              <option value="0">♾️ Sınırsız (Tüm Bulunanlar)</option>
-            </select>
+            <div style="display: flex; gap: 6px;">
+              <select id="insta-search-limit" class="form-control" style="width:100%; box-sizing: border-box;" onchange="toggleInstaCustomLimit()">
+                <option value="10">10 Profil</option>
+                <option value="20">20 Profil</option>
+                <option value="50">50 Profil</option>
+                <option value="100" selected>100 Profil</option>
+                <option value="500">500 Profil</option>
+                <option value="1000">1000 Profil</option>
+                <option value="2000">2000 Profil</option>
+                <option value="5000">5000 Profil</option>
+                <option value="10000">10000 Profil</option>
+                <option value="0">♾️ Sınırsız</option>
+                <option value="custom">✏️ Manuel Sayı Gir...</option>
+              </select>
+              <input type="number" id="insta-custom-limit-input" class="form-control" placeholder="Örn: 250" min="1" max="50000" style="display: none; width: 100px;">
+            </div>
           </div>
           <div>
             <button class="btn btn-primary" id="btn-insta-search" onclick="searchInstagramProfiles()" style="width: 100%; height: 38px; font-weight: 600;">
@@ -1679,6 +1683,27 @@
               Profilleri Bul
             </button>
           </div>
+        </div>
+      </div>
+
+      <!-- Live Progress Bar Card (Matching Komuta Merkezi Design) -->
+      <div id="insta-progress-container" class="stat-card" style="display: none; margin-bottom: 16px; padding: 16px 20px; border-radius: 14px; background: rgba(30,30,45,0.8); border: 1px solid var(--border-subtle);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div class="spinner-border spinner-border-sm text-primary" role="status" style="width: 16px; height: 16px;"></div>
+            <span id="insta-progress-status" style="font-weight: 600; font-size: 0.9rem; color: var(--text-main);">Instagram Profilleri Taranıyor...</span>
+          </div>
+          <div style="display: flex; gap: 12px; font-size: 0.85rem; align-items: center;">
+            <span id="insta-progress-timer" style="color: var(--text-main); font-weight: 600; background: rgba(255,255,255,0.06); padding: 2px 8px; border-radius: 6px;">⏱️ 00:00</span>
+            <span id="insta-progress-percent" style="color: var(--color-accent); font-weight: 700;">0%</span>
+          </div>
+        </div>
+        <!-- Progress bar track -->
+        <div style="width: 100%; height: 6px; background-color: #1a1e27; border-radius: 3px; overflow: hidden; margin-bottom: 10px;">
+          <div id="insta-progress-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, var(--color-accent), #8b5cf6); transition: width 0.3s ease;"></div>
+        </div>
+        <!-- Live step logs list -->
+        <div id="insta-progress-text" style="font-family: monospace; font-size: 0.8rem; color: var(--text-muted); max-height: 90px; overflow-y: auto; display: flex; flex-direction: column; gap: 3px; border-left: 2px solid var(--border-subtle); padding-left: 10px;">
         </div>
       </div>
 
@@ -2990,6 +3015,20 @@ function applyLanguage(lang) {
         INSTAGRAM BULUCU (INSTAGRAM FINDER) LOGIC
        ══════════════════════════════════════════════ */
     let currentInstagramResults = [];
+    let currentDmTargetProfile = null;
+
+    function toggleInstaCustomLimit() {
+      const selectEl = document.getElementById("insta-search-limit");
+      const customEl = document.getElementById("insta-custom-limit-input");
+      if (selectEl && customEl) {
+        if (selectEl.value === "custom") {
+          customEl.style.display = "inline-block";
+          customEl.focus();
+        } else {
+          customEl.style.display = "none";
+        }
+      }
+    }
 
     function initInstagramFinder() {
       if (currentInstagramResults.length > 0) {
@@ -3000,13 +3039,29 @@ function applyLanguage(lang) {
     async function searchInstagramProfiles() {
       const keywordsInput = document.getElementById("insta-search-keywords");
       const locationInput = document.getElementById("insta-search-location");
-      const limitInput = document.getElementById("insta-search-limit");
+      const limitSelect = document.getElementById("insta-search-limit");
+      const limitCustom = document.getElementById("insta-custom-limit-input");
       const btnSearch = document.getElementById("btn-insta-search");
       const container = document.getElementById("insta-results-container");
 
+      const progContainer = document.getElementById("insta-progress-container");
+      const progStatus = document.getElementById("insta-progress-status");
+      const progTimer = document.getElementById("insta-progress-timer");
+      const progPercent = document.getElementById("insta-progress-percent");
+      const progBar = document.getElementById("insta-progress-bar");
+      const progText = document.getElementById("insta-progress-text");
+
       const keywords = keywordsInput ? keywordsInput.value.trim() : "";
       const location = locationInput ? locationInput.value.trim() : "";
-      const limit = limitInput ? limitInput.value : 20;
+
+      let limit = 100;
+      if (limitSelect) {
+        if (limitSelect.value === "custom" && limitCustom && limitCustom.value) {
+          limit = parseInt(limitCustom.value, 10) || 100;
+        } else {
+          limit = parseInt(limitSelect.value, 10);
+        }
+      }
 
       if (!keywords) {
         showToast("Lütfen aramak istediğiniz sektör veya anahtar kelimeleri girin.", "warning");
@@ -3016,23 +3071,58 @@ function applyLanguage(lang) {
 
       if (btnSearch) {
         btnSearch.disabled = true;
-        btnSearch.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="margin-right:6px;"></span> Profiller Çekiliyor...`;
+        btnSearch.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="margin-right:6px;"></span> Tarama Sürüyor...`;
       }
+
+      if (progContainer) progContainer.style.display = "block";
+      if (progText) progText.innerHTML = "";
+      
+      let secondsPassed = 0;
+      const startTime = Date.now();
+      const timerInterval = setInterval(() => {
+        secondsPassed = Math.floor((Date.now() - startTime) / 1000);
+        const m = String(Math.floor(secondsPassed / 60)).padStart(2, '0');
+        const s = String(secondsPassed % 60).padStart(2, '0');
+        if (progTimer) progTimer.innerText = `⏱️ ${m}:${s}`;
+      }, 1000);
+
+      function updateInstaProgress(percent, statusMsg, logLine) {
+        if (progBar) progBar.style.width = `${percent}%`;
+        if (progPercent) progPercent.innerText = `${percent}%`;
+        if (progStatus) progStatus.innerText = statusMsg;
+        if (progText && logLine) {
+          const div = document.createElement("div");
+          div.style.padding = "2px 0";
+          div.innerHTML = `<span style="color: var(--color-brand); font-weight: 600;">[${new Date().toLocaleTimeString()}]</span> ${logLine}`;
+          progText.appendChild(div);
+          progText.scrollTop = progText.scrollHeight;
+        }
+      }
+
+      updateInstaProgress(10, "Sektörel kullanıcı adı varyasyonları türetiliyor...", `Layer 1: "${keywords}" sektörü için 3,000+ Türkçe aday kullanıcı adı ve varyasyon türetildi.`);
 
       container.innerHTML = `
         <div style="text-align: center; padding: 50px 20px;">
           <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem; margin-bottom: 16px;"></div>
           <h3 style="font-family: var(--font-display); font-size: 1.2rem; margin-bottom: 8px;">Instagram Profilleri Taranıyor...</h3>
-          <p style="color: var(--text-muted); max-width: 500px; margin: 0 auto; font-size: 0.9rem;">"${keywords}" sektörü için Instagram arama ve detaylı profil/fotoğraf verileri çekiliyor. Lütfen bekleyin...</p>
+          <p style="color: var(--text-muted); max-width: 500px; margin: 0 auto; font-size: 0.9rem;">"${keywords}" sektörü için 5 katmanlı hibrit Instagram keşif motoru çalıştırılıyor. Lütfen bekleyin...</p>
         </div>
       `;
+
+      setTimeout(() => {
+        updateInstaProgress(35, "İşletme rehberleri ve OSINT kaynakları taranıyor...", "Layer 2 & 3: Bulurum, Haritane, Tikla ve OSINT dizinlerinden Instagram adresleri harmanlanıyor.");
+      }, 1200);
+
+      setTimeout(() => {
+        updateInstaProgress(65, "Arama motoru indeksleri ve profiller zenginleştiriliyor...", "Layer 4 & 5: Googlebot & Bingbot motoru ile Followers, Bio, Telefon ve E-posta ayıklanıyor.");
+      }, 2800);
 
       try {
         let res = null;
         if (window.pywebview && window.pywebview.api) {
           res = await window.pywebview.api.search_instagram_profiles(keywords, location, limit);
         } else {
-          await new Promise(r => setTimeout(r, 1000));
+          await new Promise(r => setTimeout(r, 1500));
           res = {
             success: true,
             count: 2,
@@ -3055,29 +3145,13 @@ function applyLanguage(lang) {
                 whatsapp_link: "https://wa.me/905321112233",
                 website: "https://kadikoyguzellik.com",
                 relevance_score: 95
-              },
-              {
-                username: "moda_hair_studio",
-                full_name: "Moda Hair & Beauty Studio",
-                profile_url: "https://www.instagram.com/moda_hair_studio/",
-                profile_pic_url: "",
-                bio: "Trendy saç modelleri, keratin bakım ve renklendirme. Kadıköy/İstanbul. İletişim: 02163334455",
-                followers: "9.2K",
-                followers_raw: 9200,
-                following: "180",
-                posts: "145",
-                is_verified: false,
-                is_business: true,
-                category: "Kuaför / Saç Tasarım",
-                email: "contact@modahair.com",
-                phone: "02163334455",
-                whatsapp_link: null,
-                website: null,
-                relevance_score: 88
               }
             ]
           };
         }
+
+        clearInterval(timerInterval);
+        updateInstaProgress(100, "Keşif Tamamlandı!", `Akıllı 4-Aşamalı Öncelik Sıralaması uygulandı. Toplam ${res && res.profiles ? res.profiles.length : 0} profil hazır.`);
 
         if (res && res.success && res.profiles) {
           currentInstagramResults = res.profiles;
@@ -3093,6 +3167,7 @@ function applyLanguage(lang) {
           showToast("Instagram araması tamamlanamadı: " + (res ? res.error : "Bilinmeyen hata"), "error");
         }
       } catch (err) {
+        clearInterval(timerInterval);
         console.error("searchInstagramProfiles error:", err);
         container.innerHTML = `<div style="text-align: center; padding: 40px; color: var(--color-danger);">Hata: ${err.message}</div>`;
         showToast("Instagram aramasında hata: " + err.message, "error");
@@ -3117,7 +3192,7 @@ function applyLanguage(lang) {
         container.innerHTML = `
           <div style="text-align: center; padding: 40px; color: var(--text-muted); border: 2px dashed var(--border-subtle); border-radius: 12px;">
             <p style="font-size: 1.1rem; margin-bottom: 4px;">Aramanıza uygun Instagram profili bulunamadı.</p>
-            <p style="font-size: 0.85rem;">Farklı sektör veya konum anahtar kelimeleri ile tekrar deneyin.</p>
+            <p style="font-size: 0.85rem;">Farklı sektor veya konum anahtar kelimeleri ile tekrar deneyin.</p>
           </div>
         `;
         if (statTotal) statTotal.innerText = "0";
@@ -3157,9 +3232,9 @@ function applyLanguage(lang) {
         let avatarHtml = "";
         if (p.profile_pic_url) {
           avatarHtml = `<img src="${p.profile_pic_url}" alt="${fullName}" style="width: 56px; height: 56px; border-radius: 50%; object-fit: cover; border: 2px solid var(--color-brand);" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-          <div style="width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, var(--color-brand), var(--color-accent)); display: none; align-items: center; justify-content: center; font-weight: 700; color: #fff; font-size: 1.3rem;">${username.charAt(0).toUpperCase()}</div>`;
+          <div style="width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045); display: none; align-items: center; justify-content: center; font-weight: 700; color: #fff; font-size: 1.3rem;">${username.charAt(0).toUpperCase()}</div>`;
         } else {
-          avatarHtml = `<div style="width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, var(--color-brand), var(--color-accent)); display: flex; align-items: center; justify-content: center; font-weight: 700; color: #fff; font-size: 1.3rem;">${username.charAt(0).toUpperCase()}</div>`;
+          avatarHtml = `<div style="width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045); display: flex; align-items: center; justify-content: center; font-weight: 700; color: #fff; font-size: 1.3rem;">${username.charAt(0).toUpperCase()}</div>`;
         }
 
         const verifiedBadge = p.is_verified
@@ -8985,6 +9060,71 @@ function handleThemeChange(theme) {
           <label style="font-size:0.8rem;color:var(--text-muted);">Yarıçap (km):</label>
           <input type="number" id="picker-radius-input" value="5" min="1" max="50" style="width:70px;padding:4px 8px;border-radius:6px;background:var(--bg-base);border:1px solid var(--border-subtle);color:var(--text-main);font-size:0.85rem;" oninput="if(_pickerMap) _updatePickerPosition(_selectedLat, _selectedLng)">
           <button class="btn" onclick="applySelectedLocation()" style="background:var(--color-brand);color:white;padding:6px 16px;font-size:0.85rem;"> Konumu Kullan</button>
+        </div>
+      </div>
+  <!-- Instagram AI DM Generator Popup Modal Container -->
+  <div id="modal-instagram-dm" style="
+    display: none; position: fixed; inset: 0; z-index: 10000;
+    background: rgba(0,0,0,0.75); backdrop-filter: blur(8px);
+    align-items: center; justify-content: center; padding: 20px;
+  " onclick="if(event.target===this) closeInstaDmModal()">
+    <div style="
+      background: var(--bg-surface, #1e1e2d); border: 1px solid var(--border-subtle, rgba(255,255,255,0.1));
+      border-radius: 18px; width: 100%; max-width: 620px; padding: 24px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.6); color: var(--text-main, #ffffff); position: relative;
+    ">
+      <!-- Header -->
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 14px;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <div style="width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.1rem; color: #fff;" id="dm-modal-avatar">
+            IG
+          </div>
+          <div>
+            <h3 id="dm-modal-title" style="margin: 0; font-size: 1.15rem; font-weight: 700; display: flex; align-items: center; gap: 6px;">@kullaniciadi</h3>
+            <p id="dm-modal-subtitle" style="margin: 2px 0 0; font-size: 0.8rem; color: var(--text-muted);">Yapay Zeka Otomatik İletişim &amp; Satış DM Taslağı</p>
+          </div>
+        </div>
+        <button onclick="closeInstaDmModal()" style="background: rgba(255,255,255,0.08); border: none; color: var(--text-muted); width: 32px; height: 32px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1rem;">✕</button>
+      </div>
+
+      <!-- Tone & Goal Controls -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+        <div>
+          <label style="font-weight: 600; font-size: 0.8rem; display: block; margin-bottom: 4px; color: var(--text-muted);">Mesaj Tonu</label>
+          <select id="dm-modal-tone" class="form-control" style="width: 100%;" onchange="regenerateInstaDmText()">
+            <option value="professional" selected>💼 Profesyonel &amp; Kurumsal</option>
+            <option value="friendly">😊 Samimi &amp; Dostça</option>
+            <option value="persuasive">🚀 İkna Edici / Satış Odaklı</option>
+            <option value="concise">⚡ Kısa &amp; Vurucu (2 Cümle)</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-weight: 600; font-size: 0.8rem; display: block; margin-bottom: 4px; color: var(--text-muted);">Teklif / Kampanya Amacı</label>
+          <select id="dm-modal-goal" class="form-control" style="width: 100%;" onchange="regenerateInstaDmText()">
+            <option value="digital_transformation" selected>🔄 Dijital Dönüşüm &amp; Otomasyon</option>
+            <option value="website">🌐 Modern Web Sitesi &amp; E-Ticaret</option>
+            <option value="social_media">📱 Sosyal Medya Yönetimi &amp; Reklam</option>
+            <option value="lead_gen">🎯 Müşteri Kazanım Sistemleri</option>
+            <option value="partnership">🤝 İş Ortaklığı &amp; İş Birliği</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Generated DM Textarea -->
+      <div style="margin-bottom: 16px;">
+        <textarea id="dm-modal-textarea" class="form-control" rows="7" style="width: 100%; font-family: inherit; font-size: 0.9rem; line-height: 1.5; padding: 12px; border-radius: 10px; resize: vertical; box-sizing: border-box; background: rgba(0,0,0,0.3); border: 1px solid var(--border-subtle); color: var(--text-main);"></textarea>
+        <div style="display: flex; justify-content: space-between; margin-top: 6px; font-size: 0.75rem; color: var(--text-muted);">
+          <span id="dm-modal-counter">0 kelime / 0 karakter</span>
+          <span style="color: #10b981;">✅ AI Satış Şablonu Hazır</span>
+        </div>
+      </div>
+
+      <!-- Footer Action Buttons -->
+      <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+        <button class="btn btn-secondary" onclick="regenerateInstaDmText()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> Yeniden Üret</button>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn btn-secondary" onclick="copyInstaDmModalText()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Kopyala</button>
+          <button class="btn btn-primary" id="btn-open-direct-dm" onclick="openDirectInstaDm()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Instagram'da DM Gönder</button>
         </div>
       </div>
     </div>

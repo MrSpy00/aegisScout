@@ -3731,22 +3731,57 @@ class GuiApi:
             logger.exception(f"import_instagram_leads_to_crm failed: {e}")
             return {"success": False, "error": str(e)}
 
-    def generate_instagram_dm_draft(self, username: str, bio: str = "", sector: str = ""):
-        """Generate an AI-powered personalized Instagram DM intro message."""
+    def generate_instagram_dm_draft(
+        self, username: str, bio: str = "", sector: str = "", tone: str = "professional", goal: str = "digital_transformation"
+    ):
+        """Generate an AI-powered personalized Instagram DM intro message with custom tone & campaign goal."""
         clean_u = username.strip().replace("@", "")
         bio_clean = bio.strip()
         sector_clean = sector.strip() or "Sektör"
 
-        prompt = (
-            f"Merhaba @{clean_u},\n\n"
-            f"{sector_clean} alanındaki Instagram profilinizi ve çalışmalarınızı inceledik. "
-            f"{'(' + bio_clean[:100] + '...)' if bio_clean else ''}\n"
-            f"İşletmeniz için dijital dönüşüm, müşteri kazanımı ve satış süreçlerinizi otomatize edecek harika çözümler sunuyoruz.\n"
-            f"Kısa bir kahve molasında detayları konuşmak ister misiniz?\n\n"
-            f"Saygılarımızla,"
-        )
+        goals_map = {
+            "digital_transformation": "işletmeniz için dijital dönüşüm, müşteri kazanımı ve satış otomasyonu çözümleri",
+            "website": "markanız için mobil uyumlu, yüksek dönüşümlü modern web sitesi ve e-ticaret çözümleri",
+            "social_media": "sosyal medya erişiminizi ve müşteri potansiyelinizi 3 katına çıkaracak profesyonel içerik & reklam yönetimi",
+            "lead_gen": "sektörünüze özel potansiyel müşteri bulma ve otomatik iletişim sistemleri",
+            "partnership": "büyüme odaklı özel iş birliği ve stratejik ortaklık teklifi"
+        }
+        goal_text = goals_map.get(goal, "işletmeniz için dijital dönüşüm ve büyüme çözümleri")
 
-        return {"success": True, "username": clean_u, "dm_draft": prompt}
+        if tone == "friendly":
+            msg = (
+                f"Selamlar @{clean_u}! 👋\n\n"
+                f"{sector_clean} alanındaki Instagram sayfanıza ve harika içeriklerinize denk geldik! "
+                f"{'(' + bio_clean[:80] + '...)' if bio_clean else ''}\n"
+                f"Ekibimizle birlikte {goal_text} hazırlıyoruz ve sizinle çalışmaktan mutluluk duyarız. "
+                f"Kısa bir kahve eşliğinde fikir alışverişi yapmaya ne dersiniz? ☕😊\n\n"
+                f"Sevgiler,"
+            )
+        elif tone == "persuasive":
+            msg = (
+                f"Merhaba @{clean_u},\n\n"
+                f"{sector_clean} sektöründe Instagram üzerinden yakalayabileceğiniz müşteri potansiyelini katlamak ister misiniz? "
+                f"Bünyemizde geliştirdiğimiz {goal_text} ile işletmenizin cirosunu artırmayı hedefliyoruz.\n"
+                f"Sadece 5 dakikanızı ayırarak sunumumuza göz atmak ister misiniz?\n\n"
+                f"Başarılar dileriz,"
+            )
+        elif tone == "concise":
+            msg = (
+                f"Merhaba @{clean_u}, {sector_clean} alanındaki başarılı çalışmalarınız ilgimizi çekti.\n"
+                f"{goal_text.capitalize()} sunarak satışlarınızı artırmak isteriz. "
+                f"Detaylı bilgi için yanıt vermeniz yeterlidir."
+            )
+        else:  # professional
+            msg = (
+                f"Sayın @{clean_u} Yetkilisi,\n\n"
+                f"{sector_clean} alanındaki Instagram profilinizi ve çalışmalarınızı büyük bir ilgiyle inceledik. "
+                f"{'(' + bio_clean[:90] + '...)' if bio_clean else ''}\n"
+                f"Kurumumuz, {goal_text} sunarak iş hacminizi büyütmeyi amaçlamaktadır.\n"
+                f"Detaylı bilgi ve tanıtım sunumumuz için uygun olduğunuz bir zamanı iletmenizi rica ederiz.\n\n"
+                f"Saygılarımızla,"
+            )
+
+        return {"success": True, "username": clean_u, "dm_draft": msg}
 
     def export_instagram_profiles(self, profiles: list[dict], format_type: str = "csv"):
         """Export Instagram profiles list to desktop CSV/JSON file."""
