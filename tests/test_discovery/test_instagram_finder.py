@@ -3,7 +3,147 @@ import respx
 import httpx
 from unittest.mock import patch
 
+class TestInstagramFinderImprovements:
+    """Yeni geliştirme testleri: is_business tespiti, bio extraction, relevance score."""
 
+    @pytest.fixture(autouse=True)
+    def mock_settings(self):
+        with patch("aegisScout.discovery.instagram_finder.settings") as mock_cfg:
+            mock_cfg.google_custom_search_api_key = "FAKE_API_KEY"
+            mock_cfg.google_custom_search_cx = "FAKE_CX"
+            yield mock_cfg
+
+    def test_relevance_score_no_sector(self):
+        """Sektör verilmediğinde score sadece iletişim bilgisine göre belirlenmeli."""
+        from aegisScout.discovery.instagram_finder import InstagramFinder
+        finder = InstagramFinder()
+
+        profile_with_contact = {
+            "username": "test_user",
+            "full_name": "Test User",
+            "bio": "Bireysel kullanici",
+            "category": "",
+            "email": "test@example.com",
+            "phone": "+905001112233",
+            "website": None,
+            "is_verified": False,
+            "linktree_url": None,
+        }
+        score = finder._calculate_relevance_score(profile_with_contact, "")
+        assert score >= 50, "Iletisim bilgisi olan profil en az 50 almalı"
+        assert score <= 75, "Sektorsuz profil 75'ten fazla almamalı"
+
+    def test_relevance_score_with_username_keyword_match(self):
+        """Kullanici adi sektor kelimesiyle esllesince yuksek skor gelmeli."""
+        from aegisScout.discovery.instagram_finder import InstagramFinder
+        finder = InstagramFinder()
+
+        profile = {
+            "username": "kuafor_istanbul",
+            "full_name": "Kuafor Salonu",
+            "bio": "Sac bakimi ve guzellik hizmetleri",
+            "category": "Kuafor",
+            "email": "info@kuafor.com",
+            "phone": "+905001112233",
+            "website": "https://kuafor.com",
+            "is_verified": False,
+            "linktree_url": None,
+        }
+        score = finder._calculate_relevance_score(profile, "kuafor")
+        assert score >= 70, f"Guclu eslesme icin skor 70+ olmali, aldi: {score}"
+        assert score <= 99, "Skor 99'u geccmemeli"
+
+    def test_relevance_score_no_keyword_match_penalty(self):
+        """Sektor ile hic esllesmeyen profil dusuk skor almali."""
+        from aegisScout.discovery.instagram_finder import InstagramFinder
+        finder = InstagramFinder()
+
+        profile = {
+            "username": "random_person_xyz",
+            "full_name": "Random Person",
+            "bio": "Kisisel hesap, fotograflarim",
+            "category": "Kisisel Profil",
+            "email": None,
+            "phone": None,
+            "website": None,
+            "is_verified": False,
+            "linktree_url": None,
+        }
+        score = finder._calculate_relevance_score(profile, "dis hekimi klinigi")
+        assert score <= 50, f"Hic esllesme yok, dusuk skor olmali: {score}"
+
+    def test_dm_draft_generation_all_tones(self):
+        """DM taslak tum tonlarla basariyla olusturulmali."""
+        from aegisScout.gui_impl import GuiApi
+        api = GuiApi()
+
+        tones = ["professional", "friendly", "persuasive", "concise"]
+        for tone in tones:
+            result = api.generate_instagram_dm_draft(
+                username="test_isletme",
+                bio="Guzellik salonu ve kuafor hizmetleri",
+                sector="Guzellik Salonu",
+                tone=tone,
+                goal="digital_transformation"
+            )
+            assert result["success"] is True, f"Tone '{tone}' basarisiz oldu"
+            assert "@test_isletme" in result["dm_draft"], f"Tone '{tone}' username icermiyor"
+            assert len(result["dm_draft"]) > 50, f"Tone '{tone}' mesaj cok kisa"
+
+    @pytest.mark.asyncio
+    async def test_anonymous_viewer_fallback_on_no_posts(self):
+        """Anonim goruntuleyici post bulamazsa profil fotografini gostermeli."""
+        from aegisScout.discovery.instagram_finder import InstagramFinder
+        finder = InstagramFinder()
+
+        with patch.object(finder, "fetch_profile_details", return_value={
+            "username": "test_user",
+            "full_name": "Test User",
+            "profile_pic_url": "https://unavatar.io/instagram/test_user",
+            "bio": "Test biyografi",
+            "followers": "1K",
+            "followers_raw": 1000,
+            "posts": "10",
+            "last_active_raw": 80,
+            "has_story": False,
+        }):
+            with respx.mock:
+                respx.get(url__regex=r".*instagram\.com/test_user/embed.*").mock(
+                    return_value=httpx.Response(200, text="<html><body>No posts</body></html>")
+                )
+                respx.get(url__regex=r".*picuki\.com.*").mock(
+                    return_value=httpx.Response(404)
+                )
+                respx.get(url__regex=r".*imginn\.com.*").mock(
+                    return_value=httpx.Response(404)
+                )
+
+                result = await finder.fetch_anonymous_user_posts_and_stories("test_user")
+
+        assert result["success"] is True
+        assert result["username"] == "test_user"
+        # When no posts found, should fallback to profile pic
+        assert len(result["posts"]) >= 1
+
+    def test_extract_phone_and_whatsapp_formats(self):
+        """Telefon numarasi extraction farkli formatlarda calismalı."""
+        from aegisScout.discovery.instagram_finder import InstagramFinder
+        finder = InstagramFinder()
+
+        # Format 1: wa.me link
+        phone, wp = finder._extract_phone_and_whatsapp("https://wa.me/905321234567")
+        assert phone == "+905321234567"
+        assert wp == "https://wa.me/905321234567"
+
+        # Format 2: 05XX with spaces
+        phone2, wp2 = finder._extract_phone_and_whatsapp("Tel: 0532 123 45 67 ara!")
+        assert phone2 == "+905321234567"
+        assert wp2 is not None
+
+        # Format 3: No phone
+        phone3, wp3 = finder._extract_phone_and_whatsapp("Hello world no phone here")
+        assert phone3 is None
+        assert wp3 is None
 class TestInstagramFinder:
     """
     InstagramFinder icin Google Custom Search API mock testleri.
@@ -203,5 +343,52 @@ class TestInstagramFinder:
                     assert results[0]["username"] == "kuafor_salonu"
                     assert results[1]["username"] == "ahmet_yılmaz"
                     assert results[2]["username"] == "random_user"
+
+    @pytest.mark.asyncio
+    async def test_direct_username_search_no_suffix_variations(self):
+        """Doğrudan kullanıcı adı aramasında yapay son takılar (_official, _tr vb.) üretilmemeli."""
+        from aegisScout.discovery.instagram_finder import InstagramFinder
+        finder = InstagramFinder()
+
+        with patch.object(finder, "_instagram_topsearch", return_value=[{"username": "muammeremincaglar"}]):
+            with patch.object(finder, "fetch_profile_details", side_effect=lambda u, s: {
+                "username": u, "full_name": u.title(), "bio": "Test bio", "is_business": False, "category": "Kişisel Profil"
+            }):
+                results = await finder._search_by_username_direct("muammeremincaglar", "", target_limit=10)
+                handles = [r["username"] for r in results]
+                # Ensure no synthetic suffixes like muammeremincaglar_official were generated
+                assert "muammeremincaglar_official" not in handles
+                assert "muammeremincaglar_tr" not in handles
+                assert "muammeremincaglar_resmi" not in handles
+                assert "muammeremincaglar" in handles
+
+    def test_is_business_personal_classification(self):
+        """Kişisel profiller is_business=False ve category='Kişisel Profil' olmalı."""
+        from aegisScout.discovery.instagram_finder import InstagramFinder
+        finder = InstagramFinder()
+
+        # Mock HTML parsing for personal account
+        html_personal = """
+        <html>
+        <head>
+            <meta property="og:title" content="Emin Çağlar (@muammeremincaglar) • Instagram photos" />
+            <meta property="og:description" content="1,200 Followers, 500 Following, 80 Posts - Emin Çağlar kişisel profil, özel fotoğraflarım." />
+        </head>
+        <body></body>
+        </html>
+        """
+        with respx.mock:
+            respx.get(url__regex=r".*instagram\.com/muammeremincaglar/.*").mock(
+                return_value=httpx.Response(200, text=html_personal)
+            )
+            respx.get(url__regex=r".*web_profile_info.*").mock(
+                return_value=httpx.Response(404)
+            )
+
+            import asyncio
+            profile = asyncio.run(finder.fetch_profile_details("muammeremincaglar", target_sector=""))
+            assert profile["is_business"] is False
+            assert profile["category"] == "Kişisel Profil"
+            assert profile["username"] == "muammeremincaglar"
 
 

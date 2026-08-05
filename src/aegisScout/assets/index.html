@@ -1684,34 +1684,40 @@
               <input type="number" id="insta-custom-limit-input" class="form-control" placeholder="Örn: 250" min="1" max="50000" style="display: none; width: 100px;">
             </div>
           </div>
-          <div>
-            <button class="btn btn-primary" id="btn-insta-search" onclick="searchInstagramProfiles()" style="width: 100%; height: 38px; font-weight: 600;">
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-primary" id="btn-insta-search" onclick="searchInstagramProfiles()" style="flex:1; height: 38px; font-weight: 600;">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
               Profilleri Bul
             </button>
+            <button class="btn btn-secondary" onclick="resetInstagramSearch()" title="Arama Formunu Sıfırla" style="height: 38px; padding: 0 12px; flex-shrink:0;">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            </button>
           </div>
         </div>
-        <div style="font-size: 0.76rem; color: var(--text-muted); margin-top: 8px;">
-          💡 <b>İpucu:</b> <u>Sektör</u> ile geniş arama yapabilir veya <u>Profil / Kullanıcı Adı</u> girerek Instagram'daki gibi tam/yakın profil sonuçlarını doğrudan listeleyebilirsiniz.
+        <div style="font-size: 0.76rem; color: var(--text-muted); margin-top: 8px; display:flex;align-items:flex-start;gap:6px;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent,#f59e0b)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span><b>İpucu:</b> <u>Sektör</u> ile geniş arama yapabilir veya <u>Profil / Kullanıcı Adı</u> girerek Instagram'daki gibi tam/yakın profil sonuçlarını doğrudan listeleyebilirsiniz.</span>
         </div>
       </div>
 
       <!-- Controls & Sorting Toolbar -->
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px; background: rgba(0,0,0,0.2); padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border-subtle);">
-        <div style="display: flex; align-items: center; gap: 10px;">
+        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
           <label style="font-size: 0.85rem; font-weight: 600; color: var(--text-muted); display: flex; align-items: center; gap: 4px;">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="m21 8-4-4-4 4"/><path d="M17 4v16"/></svg> Sırala:
           </label>
           <select id="insta-sort-select" class="form-control" style="width: 210px; height: 34px; font-size: 0.82rem; background: var(--bg-surface); border: 1px solid var(--border-subtle); color: var(--text-main);" onchange="sortAndRenderInstagramProfiles()">
-            <option value="relevance" selected>⚡ Uyum Skoru (% High)</option>
-            <option value="followers_desc">👥 Takipçi (Çoktan Aza)</option>
-            <option value="followers_asc">👥 Takipçi (Azdan Çoğa)</option>
-            <option value="posts_desc">📸 Gönderi (Çoktan Aza)</option>
-            <option value="posts_asc">📸 Gönderi (Azdan Çoğa)</option>
-            <option value="name_asc">🔤 Profil İsmi (A ➔ Z)</option>
-            <option value="name_desc">🔤 Profil İsmi (Z ➔ A)</option>
-            <option value="activity">🟢 Aktiflik / Son Gönderi Zamanı</option>
+            <option value="relevance" selected>Uyum Skoru (Yüksek-Düşük)</option>
+            <option value="followers_desc">Takipçi (Çoktan Aza)</option>
+            <option value="followers_asc">Takipçi (Azdan Çoğa)</option>
+            <option value="posts_desc">Gönderi (Çoktan Aza)</option>
+            <option value="posts_asc">Gönderi (Azdan Çoğa)</option>
+            <option value="name_asc">Profil İsmi (A - Z)</option>
+            <option value="name_desc">Profil İsmi (Z - A)</option>
+            <option value="activity">Aktiflik / Son Gönderi</option>
           </select>
+
+          <input type="text" id="insta-quick-filter-input" class="form-control" placeholder="🔍 Canlı Filtrele (İsim, @handle, İletişim)..." style="width: 260px; height: 34px; font-size: 0.82rem; background: var(--bg-surface);" onkeyup="quickFilterInstagramResults()">
         </div>
         <div style="font-size: 0.8rem; color: var(--text-muted);" id="insta-results-counter-lbl">
           Toplam 0 profil gösteriliyor
@@ -1726,7 +1732,10 @@
             <span id="insta-progress-status" style="font-weight: 600; font-size: 0.9rem; color: var(--text-main);">Instagram Profilleri Taranıyor...</span>
           </div>
           <div style="display: flex; gap: 12px; font-size: 0.85rem; align-items: center;">
-            <span id="insta-progress-timer" style="color: var(--text-main); font-weight: 600; background: rgba(255,255,255,0.06); padding: 2px 8px; border-radius: 6px;">⏱️ 00:00</span>
+            <span id="insta-progress-timer" style="color: var(--text-main); font-weight: 600; background: rgba(255,255,255,0.06); padding: 2px 8px; border-radius: 6px; display:flex;align-items:center;gap:4px;">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              <span id="insta-progress-timer-text">00:00</span>
+            </span>
             <span id="insta-progress-percent" style="color: var(--color-accent); font-weight: 700;">0%</span>
           </div>
         </div>
@@ -2730,23 +2739,22 @@
   <script>
     // Global Error Logger for UI Debugging — MUST be at line 1 of script execution
     window.onerror = function(message, source, lineno, colno, error) {
-      try { _forceCloseAllModals(); } catch (_) {}
       try {
         if (window.pywebview && window.pywebview.api) {
           window.pywebview.api.log_js_error(message, source, lineno, colno, error ? error.stack : '');
         }
       } catch (_) {}
       try { console.error('[aegisScout JS Error]', message, source, lineno, colno, error); } catch (_) {}
-      return false;
+      return true; // Suppress native browser alert popups in WebView2
     };
     window.onunhandledrejection = function(event) {
-      try { _forceCloseAllModals(); } catch (_) {}
       try {
         if (window.pywebview && window.pywebview.api) {
           window.pywebview.api.log_js_error("Unhandled Rejection: " + (event && event.reason ? event.reason : ''), "", 0, 0, "");
         }
       } catch (_) {}
       try { console.error('[aegisScout Unhandled Rejection]', event && event.reason); } catch (_) {}
+      return true; // Suppress native browser alert popups in WebView2
     };
 
     // Global draft state variable
@@ -2827,25 +2835,22 @@ function applyLanguage(lang) {
 
     // Global Error Logger for UI Debugging
     window.onerror = function(message, source, lineno, colno, error) {
-      // Always attempt to close any stuck modals so buttons behind them stay clickable
-      try { _forceCloseAllModals(); } catch (_) { /* best-effort */ }
       try {
         if (window.pywebview && window.pywebview.api) {
           window.pywebview.api.log_js_error(message, source, lineno, colno, error ? error.stack : '');
         }
-      } catch (_) { /* swallow */ }
-      // Also surface to dev console for live debugging
+      } catch (_) {}
       try { console.error('[aegisScout JS Error]', message, source, lineno, colno, error); } catch (_) {}
-      return false;
+      return true; // Suppress native browser alert popups in WebView2
     };
     window.onunhandledrejection = function(event) {
-      try { _forceCloseAllModals(); } catch (_) {}
       try {
         if (window.pywebview && window.pywebview.api) {
           window.pywebview.api.log_js_error("Unhandled Rejection: " + (event && event.reason ? event.reason : ''), "", 0, 0, "");
         }
       } catch (_) {}
       try { console.error('[aegisScout Unhandled Rejection]', event && event.reason); } catch (_) {}
+      return true; // Suppress native browser alert popups in WebView2
     };
 
     /* ══════════════════════════════════════════════
@@ -3161,7 +3166,9 @@ function applyLanguage(lang) {
         secondsPassed = Math.floor((Date.now() - startTime) / 1000);
         const m = String(Math.floor(secondsPassed / 60)).padStart(2, '0');
         const s = String(secondsPassed % 60).padStart(2, '0');
-        if (progTimer) progTimer.innerText = `⏱️ ${m}:${s}`;
+        const timerText = document.getElementById("insta-progress-timer-text");
+        if (timerText) timerText.textContent = `${m}:${s}`;
+        else if (progTimer) progTimer.innerText = `${m}:${s}`;
       }, 1000);
 
       function updateInstaProgress(percent, statusMsg, logLine) {
@@ -3205,41 +3212,47 @@ function applyLanguage(lang) {
           res = {
             success: true,
             count: 1,
+            elapsed_seconds: 1.5,
             profiles: [
               {
                 username: usernameQuery ? usernameQuery.replace("@", "") : "sample_profile",
                 full_name: usernameQuery ? usernameQuery.replace("@", "").toUpperCase() : "Örnek Profil",
                 profile_url: `https://www.instagram.com/${usernameQuery}/`,
-                profile_pic_url: "",
+                profile_pic_url: `https://unavatar.io/instagram/${usernameQuery || 'sample_profile'}`,
+                profile_pic_hd_url: `https://unavatar.io/instagram/${usernameQuery || 'sample_profile'}?size=400`,
                 bio: "Örnek Instagram profil açıklaması. WhatsApp: 05321112233",
                 followers: "15.2K",
                 followers_raw: 15200,
                 following: "340",
                 posts: "180",
+                engagement_rate: "%4.2",
                 is_verified: true,
                 is_business: true,
+                has_story: true,
                 category: keywords || "İşletme",
                 email: "contact@example.com",
                 phone: "+905321112233",
                 whatsapp_link: "https://wa.me/905321112233",
                 website: "https://example.com",
+                linktree_url: null,
                 relevance_score: 95,
-                last_active: "🟢 Yüksek Aktiflik"
+                last_active: "Yüksek Aktiflik",
+                last_active_raw: 90,
               }
-            ]
-          };
-        }
             ]
           };
         }
 
         clearInterval(timerInterval);
-        updateInstaProgress(100, "Keşif Tamamlandı!", `Akıllı 4-Aşamalı Öncelik Sıralaması uygulandı. Toplam ${res && res.profiles ? res.profiles.length : 0} profil hazır.`);
+        const elapsed = (res && res.elapsed_seconds) ? res.elapsed_seconds : ((Date.now() - startTime) / 1000).toFixed(1);
+        const profileCount = res && res.profiles ? res.profiles.length : 0;
+        const mode = usernameQuery && !keywords ? 'Doğrudan Profil Arama' : (keywords && !usernameQuery ? 'Sektör Araması' : 'Kesişimsel Arama');
+        updateInstaProgress(100, `Keşif Tamamlandı! (${elapsed}s)`, `${mode}: ${profileCount} profil bulundu • Akıllı 7-Katman Algoritması • ${elapsed}s`);
 
         if (res && res.success && res.profiles) {
           currentInstagramResults = res.profiles;
           renderInstagramProfiles(currentInstagramResults);
-          showToast(`${res.profiles.length} adet Instagram profili başarıyla çekildi.`, "success");
+          showToast(`${res.profiles.length} Instagram profili ${elapsed}s'de çekildi (${mode}).`, "success");
         } else {
           container.innerHTML = `
             <div style="text-align: center; padding: 40px; color: var(--color-danger);">
@@ -3409,20 +3422,35 @@ function applyLanguage(lang) {
       profiles.forEach((p, idx) => {
         const username = p.username || "";
         const fullName = p.full_name || username;
-        const bio = p.bio || "Biyografi eklenmemiş.";
+        const bio = (p.bio || "Biyografi eklenmemiş.").replace(/</g, "&lt;").replace(/>/g, "&gt;");
         const category = p.category || "İşletme";
         const followers = String(p.followers || "N/A");
         const following = String(p.following || "N/A");
         const posts = String(p.posts || "N/A");
         const score = p.relevance_score || 75;
-        const lastActive = p.last_active || "🟢 Aktif İşletme Hesabı";
+        const lastActive = p.last_active || "Aktif İşletme Hesabı";
+        const engRate = p.engagement_rate || "";
+        const hasStory = p.has_story || (p.last_active_raw && p.last_active_raw > 85);
+        const hdPicUrl = p.profile_pic_hd_url || p.profile_pic_url || `https://unavatar.io/instagram/${username}?size=400`;
+        const picUrl = p.profile_pic_url || `https://unavatar.io/instagram/${username}`;
+        const safeUser = username.replace(/'/g, "\\'");
+        const safeHdPic = hdPicUrl.replace(/'/g, "\\'");
+        const safePic = picUrl.replace(/'/g, "\\'");
+
+        // Story ring style
+        const storyRingStyle = hasStory
+          ? "border: 3px solid transparent; background-clip: padding-box; box-shadow: 0 0 0 2px #e1306c, 0 0 0 4px #fd1d1d;"
+          : "border: 2px solid var(--color-brand);";
 
         let avatarHtml = "";
-        if (p.profile_pic_url) {
-          avatarHtml = `<img src="${p.profile_pic_url}" alt="${fullName}" style="width: 56px; height: 56px; border-radius: 50%; object-fit: cover; border: 2px solid var(--color-brand); cursor: pointer;" title="Büyütmek ve HD İndirmek için tıklayın" onclick="zoomProfilePic('${p.profile_pic_url}', '${username}')" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-          <div style="width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045); display: none; align-items: center; justify-content: center; font-weight: 700; color: #fff; font-size: 1.3rem; cursor: pointer;" onclick="zoomProfilePic('', '${username}')">${username.charAt(0).toUpperCase()}</div>`;
+        if (picUrl) {
+          avatarHtml = `<div style="position: relative; width: 56px; height: 56px; flex-shrink:0;">
+            <img src="${picUrl}" alt="${fullName}" style="width: 56px; height: 56px; border-radius: 50%; object-fit: cover; ${storyRingStyle} cursor: pointer; transition: transform 0.2s ease;" title="Büyütmek için tıklayın — Sağ tık → HD İndir" onclick="zoomProfilePic('${safePic}','${safeUser}','${safeHdPic}')" onmouseenter="this.style.transform='scale(1.1)'" onmouseleave="this.style.transform='scale(1)'" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+            <div style="width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045); display: none; align-items: center; justify-content: center; font-weight: 700; color: #fff; font-size: 1.3rem; cursor: pointer;" onclick="zoomProfilePic('','${safeUser}','')">${username.charAt(0).toUpperCase()}</div>
+            ${hasStory ? `<span title="Aktif Hikaye Var" style="position: absolute; bottom: 0; right: 0; width: 14px; height: 14px; border-radius: 50%; background: #10b981; border: 2px solid var(--bg-card);"></span>` : ""}
+          </div>`;
         } else {
-          avatarHtml = `<div style="width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045); display: flex; align-items: center; justify-content: center; font-weight: 700; color: #fff; font-size: 1.3rem; cursor: pointer;" onclick="zoomProfilePic('', '${username}')">${username.charAt(0).toUpperCase()}</div>`;
+          avatarHtml = `<div style="width: 56px; height: 56px; flex-shrink:0; border-radius: 50%; background: linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045); display: flex; align-items: center; justify-content: center; font-weight: 700; color: #fff; font-size: 1.3rem; cursor: pointer; ${storyRingStyle}" onclick="zoomProfilePic('','${safeUser}','')">${username.charAt(0).toUpperCase()}</div>`;
         }
 
         const verifiedBadge = p.is_verified
@@ -3434,17 +3462,19 @@ function applyLanguage(lang) {
           contactBadges += `<a href="mailto:${p.email}" class="badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); text-decoration: none; padding: 4px 8px; border-radius: 6px; font-size: 0.78rem;" title="E-posta Gönder"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>${p.email}</a> `;
         }
         if (p.phone) {
-          contactBadges += `<span class="badge" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); padding: 4px 8px; border-radius: 6px; font-size: 0.78rem;" title="Telefon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>${p.phone}</span> `;
+          contactBadges += `<span class="badge" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); padding: 4px 8px; border-radius: 6px; font-size: 0.78rem;" title="Telefon">${p.phone}</span> `;
         }
         if (p.whatsapp_link) {
           contactBadges += `<a href="${p.whatsapp_link}" target="_blank" class="badge" style="background: rgba(37, 211, 102, 0.15); color: #25d366; border: 1px solid rgba(37, 211, 102, 0.3); text-decoration: none; padding: 4px 8px; border-radius: 6px; font-size: 0.78rem;" title="WhatsApp Sohbet">WhatsApp</a> `;
         }
-        if (p.website) {
-          contactBadges += `<a href="${p.website}" target="_blank" class="badge" style="background: rgba(192, 132, 252, 0.15); color: #c084fc; border: 1px solid rgba(192, 132, 252, 0.3); text-decoration: none; padding: 4px 8px; border-radius: 6px; font-size: 0.78rem;" title="Web Sitesi"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/></svg>Web</a>`;
+        if (p.website || p.linktree_url) {
+          const webUrl = p.website || p.linktree_url;
+          const webLabel = (p.linktree_url && !p.website) ? "Linktree" : "Web";
+          contactBadges += `<a href="${webUrl}" target="_blank" class="badge" style="background: rgba(192, 132, 252, 0.15); color: #c084fc; border: 1px solid rgba(192, 132, 252, 0.3); text-decoration: none; padding: 4px 8px; border-radius: 6px; font-size: 0.78rem;" title="Web Sitesi">🔗 ${webLabel}</a>`;
         }
 
         cardsHtml += `
-          <div class="stat-card" style="display: flex; flex-direction: column; justify-content: space-between; padding: 18px; border-radius: 14px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); position: relative; border: 1px solid var(--border-subtle);">
+          <div class="stat-card" style="display: flex; flex-direction: column; justify-content: space-between; padding: 18px; border-radius: 14px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); position: relative; border: 1px solid var(--border-subtle); transition: border-color 0.2s, box-shadow 0.2s;" onmouseenter="this.style.borderColor='var(--color-brand)'; this.style.boxShadow='0 6px 30px rgba(168,85,247,0.2)';" onmouseleave="this.style.borderColor='var(--border-subtle)'; this.style.boxShadow='0 4px 20px rgba(0,0,0,0.2)';">
             <div>
               <div style="display: flex; gap: 14px; align-items: center; margin-bottom: 12px;">
                 ${avatarHtml}
@@ -3472,9 +3502,13 @@ function applyLanguage(lang) {
                   <div style="font-weight: 700; font-size: 0.95rem; color: var(--text-main);">${following}</div>
                   <div style="font-size: 0.7rem; color: var(--text-muted);">Takip</div>
                 </div>
-                <div>
+                <div style="border-right: 1px solid var(--border-subtle); padding: 0 12px;">
                   <div style="font-weight: 700; font-size: 0.95rem; color: var(--text-main);">${posts}</div>
                   <div style="font-size: 0.7rem; color: var(--text-muted);">Gönderi</div>
+                </div>
+                <div style="${engRate ? '' : 'display:none;'}">
+                  <div style="font-weight: 700; font-size: 0.95rem; color: #f59e0b;">${engRate}</div>
+                  <div style="font-size: 0.7rem; color: var(--text-muted);">Etk. Oranı</div>
                 </div>
               </div>
 
@@ -3488,7 +3522,7 @@ function applyLanguage(lang) {
             </div>
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; border-top: 1px solid var(--border-subtle); padding-top: 12px;">
-              <button class="btn btn-secondary" onclick="openInstagramProfile('${username}')" style="font-size: 0.8rem; font-weight: 600; padding: 7px 10px;" title="Instagram'da Aç">
+              <button class="btn btn-secondary" onclick="openInstagramProfile('${safeUser}')" style="font-size: 0.8rem; font-weight: 600; padding: 7px 10px;" title="Instagram'da Aç">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
                 Instagram'da Aç
               </button>
@@ -3498,12 +3532,14 @@ function applyLanguage(lang) {
                 CRM'e Aktar
               </button>
 
-              <button class="btn btn-secondary" onclick="openAnonymousViewerModal('${username}', ${idx})" style="font-size: 0.78rem; padding: 6px 8px;" title="Anonim Olarak Gönderi ve Profil İçeriklerini İncele">
-                📱 Anonim İncele
+              <button class="btn btn-secondary" onclick="openAnonymousViewerModal('${safeUser}', ${idx})" style="font-size: 0.78rem; padding: 6px 8px; display:flex;align-items:center;gap:4px;" title="Anonim Olarak Gönderi ve Profil İçeriklerini İncele">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                Anonim İncele
               </button>
 
-              <button class="btn btn-secondary" onclick="generateInstagramDmModal('${username}', ${idx})" style="font-size: 0.78rem; padding: 6px 8px;" title="Yapay Zeka ile DM Taslağı Hazırla">
-                ✨ AI DM Üret
+              <button class="btn btn-secondary" onclick="generateInstagramDmModal('${safeUser}', ${idx})" style="font-size: 0.78rem; padding: 6px 8px; display:flex;align-items:center;gap:4px;" title="Yapay Zeka ile DM Taslağı Hazırla">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                AI DM Üret
               </button>
             </div>
           </div>
@@ -3518,6 +3554,42 @@ function applyLanguage(lang) {
       const cleanU = username.replace("@", "").trim();
       const targetUrl = `https://www.instagram.com/${cleanU}/`;
       window.open(targetUrl, "_blank");
+    }
+
+    function resetInstagramSearch() {
+      const kw = document.getElementById("insta-search-keywords");
+      const un = document.getElementById("insta-search-username");
+      const loc = document.getElementById("insta-search-location");
+      const qf = document.getElementById("insta-quick-filter-input");
+      const lim = document.getElementById("insta-search-limit");
+      const counter = document.getElementById("insta-results-counter-lbl");
+      const container = document.getElementById("insta-results-container");
+      
+      if (kw) kw.value = "";
+      if (un) un.value = "";
+      if (loc) loc.value = "";
+      if (qf) qf.value = "";
+      if (lim) lim.value = "20";
+      currentInstagramResults = [];
+      
+      // Reset stats
+      ["insta-stat-total","insta-stat-emails","insta-stat-phones","insta-stat-verified"].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = "0";
+      });
+      if (counter) counter.textContent = "Toplam 0 profil gösteriliyor";
+      if (container) {
+        container.innerHTML = `<div style="text-align: center; padding: 40px; color: var(--text-muted); border: 2px dashed var(--border-subtle); border-radius: 12px;">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom: 12px; opacity: 0.5;"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
+          <p style="font-size: 1.1rem; font-weight: 600; margin-bottom: 6px;">Arama formu sıfırlandı</p>
+          <p style="font-size: 0.85rem; margin: 0;">Yeni arama yapmak için sektör ve anahtar kelimeleri girin.</p>
+        </div>`;
+      }
+      // Hide progress bar
+      const progressContainer = document.getElementById("insta-progress-container");
+      if (progressContainer) progressContainer.style.display = "none";
+      
+      showToast("Arama formu ve sonuçlar sıfırlandı.", "info");
     }
 
     async function importSingleInstagramToCrm(index) {
@@ -3564,49 +3636,164 @@ function applyLanguage(lang) {
 
     async function generateInstagramDmModal(username, index) {
       const profile = currentInstagramResults[index] || { username: username, bio: "", category: "" };
+      const cleanU = username.replace("@", "").trim();
 
+      // Show custom DM modal immediately with loading state
+      let dmModal = document.getElementById("modal-ai-dm-draft");
+      if (!dmModal) {
+        dmModal = document.createElement("div");
+        dmModal.id = "modal-ai-dm-draft";
+        dmModal.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:99999;backdrop-filter:blur(8px);";
+        dmModal.innerHTML = `
+          <div style="background:var(--bg-surface,#1a1e2e);border:1px solid var(--border-subtle,#2a2d3e);border-radius:18px;padding:28px 32px;max-width:620px;width:95%;box-shadow:0 20px 60px rgba(0,0,0,0.6);">
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--color-brand,#6366f1)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+              <div>
+                <div style="font-weight:700;font-size:1.05rem;color:var(--text-main,#e2e8f0);" id="dm-modal-title">AI DM Taslağı Oluşturuluyor...</div>
+                <div style="font-size:0.8rem;color:var(--text-muted,#8892b0);" id="dm-modal-subtitle">@${cleanU} için kişiselleştirilmiş mesaj</div>
+              </div>
+            </div>
+            <div id="dm-tone-selector" style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+              <button onclick="applyDmTone('professional')" id="dm-tone-professional" class="dm-tone-btn active" style="font-size:0.78rem;padding:5px 12px;border-radius:6px;border:1px solid var(--color-brand,#6366f1);background:var(--color-brand,#6366f1);color:white;cursor:pointer;font-weight:600;">Profesyonel</button>
+              <button onclick="applyDmTone('friendly')" id="dm-tone-friendly" class="dm-tone-btn" style="font-size:0.78rem;padding:5px 12px;border-radius:6px;border:1px solid var(--border-subtle,#2a2d3e);background:transparent;color:var(--text-muted,#8892b0);cursor:pointer;">Samimi</button>
+              <button onclick="applyDmTone('persuasive')" id="dm-tone-persuasive" class="dm-tone-btn" style="font-size:0.78rem;padding:5px 12px;border-radius:6px;border:1px solid var(--border-subtle,#2a2d3e);background:transparent;color:var(--text-muted,#8892b0);cursor:pointer;">İkna Edici</button>
+              <button onclick="applyDmTone('concise')" id="dm-tone-concise" class="dm-tone-btn" style="font-size:0.78rem;padding:5px 12px;border-radius:6px;border:1px solid var(--border-subtle,#2a2d3e);background:transparent;color:var(--text-muted,#8892b0);cursor:pointer;">Kısa & Net</button>
+            </div>
+            <div id="dm-loading-indicator" style="text-align:center;padding:30px;">
+              <div style="width:28px;height:28px;border:3px solid var(--border-subtle,#2a2d3e);border-top-color:var(--color-brand,#6366f1);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 12px;"></div>
+              <div style="color:var(--text-muted,#8892b0);font-size:0.85rem;">AI mesaj oluşturuluyor...</div>
+            </div>
+            <textarea id="dm-draft-textarea" style="display:none;width:100%;min-height:160px;background:rgba(0,0,0,0.3);border:1px solid var(--border-subtle,#2a2d3e);border-radius:10px;padding:14px;color:var(--text-main,#e2e8f0);font-size:0.88rem;font-family:inherit;line-height:1.6;resize:vertical;box-sizing:border-box;" readonly></textarea>
+            <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;">
+              <button onclick="closeDmModal()" style="padding:9px 20px;border-radius:8px;border:1px solid var(--border-subtle,#2a2d3e);background:transparent;color:var(--text-muted,#8892b0);cursor:pointer;font-size:0.85rem;">Kapat</button>
+              <button onclick="copyDmToClipboard()" id="dm-copy-btn" style="padding:9px 20px;border-radius:8px;border:none;background:var(--color-brand,#6366f1);color:white;cursor:pointer;font-size:0.85rem;font-weight:600;display:flex;align-items:center;gap:6px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                Panoya Kopyala
+              </button>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(dmModal);
+      } else {
+        dmModal.style.display = "flex";
+      }
+      
+      window._currentDmUsername = cleanU;
+      window._currentDmProfile = profile;
+      window._currentDmTone = 'professional';
+      
+      document.getElementById("dm-modal-title").textContent = "AI DM Taslağı Oluşturuluyor...";
+      document.getElementById("dm-loading-indicator").style.display = "block";
+      document.getElementById("dm-draft-textarea").style.display = "none";
+      
       try {
-        let dmText = "";
-        if (window.pywebview && window.pywebview.api) {
-          const res = await window.pywebview.api.generate_instagram_dm_draft(
-            profile.username,
-            profile.bio || "",
-            profile.category || ""
-          );
-          if (res && res.success) {
-            dmText = res.dm_draft;
-          }
-        }
-
-        if (!dmText) {
-          dmText = `Merhaba @${username},\n\nInstagram sayfanızdaki harika içeriklerinizi ve çalışmalarınızı inceledik.\nİşletmeniz için müşteri kazanımını artıracak ve satışlarınızı büyütecek özel çözümler sunuyoruz.\nDetayları görüşmek ister misiniz?\n\nSaygılarımızla,`;
-        }
-
-        const userAction = prompt(`@${username} için oluşturulan Instagram DM / İlk İletişim Taslağı:\n(Kopyalamak için Ctrl+C tuşlayın)`, dmText);
-        if (userAction !== null) {
-          showToast("DM metni kopyalanmaya hazır!", "info");
-        }
+        await _loadDmForTone('professional');
       } catch (err) {
-        showToast("DM oluşturma hatası: " + err.message, "error");
+        document.getElementById("dm-loading-indicator").style.display = "none";
+        document.getElementById("dm-draft-textarea").style.display = "block";
+        document.getElementById("dm-draft-textarea").value = `Merhaba @${cleanU},\n\nInstagram sayfanızdaki çalışmalarınızı büyük ilgiyle inceledik. İşletmeniz için dijital dönüşüm ve büyüme çözümleri sunmak istiyoruz. Uygun bir zaman belirleyerek görüşebiliriz.\n\nSaygılarımızla,`;
+        document.getElementById("dm-modal-title").textContent = "DM Taslağı Hazır";
       }
     }
 
+    async function _loadDmForTone(tone) {
+      const cleanU = window._currentDmUsername || "";
+      const profile = window._currentDmProfile || {};
+      
+      document.getElementById("dm-loading-indicator").style.display = "block";
+      document.getElementById("dm-draft-textarea").style.display = "none";
+      
+      let dmText = "";
+      if (window.pywebview && window.pywebview.api) {
+        const res = await window.pywebview.api.generate_instagram_dm_draft(
+          profile.username || cleanU,
+          profile.bio || "",
+          profile.category || "",
+          tone,
+          "digital_transformation"
+        );
+        if (res && res.success) {
+          dmText = res.dm_draft;
+        }
+      }
+      if (!dmText) {
+        dmText = `Merhaba @${cleanU},\n\nInstagram sayfanızdaki çalışmalarınızı büyük ilgiyle inceledik. İşletmeniz için dijital dönüşüm ve büyüme çözümleri sunmak istiyoruz. Uygun bir zaman belirleyerek görüşebiliriz.\n\nSaygılarımızla,`;
+      }
+      
+      document.getElementById("dm-loading-indicator").style.display = "none";
+      document.getElementById("dm-draft-textarea").style.display = "block";
+      document.getElementById("dm-draft-textarea").value = dmText;
+      document.getElementById("dm-modal-title").textContent = `@${cleanU} — DM Taslağı Hazır`;
+    }
+
+    async function applyDmTone(tone) {
+      window._currentDmTone = tone;
+      // Update button styles
+      document.querySelectorAll(".dm-tone-btn").forEach(btn => {
+        btn.style.background = "transparent";
+        btn.style.color = "var(--text-muted,#8892b0)";
+        btn.style.borderColor = "var(--border-subtle,#2a2d3e)";
+      });
+      const activeBtn = document.getElementById(`dm-tone-${tone}`);
+      if (activeBtn) {
+        activeBtn.style.background = "var(--color-brand,#6366f1)";
+        activeBtn.style.color = "white";
+        activeBtn.style.borderColor = "var(--color-brand,#6366f1)";
+      }
+      await _loadDmForTone(tone);
+    }
+
+    function copyDmToClipboard() {
+      const ta = document.getElementById("dm-draft-textarea");
+      if (!ta || !ta.value) return;
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(ta.value).then(() => {
+          showToast("DM metni panoya kopyalandı!", "success");
+        }).catch(() => {
+          ta.select();
+          document.execCommand("copy");
+          showToast("DM metni kopyalandı!", "success");
+        });
+      } else {
+        ta.select();
+        document.execCommand("copy");
+        showToast("DM metni kopyalandı!", "success");
+      }
+    }
+
+    function closeDmModal() {
+      const m = document.getElementById("modal-ai-dm-draft");
+      if (m) m.style.display = "none";
+    }
+
     let currentZoomPicUrl = "";
+    let currentZoomHdUrl = "";
     let currentZoomUsername = "";
 
-    function zoomProfilePic(picUrl, username) {
+    function zoomProfilePic(picUrl, username, hdUrl) {
       currentZoomUsername = username ? username.replace("@", "").trim() : "profil";
-      currentZoomPicUrl = picUrl || `https://www.instagram.com/${currentZoomUsername}/`;
+      currentZoomHdUrl = hdUrl || picUrl || `https://unavatar.io/instagram/${currentZoomUsername}?size=400`;
+      currentZoomPicUrl = picUrl || `https://unavatar.io/instagram/${currentZoomUsername}`;
 
       const modal = document.getElementById("modal-profile-pic-zoom");
       const img = document.getElementById("zoom-modal-img");
       const title = document.getElementById("zoom-modal-username");
 
-      if (title) title.innerText = `@${currentZoomUsername} HD Profil Fotoğrafı`;
+      if (title) title.innerText = `@${currentZoomUsername} — HD Profil Fotoğrafı`;
       if (img) {
-        img.src = picUrl || `https://unavatar.io/instagram/${currentZoomUsername}`;
+        img.src = currentZoomHdUrl || currentZoomPicUrl || `https://unavatar.io/instagram/${currentZoomUsername}?size=400`;
+        img.onerror = function() { this.src = `https://unavatar.io/instagram/${currentZoomUsername}`; };
       }
-      if (modal) modal.style.display = "flex";
+      if (modal) {
+        modal.style.display = "flex";
+        // Also set right-click download on the image
+        if (img) {
+          img.oncontextmenu = function(e) {
+            // Show a native right-click; also trigger download hint
+            return true;
+          };
+        }
+      }
     }
 
     function closeProfilePicZoom() {
@@ -3615,8 +3802,8 @@ function applyLanguage(lang) {
     }
 
     function downloadProfilePicHd() {
-      if (!currentZoomPicUrl && !currentZoomUsername) return;
-      const targetUrl = currentZoomPicUrl || `https://unavatar.io/instagram/${currentZoomUsername}`;
+      const targetUrl = currentZoomHdUrl || currentZoomPicUrl || `https://unavatar.io/instagram/${currentZoomUsername}?size=400`;
+      if (!targetUrl) return;
       const a = document.createElement("a");
       a.href = targetUrl;
       a.download = `${currentZoomUsername}_hd_avatar.jpg`;
@@ -3624,7 +3811,7 @@ function applyLanguage(lang) {
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      showToast("HD profil fotoğrafı indirme bağlantısı açıldı (Sağ tık -> Farklı Kaydet).", "success");
+      showToast("HD profil fotoğrafı indirildi (Sağ tık → Farklı Kaydet ile de indirebilirsiniz).", "success");
     }
 
     async function openAnonymousViewerModal(username, index) {
@@ -3638,65 +3825,117 @@ function applyLanguage(lang) {
       const badge = document.getElementById("anon-view-story-badge");
 
       const profile = (currentInstagramResults && currentInstagramResults[index]) || { username: username };
-      const cleanU = username.replace("@", "").trim();
+      const cleanU = (username || "").replace("@", "").trim();
 
+      if (!cleanU) {
+        showToast("Geçerli bir kullanıcı adı girilmedi.", "error");
+        return;
+      }
+
+      // Pre-fill with known data immediately
       if (handleEl) handleEl.innerText = `@${cleanU}`;
       if (nameEl) nameEl.innerText = profile.full_name || cleanU;
-      if (statsEl) statsEl.innerText = `👥 ${profile.followers || 'N/A'} Takipçi  |  📸 ${profile.posts || 'N/A'} Gönderi  |  🟢 ${profile.last_active || 'Aktif'}`;
+      if (statsEl) statsEl.innerHTML = [
+        profile.followers ? `<span style="margin-right:12px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:3px;vertical-align:middle;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>${profile.followers} Takipçi</span>` : "",
+        profile.posts ? `<span style="margin-right:12px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:3px;vertical-align:middle;"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>${profile.posts} Gönderi</span>` : "",
+        profile.last_active ? `<span style="color:var(--color-success,#22c55e);">${profile.last_active}</span>` : ""
+      ].filter(Boolean).join("");
       if (bioEl) bioEl.innerText = profile.bio || "Profil açıklaması bulunmuyor.";
-      if (avatar) avatar.src = profile.profile_pic_url || `https://unavatar.io/instagram/${cleanU}`;
+      if (avatar) {
+        avatar.src = profile.profile_pic_url || `https://unavatar.io/instagram/${cleanU}`;
+        avatar.onerror = function() { this.src = `https://ui-avatars.com/api/?name=${cleanU}&background=6366f1&color=fff&size=128`; };
+        avatar.style.cursor = "pointer";
+        avatar.onclick = function() { zoomProfilePic(this.src, cleanU, profile.profile_pic_hd_url || this.src); };
+      }
+      if (badge) badge.style.display = "none";
 
       if (grid) {
-        grid.innerHTML = `<div style="grid-column: 1 / -1; text-align: center; padding: 20px;"><div class="spinner-border spinner-border-sm text-primary"></div> Gönderiler ve galeri çekiliyor...</div>`;
+        grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:30px 20px;">
+          <div style="width:24px;height:24px;border:3px solid var(--border-subtle,#2a2d3e);border-top-color:var(--color-brand,#6366f1);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 10px;"></div>
+          <div style="color:var(--text-muted);font-size:0.85rem;">Gönderiler ve galeri yükleniyor... (@${cleanU})</div>
+        </div>`;
       }
 
       if (modal) modal.style.display = "flex";
 
       try {
         let details = null;
+        
         if (window.pywebview && window.pywebview.api) {
-          details = await window.pywebview.api.fetch_anonymous_instagram_details(cleanU);
+          // Timeout wrapper — 30 seconds max
+          const fetchPromise = window.pywebview.api.fetch_anonymous_instagram_details(cleanU);
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error("Zaman aşımı: İçerik 30 saniyede yüklenemedi.")), 30000)
+          );
+          details = await Promise.race([fetchPromise, timeoutPromise]);
         } else {
+          // Demo mode fallback
           details = {
             success: true,
-            has_active_story: true,
-            posts: [
-              { id: "p1", image_url: profile.profile_pic_url, caption: profile.bio || "Örnek Gönderi #1" }
-            ]
+            has_active_story: profile.last_active_raw > 85,
+            posts: profile.profile_pic_url ? [
+              { id: "demo_1", image_url: profile.profile_pic_url, caption: profile.bio || "Profil özeti", post_url: `https://www.instagram.com/${cleanU}/` }
+            ] : []
           };
         }
 
-        if (badge && details && details.has_active_story) {
+        if (!details || details.success === false) {
+          throw new Error(details ? (details.error || "Bilinmeyen hata") : "Veri alınamadı");
+        }
+
+        // Story badge
+        if (badge && details.has_active_story) {
           badge.style.display = "block";
-        } else if (badge) {
-          badge.style.display = "none";
         }
 
         if (grid) {
-          if (details && details.posts && details.posts.length > 0) {
+          const posts = details.posts || [];
+          if (posts.length > 0) {
             let postsHtml = "";
-            details.posts.forEach(post => {
-              const imgSrc = post.image_url || profile.profile_pic_url || "https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=300&q=80";
+            posts.forEach(post => {
+              const imgSrc = post.image_url || profile.profile_pic_url || `https://ui-avatars.com/api/?name=${cleanU}&background=6366f1&color=fff&size=300`;
+              const escapedSrc = imgSrc.replace(/"/g, '&quot;').replace(/'/g, '\'');
+              const escapedCaption = (post.caption || "").replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
               postsHtml += `
-                <div style="background: rgba(0,0,0,0.3); border-radius: 12px; overflow: hidden; border: 1px solid var(--border-subtle); display: flex; flex-direction: column;">
-                  <img src="${imgSrc}" alt="${post.caption || 'Gönderi'}" style="width: 100%; height: 180px; object-fit: cover; cursor: pointer;" onclick="zoomProfilePic('${imgSrc}', '${cleanU}')" onerror="this.src='https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=300&q=80';">
-                  <div style="padding: 8px 10px; font-size: 0.75rem; color: var(--text-muted); line-height: 1.35; flex: 1;">
-                    ${post.caption || 'Açıklama yok'}
+                <div style="background:rgba(0,0,0,0.3);border-radius:12px;overflow:hidden;border:1px solid var(--border-subtle);display:flex;flex-direction:column;">
+                  <div style="position:relative;overflow:hidden;">
+                    <img src="${escapedSrc}" alt="${escapedCaption || 'Gönderi'}" loading="lazy"
+                      style="width:100%;height:180px;object-fit:cover;cursor:pointer;transition:transform 0.2s;"
+                      onmouseover="this.style.transform='scale(1.03)'"
+                      onmouseout="this.style.transform='scale(1)'"
+                      onclick="zoomProfilePic('${escapedSrc}', '${cleanU}')"
+                      onerror="this.src='https://ui-avatars.com/api/?name=${cleanU}&background=6366f1&color=fff&size=300';">
                   </div>
-                  <div style="padding: 6px 10px; border-top: 1px solid var(--border-subtle); display: flex; justify-content: space-between;">
-                    <a href="${post.image_url || imgSrc}" target="_blank" download style="font-size: 0.72rem; color: var(--color-brand); text-decoration: none; font-weight: 600;">📥 Fotoğrafı İndir</a>
-                    <a href="https://www.instagram.com/${cleanU}/" target="_blank" style="font-size: 0.72rem; color: var(--text-muted); text-decoration: none;">Instagram'da Gör ➔</a>
+                  <div style="padding:8px 10px;font-size:0.75rem;color:var(--text-muted);line-height:1.35;flex:1;">${escapedCaption || 'Açıklama yok'}</div>
+                  <div style="padding:6px 10px;border-top:1px solid var(--border-subtle);display:flex;justify-content:space-between;align-items:center;">
+                    <a href="${post.image_url || imgSrc}" target="_blank" style="font-size:0.72rem;color:var(--color-brand);text-decoration:none;font-weight:600;display:flex;align-items:center;gap:3px;">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                      İndir
+                    </a>
+                    <a href="${post.post_url || `https://www.instagram.com/${cleanU}/`}" target="_blank" style="font-size:0.72rem;color:var(--text-muted);text-decoration:none;display:flex;align-items:center;gap:3px;">
+                      Instagram'da Gör
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                    </a>
                   </div>
                 </div>
               `;
             });
             grid.innerHTML = postsHtml;
           } else {
-            grid.innerHTML = `<div style="grid-column: 1 / -1; text-align: center; color: var(--text-muted); padding: 20px;">Açık medya içeriği bulunamadı.</div>`;
+            grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;color:var(--text-muted);padding:30px;">
+              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity:0.4;margin-bottom:10px;"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              <div style="font-size:0.85rem;">Bu hesabın açık gönderi içeriğine erişilemedi.<br><a href="https://www.instagram.com/${cleanU}/" target="_blank" style="color:var(--color-brand);">Instagram'da görüntüle</a></div>
+            </div>`;
           }
         }
       } catch (err) {
-        if (grid) grid.innerHTML = `<div style="grid-column: 1 / -1; text-align: center; color: var(--color-danger); padding: 20px;">İçerik yükleme hatası: ${err.message}</div>`;
+        if (grid) {
+          grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;color:var(--color-danger,#ef4444);padding:24px;">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity:0.6;margin-bottom:10px;"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+            <div style="font-size:0.85rem;margin-bottom:8px;">${err.message || 'İçerik yükleme hatası'}</div>
+            <a href="https://www.instagram.com/${cleanU}/" target="_blank" style="color:var(--color-brand);font-size:0.82rem;">Instagram profilini görüntüle</a>
+          </div>`;
+        }
       }
     }
 
@@ -3711,6 +3950,36 @@ function applyLanguage(lang) {
         keywordsInput.value = `${category || username} benzeri`;
       }
       searchInstagramProfiles();
+    }
+
+    function quickFilterInstagramResults() {
+      const filterInput = document.getElementById("insta-quick-filter-input");
+      const q = filterInput ? filterInput.value.trim().toLowerCase() : "";
+      const counterLbl = document.getElementById("insta-results-counter-lbl");
+
+      if (!currentInstagramResults || currentInstagramResults.length === 0) return;
+
+      const filtered = q
+        ? currentInstagramResults.filter(p => {
+            return (
+              (p.username || "").toLowerCase().includes(q) ||
+              (p.full_name || "").toLowerCase().includes(q) ||
+              (p.bio || "").toLowerCase().includes(q) ||
+              (p.category || "").toLowerCase().includes(q) ||
+              (p.email || "").toLowerCase().includes(q) ||
+              (p.phone || "").toLowerCase().includes(q) ||
+              (p.website || "").toLowerCase().includes(q) ||
+              (p.linktree_url || "").toLowerCase().includes(q)
+            );
+          })
+        : currentInstagramResults;
+
+      renderInstagramProfiles(filtered);
+      if (counterLbl) {
+        counterLbl.innerText = q
+          ? `${filtered.length} / ${currentInstagramResults.length} profil gösteriliyor (filtreli)`
+          : `Toplam ${filtered.length} profil gösteriliyor`;
+      }
     }
 
     async function exportInstagramResults(format) {
@@ -9389,7 +9658,9 @@ function handleThemeChange(theme) {
             <p id="dm-modal-subtitle" style="margin: 2px 0 0; font-size: 0.8rem; color: var(--text-muted);">Yapay Zeka Otomatik İletişim &amp; Satış DM Taslağı</p>
           </div>
         </div>
-        <button onclick="closeInstaDmModal()" style="background: rgba(255,255,255,0.08); border: none; color: var(--text-muted); width: 32px; height: 32px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1rem;">✕</button>
+        <button onclick="closeInstaDmModal()" style="background: rgba(255,255,255,0.08); border: none; color: var(--text-muted); width: 32px; height: 32px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1rem;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
       </div>
 
       <!-- Tone & Goal Controls -->
@@ -9420,7 +9691,7 @@ function handleThemeChange(theme) {
         <textarea id="dm-modal-textarea" class="form-control" rows="7" style="width: 100%; font-family: inherit; font-size: 0.9rem; line-height: 1.5; padding: 12px; border-radius: 10px; resize: vertical; box-sizing: border-box; background: rgba(0,0,0,0.3); border: 1px solid var(--border-subtle); color: var(--text-main);"></textarea>
         <div style="display: flex; justify-content: space-between; margin-top: 6px; font-size: 0.75rem; color: var(--text-muted);">
           <span id="dm-modal-counter">0 kelime / 0 karakter</span>
-          <span style="color: #10b981;">✅ AI Satış Şablonu Hazır</span>
+          <span style="color: #10b981;">AI Satış Şablonu Hazır</span>
         </div>
       </div>
 

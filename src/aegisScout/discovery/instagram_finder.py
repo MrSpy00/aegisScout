@@ -1,9 +1,11 @@
 import asyncio
 import base64
+import json
 import re
 import unicodedata
 import urllib.parse
-from typing import Dict, List, Optional, Set
+import random
+from typing import Dict, List, Optional, Set, Tuple
 import httpx
 from bs4 import BeautifulSoup
 
@@ -16,14 +18,31 @@ IGNORED_HANDLES = {
     "p", "tv", "reel", "reels", "explore", "developer", "about", "tags",
     "legal", "terms", "privacy", "accounts", "directory", "stories",
     "challenge", "api", "static", "embed", "login", "create", "press", "jobs",
-    "instagram", "facebook", "twitter", "youtube", "tiktok", "whatsapp", "help"
+    "instagram", "facebook", "twitter", "youtube", "tiktok", "whatsapp", "help",
+    "web", "search", "home", "direct", "notifications", "settings", "accounts",
+    "graphql", "favicon", "manifest", "sw", "null", "undefined", "true", "false",
 }
 
 TURKEY_MAJOR_CITIES = [
     "", "istanbul", "ankara", "izmir", "bursa", "antalya", "adana",
     "gaziantep", "konya", "kocaeli", "mersin", "diyarbakir", "kayseri",
-    "eskisehir", "sanliurfa", "samsun", "denizli", "sakarya", "trabzon"
+    "eskisehir", "sanliurfa", "samsun", "denizli", "sakarya", "trabzon",
+    "malatya", "erzurum", "gebze", "kahramanmaras", "van", "batman",
+    "tekirdag", "balikesir", "manisa", "hatay", "sivas"
 ]
+
+# Rotating user agents — multi-platform simulation
+_USER_AGENTS = [
+    "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
+    "Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1",
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Instagram 322.0.0.16.115",
+    "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)",
+]
+
+_IG_APP_IDS = ["936619743392459", "1217981644879628", "195745249747", "124024574287414"]
 
 
 def _slugify_tr(text: str) -> str:
@@ -78,8 +97,8 @@ def _extract_handles_from_content(text_content: str) -> Set[str]:
 
     direct_matches = re.findall(r"instagram\.com/([a-zA-Z0-9_.-]{3,30})", text_content, re.IGNORECASE)
     for m in direct_matches:
-        h = m.strip().lower()
-        if h not in IGNORED_HANDLES and not h.isdigit():
+        h = m.strip().lower().rstrip("/").split("?")[0]
+        if h and h not in IGNORED_HANDLES and not h.isdigit() and len(h) >= 3:
             handles.add(h)
 
     at_matches = re.findall(r"@([a-zA-Z0-9_.-]{3,30})", text_content)
@@ -117,6 +136,20 @@ def _extract_handles_from_content(text_content: str) -> Set[str]:
     return handles
 
 
+def _parse_count(text: str) -> int:
+    if not text:
+        return 0
+    text = str(text).replace(",", ".").strip().upper()
+    try:
+        if "M" in text:
+            return int(float(text.replace("M", "")) * 1_000_000)
+        if "K" in text or "B" in text:
+            return int(float(text.replace("K", "").replace("B", "")) * 1_000)
+        return int(float(text))
+    except (ValueError, OverflowError):
+        return 0
+
+
 SECTOR_SYNONYMS_MAP = {
     "kuaför": [
         "kuafor", "berber", "guzellik", "guzelliksalonu", "hair", "hairstylist",
@@ -143,20 +176,37 @@ SECTOR_SYNONYMS_MAP = {
     "restoran": [
         "restoran", "restaurant", "kafe", "cafe", "lokanta", "bistro", "pastane",
         "lezzet", "gastronomi", "kitchen", "food"
-    ]
+    ],
+    "doktor": [
+        "doktor", "hekim", "klinik", "hastane", "saglik", "tip", "medical",
+        "clinic", "doctor", "physician"
+    ],
+    "emlak": [
+        "emlak", "gayrimenkul", "kiralik", "satilik", "daire", "konut",
+        "real_estate", "property", "ev"
+    ],
 }
 
 
 class InstagramFinder:
     """
-    Advanced 5-Layer Hybrid Instagram Profile Finder & OSINT Engine.
-    Generates 3000+ candidate handles across Turkish sectors, harvests from directory providers,
-    and extracts unredacted profile metadata using Googlebot & Bingbot headers.
+    Advanced 7-Layer Hybrid Instagram Profile Finder & OSINT Engine.
+    
+    Layers:
+    1. Universal Dynamic Handle Generator (AI-powered slug engine)
+    2. Real Instagram Search API (anonim topsearch endpoint)
+    3. Google/Bing/DDG Search Engine Harvesting
+    4. Directory Provider Integration (bulurum, haritane, etc.)
+    5. Google Autocomplete Suggestion Expansion
+    6. High-Concurrency Profile Detail Extraction (Googlebot + Bingbot + Embed)
+    7. 3rd-Party Instagram Parser Fallback (picuki, imginn, etc.)
     """
+
     def __init__(self):
         self.api_key = settings.google_custom_search_api_key
         self.cx = settings.google_custom_search_cx
-        self.browser_headers = {
+
+        self.googlebot_headers = {
             "User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
             "Accept-Language": "tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7",
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
@@ -164,53 +214,733 @@ class InstagramFinder:
         self.bingbot_headers = {
             "User-Agent": "Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)",
             "Accept-Language": "tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         }
-        self.instagram_api_headers = {
+        self.browser_headers = self.googlebot_headers
+
+        # iPhone IG app headers (for topsearch API)
+        self.ig_iphone_headers = {
             "User-Agent": (
-                "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) "
-                "AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Instagram 320.0.0.16.117"
+                "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4_1 like Mac OS X) "
+                "AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 "
+                "Instagram 334.0.0.23.111"
             ),
-            "X-IG-App-ID": "936619743392459",
+            "X-IG-App-ID": random.choice(_IG_APP_IDS),
+            "X-IG-WWW-Claim": "0",
+            "X-Requested-With": "XMLHttpRequest",
             "Accept": "*/*",
+            "Accept-Language": "tr-TR,tr;q=0.9,en-US;q=0.8",
         }
 
-    async def find_instagram(self, business_name: str, location: str) -> Optional[str]:
-        """Legacy helper: find a single handle by business name & location."""
-        clean_loc = _clean_location_for_search(location)
-        clean_bname = (business_name or "").replace('"', '').replace("'", "").strip()
+        # Android IG headers (for search API variant)
+        self.ig_android_headers = {
+            "User-Agent": (
+                "Instagram 295.0.0.32.119 Android (31/12; 420dpi; 1080x2190; "
+                "Google/Google; Pixel 5; redfin; google; en_TR; 508052647)"
+            ),
+            "X-IG-App-ID": random.choice(_IG_APP_IDS),
+            "Accept": "*/*",
+            "Accept-Language": "tr-TR,tr;q=0.9,en-US;q=0.8",
+        }
 
-        if self.api_key and self.cx:
-            query = f'site:instagram.com "{clean_bname}" {clean_loc}'.strip()
-            url = "https://customsearch.googleapis.com/customsearch/v1"
-            params = {"key": self.api_key, "cx": self.cx, "q": query, "num": 3}
+        # Connection limits for high concurrency
+        self._limits = httpx.Limits(
+            max_connections=200,
+            max_keepalive_connections=100,
+            keepalive_expiry=10.0
+        )
+
+    # ===================================================================
+    # LAYER 2: Real Instagram Search API (Anonymous)
+    # ===================================================================
+
+    async def _instagram_topsearch(self, query: str) -> List[Dict]:
+        """
+        Query Instagram's internal topsearch API anonymously (no login required).
+        Returns list of profile dicts with username, full_name, profile_pic_url.
+        """
+        results = []
+        endpoints = [
+            # Instagram web topsearch (no auth needed for public results)
+            f"https://www.instagram.com/web/search/topsearch/?context=blended&query={urllib.parse.quote(query)}&rank_token=0",
+            # Alternative Instagram search endpoint
+            f"https://www.instagram.com/api/v1/users/search/?q={urllib.parse.quote(query)}&count=30",
+        ]
+        
+        for endpoint in endpoints:
+            for ua_headers in [self.ig_iphone_headers, self.ig_android_headers, self.googlebot_headers]:
+                try:
+                    async with httpx.AsyncClient(
+                        timeout=6.0,
+                        follow_redirects=True,
+                        limits=self._limits,
+                        headers=ua_headers
+                    ) as client:
+                        resp = await client.get(endpoint)
+                        if resp.status_code == 200:
+                            try:
+                                data = resp.json()
+                                users = (
+                                    data.get("users", []) or
+                                    data.get("user", {}).get("items", []) or
+                                    []
+                                )
+                                for item in users:
+                                    user = item.get("user") or item
+                                    if isinstance(user, dict):
+                                        uname = user.get("username", "")
+                                        if uname and uname not in IGNORED_HANDLES:
+                                            results.append({
+                                                "username": uname.lower(),
+                                                "full_name": user.get("full_name", ""),
+                                                "profile_pic_url": user.get("profile_pic_url", ""),
+                                                "is_verified": user.get("is_verified", False),
+                                                "is_business": user.get("is_business", False),
+                                                "follower_count": user.get("follower_count", 0),
+                                            })
+                                if results:
+                                    return results
+                            except Exception:
+                                pass
+                except Exception:
+                    pass
+            if results:
+                break
+        return results
+
+    # ===================================================================
+    # LAYER 6 + 7: Profile Detail Extraction
+    # ===================================================================
+
+    async def fetch_profile_details(self, username: str, target_sector: str = "") -> Dict:
+        """
+        Extract rich unredacted metadata for a single Instagram profile.
+        Multi-tier fallback: web_profile_info API → Googlebot → Bingbot → Embed → 3rd-party parsers.
+        Calculates Engagement Rate (%) and Last Activity indicators.
+        """
+        clean_user = username.strip().lower().replace("@", "")
+        if not clean_user or clean_user in IGNORED_HANDLES:
+            return {}
+
+        default_data = {
+            "username": clean_user,
+            "full_name": clean_user.replace("_", " ").title(),
+            "profile_url": f"https://www.instagram.com/{clean_user}/",
+            "profile_pic_url": f"https://unavatar.io/instagram/{clean_user}",
+            "profile_pic_hd_url": f"https://unavatar.io/instagram/{clean_user}?size=400",
+            "bio": "",
+            "followers": "N/A",
+            "followers_raw": 0,
+            "following": "N/A",
+            "posts": "N/A",
+            "is_verified": False,
+            "is_business": bool(target_sector),
+            "category": target_sector or "Kişisel Profil",
+            "email": None,
+            "phone": None,
+            "whatsapp_link": None,
+            "website": None,
+            "linktree_url": None,
+            "relevance_score": 75 if target_sector else 60,
+            "engagement_rate": "N/A",
+            "last_active": "Profil Mevcut",
+            "last_active_raw": 60,
+            "posts_preview": [],
+            "has_story": False,
+        }
+
+        fetched_html = ""
+        page_url = f"https://www.instagram.com/{clean_user}/"
+
+        # Tier 0: Instagram public web_profile_info JSON API endpoint
+        try:
+            web_info_url = f"https://www.instagram.com/api/v1/users/web_profile_info/?username={clean_user}"
+            async with httpx.AsyncClient(
+                timeout=5.0,
+                follow_redirects=True,
+                limits=self._limits,
+                headers={
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                    "x-ig-app-id": "936619743392459",
+                    "Accept": "*/*",
+                    "Accept-Language": "tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7",
+                }
+            ) as client:
+                resp = await client.get(web_info_url)
+                if resp.status_code == 200:
+                    res_json = resp.json()
+                    user_data = res_json.get("data", {}).get("user")
+                    if user_data:
+                        bio = user_data.get("biography") or ""
+                        default_data["bio"] = bio[:500]
+                        if user_data.get("full_name"):
+                            default_data["full_name"] = user_data["full_name"]
+                        default_data["is_verified"] = bool(user_data.get("is_verified", False))
+                        default_data["is_business"] = bool(user_data.get("is_business_account", False))
+                        if user_data.get("category_name"):
+                            default_data["category"] = user_data.get("category_name")
+                        elif default_data["is_business"]:
+                            default_data["category"] = target_sector or "İşletme / Hizmet"
+                        else:
+                            default_data["category"] = "Kişisel Profil"
+
+                        hd_pic = user_data.get("profile_pic_url_hd") or user_data.get("profile_pic_url")
+                        if hd_pic:
+                            default_data["profile_pic_url"] = hd_pic
+                            default_data["profile_pic_hd_url"] = hd_pic
+
+                        f_count = user_data.get("edge_followed_by", {}).get("count", 0)
+                        f_ing = user_data.get("edge_follow", {}).get("count", 0)
+                        p_cnt = user_data.get("edge_owner_to_timeline_media", {}).get("count", 0)
+
+                        default_data["followers_raw"] = f_count
+                        default_data["followers"] = _format_count_human(f_count) if f_count else "N/A"
+                        default_data["following"] = _format_count_human(f_ing) if f_ing else "N/A"
+                        default_data["posts"] = _format_count_human(p_cnt) if p_cnt else "0"
+
+                        if bio:
+                            default_data["phone"] = self._extract_phone(bio)
+                            default_data["whatsapp_link"] = self._extract_whatsapp_link(bio)
+                            default_data["email"] = self._extract_email(bio)
+                            default_data["website"] = self._extract_website(bio)
+
+                        edges = user_data.get("edge_owner_to_timeline_media", {}).get("edges", [])
+                        posts_prev = []
+                        for edge in edges[:12]:
+                            node = edge.get("node", {})
+                            cap_edges = node.get("edge_media_to_caption", {}).get("edges", [])
+                            cap_text = cap_edges[0]["node"]["text"] if cap_edges else ""
+                            shortcode = node.get("shortcode", "")
+                            posts_prev.append({
+                                "id": node.get("id") or shortcode,
+                                "image_url": node.get("display_url") or node.get("thumbnail_src"),
+                                "caption": cap_text[:180],
+                                "post_url": f"https://www.instagram.com/p/{shortcode}/" if shortcode else f"https://www.instagram.com/{clean_user}/",
+                                "is_video": node.get("is_video", False)
+                            })
+                        default_data["posts_preview"] = posts_prev
+                        if posts_prev:
+                            default_data["last_active"] = "🟢 Aktif Profil (Gönderileri Mevcut)"
+                            default_data["last_active_raw"] = 95
+        except Exception as e:
+            logger.debug(f"Tier 0 web_profile_info notice for @{clean_user}: {e}")
+
+        # Tier 1: Googlebot → Bingbot → Facebook bot
+        for headers in [self.googlebot_headers, self.bingbot_headers]:
+            if fetched_html or default_data.get("posts_preview"):
+                break
             try:
-                async with httpx.AsyncClient(timeout=10.0) as client:
-                    response = await client.get(url, params=params)
-                    if response.status_code == 200:
-                        data = response.json()
-                        for item in data.get("items", []):
-                            link = item.get("link", "")
-                            if "instagram.com" in link:
-                                parts = link.split("instagram.com/")
-                                if len(parts) > 1:
-                                    handle_part = parts[1].split("/")[0].split("?")[0].strip().replace("@", "")
-                                    if handle_part and handle_part.lower() not in IGNORED_HANDLES:
-                                        return handle_part.lower()
+                async with httpx.AsyncClient(
+                    timeout=5.0,
+                    follow_redirects=True,
+                    limits=self._limits,
+                    headers=headers
+                ) as client:
+                    resp = await client.get(page_url)
+                    if resp.status_code == 200 and len(resp.text) > 500:
+                        fetched_html = resp.text
             except Exception as e:
-                logger.error(f"Error calling Google Custom Search API: {e}")
+                logger.debug(f"Profile fetch tier {headers.get('User-Agent', '')[:30]} notice @{clean_user}: {e}")
 
-        handle = await self._search_ddg_instagram(clean_bname, clean_loc)
-        if handle:
-            return handle
+        # Tier 2: /embed/ endpoint
+        if not fetched_html and not default_data.get("posts_preview"):
+            try:
+                embed_url = f"https://www.instagram.com/{clean_user}/embed/"
+                async with httpx.AsyncClient(
+                    timeout=5.0,
+                    follow_redirects=True,
+                    limits=self._limits,
+                    headers=self.googlebot_headers
+                ) as client:
+                    resp = await client.get(embed_url)
+                    if resp.status_code == 200 and len(resp.text) > 300:
+                        fetched_html = resp.text
+            except Exception:
+                pass
 
-        return await self._search_bing_instagram(clean_bname, clean_loc)
+        # Tier 3: Picuki public parser (3rd party, no login needed)
+        if not fetched_html and not default_data.get("posts_preview"):
+            try:
+                picuki_url = f"https://www.picuki.com/profile/{clean_user}"
+                async with httpx.AsyncClient(
+                    timeout=5.0,
+                    follow_redirects=True,
+                    headers={
+                        "User-Agent": random.choice(_USER_AGENTS),
+                        "Accept-Language": "en-US,en;q=0.9",
+                    }
+                ) as client:
+                    resp = await client.get(picuki_url)
+                    if resp.status_code == 200 and len(resp.text) > 500:
+                        fetched_html = resp.text
+            except Exception:
+                pass
+
+        # Parse whatever HTML we got
+        if fetched_html:
+            soup = BeautifulSoup(fetched_html, "html.parser")
+
+            # Profile picture
+            og_image = soup.find("meta", property="og:image")
+            if og_image and og_image.get("content"):
+                pic = og_image["content"]
+                if pic and "cdninstagram" in pic or "fbcdn" in pic:
+                    default_data["profile_pic_url"] = pic
+                    default_data["profile_pic_hd_url"] = pic
+
+            # Full name
+            og_title = soup.find("meta", property="og:title")
+            if og_title and og_title.get("content"):
+                title_val = og_title["content"]
+                name_match = re.search(r"^(.*?)\s*\(@", title_val)
+                if name_match:
+                    default_data["full_name"] = name_match.group(1).strip()
+                else:
+                    default_data["full_name"] = title_val.split("•")[0].split("-")[0].strip()
+
+            # Stats + bio from og:description
+            og_desc = soup.find("meta", property="og:description")
+            if og_desc and og_desc.get("content"):
+                desc_val = og_desc["content"]
+                stats_match = re.search(
+                    r"([\d\.,KMBkmb]+)\s+(?:Followers|Takipçi|Takipci),\s*([\d\.,KMBkmb]+)\s+(?:Following|Takip),\s*([\d\.,KMBkmb]+)\s+(?:Posts|Gönderi|Gonderi)",
+                    desc_val, re.IGNORECASE,
+                )
+                if stats_match:
+                    default_data["followers"] = stats_match.group(1)
+                    default_data["following"] = stats_match.group(2)
+                    default_data["posts"] = stats_match.group(3)
+                    default_data["followers_raw"] = _parse_count(stats_match.group(1))
+
+                # Bio extraction — multi-strategy
+                bio_part = ""
+                # Strategy 1: After stats (X Followers, Y Following, Z Posts - BIO)
+                bio_sep_match = re.search(
+                    r'(?:Posts|Gönderi|Gonderi)\s*[-–—:·]\s*(.+)$',
+                    desc_val, re.IGNORECASE | re.DOTALL
+                )
+                if bio_sep_match:
+                    bio_part = bio_sep_match.group(1).strip()
+                # Strategy 2: After " - "
+                if not bio_part and " - " in desc_val:
+                    bio_part = desc_val.split(" - ", 1)[-1]
+                # Strategy 3: After ": "
+                if not bio_part and ": " in desc_val:
+                    bio_part = desc_val.split(": ", 1)[-1]
+                # Strategy 4: Whole description if short and no stats pattern
+                if not bio_part and len(desc_val) < 300 and not re.search(r'\d+\s+(?:Followers|Takipçi)', desc_val, re.I):
+                    bio_part = desc_val
+                if bio_part and len(bio_part) > 3:
+                    # Clean up trailing/leading quotes
+                    bio_part = bio_part.strip().strip('"').strip("'").strip()
+                    # Remove Instagram boilerplate
+                    for boilerplate in ["See Instagram photos and videos", "Instagram'daki fotoğraf"]:
+                        if boilerplate.lower() in bio_part.lower():
+                            bio_part = ""
+                            break
+                    if bio_part:
+                        default_data["bio"] = bio_part[:500]
+
+            # Account Type Detection (personal vs business)
+            bio_text_lower = default_data.get("bio", "").lower()
+            full_text_lower = fetched_html.lower() if fetched_html else ""
+            business_signals = [
+                "işletme", "is_business", "business", "company", "mağaza", "satış",
+                "hizmet", "randevu", "ürün", "shop", "store", "salon", "klinik",
+                "doktor", "avukat", "restoran", "cafe", "atölye", "studio",
+            ]
+            personal_signals = [
+                "kişisel", "personal", "özel", "private", "bireysel",
+            ]
+            has_contact = bool(default_data.get("email") or default_data.get("phone") or default_data.get("website"))
+            has_business_bio = any(s in bio_text_lower for s in business_signals)
+            has_personal_bio = any(s in bio_text_lower for s in personal_signals)
+            if has_personal_bio and not has_contact and not has_business_bio:
+                default_data["is_business"] = False
+                default_data["category"] = target_sector or "Kişisel Profil"
+            elif has_contact or has_business_bio:
+                default_data["is_business"] = True
+
+            # Verified badge
+            if "verified" in fetched_html.lower() or "doğrulanmış" in fetched_html.lower():
+                default_data["is_verified"] = True
+
+            # Recency / Last Activity — multi-signal detection
+            # Signal 1: Exact year detection (most recent first)
+            year_2026 = bool(re.search(r'\b2026\b', fetched_html or "", re.I))
+            year_2025 = bool(re.search(r'\b2025\b', fetched_html or "", re.I))
+            year_2024 = bool(re.search(r'\b2024\b', fetched_html or "", re.I))
+            # Signal 2: Turkish/English month + year
+            month_match = re.search(
+                r'(\d{1,2})\s+(Ocak|Şubat|Mart|Nisan|Mayıs|Haziran|Temmuz|Ağustos|Eylül|Ekim|Kasım|Aralık|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(202[4-6])',
+                fetched_html or "", re.I
+            )
+            # Signal 3: "ago" patterns for recency
+            hours_ago = bool(re.search(r'\b(\d+)\s*(saat|hour|h)\s*(önce|ago)\b', fetched_html or "", re.I))
+            days_ago_match = re.search(r'\b(\d+)\s*(gün|day|d)\s*(önce|ago)\b', fetched_html or "", re.I)
+            weeks_ago = bool(re.search(r'\b(\d+)\s*(hafta|week|w)\s*(önce|ago)\b', fetched_html or "", re.I))
+            
+            p_count = _parse_count(default_data.get("posts", "0"))
+            f_count = default_data.get("followers_raw", 0)
+            
+            if hours_ago:
+                default_data["last_active"] = "Son 24 Saat İçinde Aktif"
+                default_data["last_active_raw"] = 99
+            elif days_ago_match:
+                days = int(days_ago_match.group(1))
+                if days <= 7:
+                    default_data["last_active"] = f"Son {days} Gün İçinde Aktif"
+                    default_data["last_active_raw"] = 96
+                elif days <= 30:
+                    default_data["last_active"] = f"Son {days} Gün İçinde Aktif"
+                    default_data["last_active_raw"] = 88
+                else:
+                    default_data["last_active"] = f"Son {days} Gün İçinde Aktif"
+                    default_data["last_active_raw"] = 75
+            elif month_match:
+                default_data["last_active"] = f"Son İçerik: {month_match.group(2)} {month_match.group(3)}"
+                default_data["last_active_raw"] = 92
+            elif year_2026:
+                default_data["last_active"] = "2026 Yılında Aktif"
+                default_data["last_active_raw"] = 90
+            elif year_2025:
+                default_data["last_active"] = "2025 Yılında Aktif"
+                default_data["last_active_raw"] = 82
+            elif year_2024:
+                default_data["last_active"] = "2024 Yılında Aktif"
+                default_data["last_active_raw"] = 68
+            elif weeks_ago:
+                default_data["last_active"] = "Son Birkaç Hafta İçinde Aktif"
+                default_data["last_active_raw"] = 84
+            elif p_count == 0:
+                default_data["last_active"] = "Gönderisiz Hesap"
+                default_data["last_active_raw"] = 15
+            elif f_count > 5000 and p_count > 10:
+                default_data["last_active"] = "Yüksek Aktiviteli Hesap"
+                default_data["last_active_raw"] = 85
+            elif f_count > 1000 and p_count > 5:
+                default_data["last_active"] = "Aktif Hesap"
+                default_data["last_active_raw"] = 75
+            elif p_count > 0:
+                default_data["last_active"] = "İçerik Mevcut"
+                default_data["last_active_raw"] = 60
+            else:
+                default_data["last_active"] = "Belirsiz"
+                default_data["last_active_raw"] = 40
+
+            # Story indicator
+            if "story" in fetched_html.lower() or "hikaye" in fetched_html.lower():
+                default_data["has_story"] = True
+
+            # Engagement Rate
+            f_raw = default_data["followers_raw"]
+            p_cnt = _parse_count(default_data["posts"])
+            if f_raw > 0 and p_cnt > 0:
+                if f_raw < 5000:
+                    est_eng = min(9.5, max(2.5, round(12.0 / max(f_raw ** 0.15, 1), 1)))
+                elif f_raw < 50000:
+                    est_eng = min(5.5, max(1.8, round(8.0 / max(f_raw ** 0.15, 1), 1)))
+                else:
+                    est_eng = min(3.8, max(0.9, round(5.0 / max(f_raw ** 0.15, 1), 1)))
+                default_data["engagement_rate"] = f"%{est_eng}"
+
+        # Deep Contact Extraction
+        full_text = f"{default_data['full_name']} {default_data['bio']} {default_data.get('website', '')} {fetched_html}"
+        default_data["email"] = self._extract_email(full_text)
+        phone, wp_link = self._extract_phone_and_whatsapp(full_text)
+        default_data["phone"] = phone
+        default_data["whatsapp_link"] = wp_link
+
+        # Linktree / Bio link
+        linktree_match = re.search(
+            r"https?://(?:linktr\.ee|beacons\.ai|taplink\.cc|shopier\.com|linkin\.bio|lnk\.to|bio\.site|link\.bio|allmylinks\.com)/[a-zA-Z0-9_\.-]+",
+            full_text, re.I
+        )
+        if linktree_match:
+            default_data["linktree_url"] = linktree_match.group(0)
+
+        if not default_data["website"]:
+            default_data["website"] = default_data["linktree_url"] or self._extract_website(full_text)
+
+        default_data["relevance_score"] = self._calculate_relevance_score(default_data, target_sector)
+        return default_data
+
+    async def fetch_anonymous_user_posts_and_stories(self, username: str) -> Dict:
+        """
+        Fetch public posts, gallery images, story status and reels anonymously without login.
+        Uses embed endpoints, picuki parser, and CDN URL extraction.
+        """
+        clean_user = username.strip().lower().replace("@", "")
+        profile_details = await self.fetch_profile_details(clean_user)
+
+        posts_data: List[Dict] = []
+        has_story = False
+        story_urls: List[str] = []
+
+        # Method 1: Instagram /embed/ endpoint
+        try:
+            async with httpx.AsyncClient(
+                timeout=6.0,
+                follow_redirects=True,
+                limits=self._limits,
+                headers=self.googlebot_headers
+            ) as client:
+                embed_url = f"https://www.instagram.com/{clean_user}/embed/"
+                resp = await client.get(embed_url)
+                if resp.status_code == 200:
+                    html = resp.text
+                    soup = BeautifulSoup(html, "html.parser")
+
+                    img_tags = soup.find_all("img")
+                    for idx, img in enumerate(img_tags[:12]):
+                        src = img.get("src", "")
+                        alt = img.get("alt", "") or f"{clean_user} gönderisi #{idx + 1}"
+                        if src and ("fbcdn.net" in src or "cdninstagram.com" in src):
+                            posts_data.append({
+                                "id": f"post_{idx+1}",
+                                "image_url": src,
+                                "caption": alt[:180],
+                                "post_url": f"https://www.instagram.com/{clean_user}/",
+                                "is_video": False,
+                            })
+
+                    if "story" in html.lower() or "hikaye" in html.lower():
+                        has_story = True
+        except Exception as e:
+            logger.debug(f"Anonymous embed post fetch notice for @{clean_user}: {e}")
+
+        # Method 2: Picuki public parser
+        if len(posts_data) < 3:
+            try:
+                picuki_url = f"https://www.picuki.com/profile/{clean_user}"
+                async with httpx.AsyncClient(
+                    timeout=6.0,
+                    follow_redirects=True,
+                    headers={
+                        "User-Agent": random.choice(_USER_AGENTS),
+                        "Accept-Language": "en-US,en;q=0.9",
+                    }
+                ) as client:
+                    resp = await client.get(picuki_url)
+                    if resp.status_code == 200:
+                        soup = BeautifulSoup(resp.text, "html.parser")
+                        post_imgs = soup.select("img.post-image, .photo img, .photos-item img")
+                        for idx, img in enumerate(post_imgs[:12]):
+                            src = img.get("src", "") or img.get("data-src", "")
+                            if src and len(src) > 20:
+                                posts_data.append({
+                                    "id": f"picuki_{idx+1}",
+                                    "image_url": src,
+                                    "caption": img.get("alt", f"@{clean_user} gönderi #{idx+1}")[:180],
+                                    "post_url": f"https://www.instagram.com/{clean_user}/",
+                                    "is_video": False,
+                                })
+            except Exception:
+                pass
+
+        # Method 3: Imginn fallback
+        if len(posts_data) < 3:
+            try:
+                imginn_url = f"https://imginn.com/{clean_user}/"
+                async with httpx.AsyncClient(
+                    timeout=5.0,
+                    follow_redirects=True,
+                    headers={"User-Agent": random.choice(_USER_AGENTS)}
+                ) as client:
+                    resp = await client.get(imginn_url)
+                    if resp.status_code == 200:
+                        soup = BeautifulSoup(resp.text, "html.parser")
+                        imgs = soup.select(".post-image img, .item img, figure img")
+                        for idx, img in enumerate(imgs[:12]):
+                            src = img.get("src", "") or img.get("data-src", "")
+                            if src and len(src) > 20:
+                                posts_data.append({
+                                    "id": f"imginn_{idx+1}",
+                                    "image_url": src,
+                                    "caption": img.get("alt", f"@{clean_user} gönderi")[:180],
+                                    "post_url": f"https://www.instagram.com/{clean_user}/",
+                                    "is_video": False,
+                                })
+            except Exception:
+                pass
+
+        # Final fallback: use profile pic as placeholder
+        if not posts_data:
+            pic = profile_details.get("profile_pic_url") or f"https://unavatar.io/instagram/{clean_user}"
+            posts_data = [
+                {
+                    "id": "post_1",
+                    "image_url": pic,
+                    "caption": profile_details.get("bio") or f"@{clean_user} profil özeti",
+                    "post_url": profile_details.get("profile_url", f"https://www.instagram.com/{clean_user}/"),
+                    "is_video": False,
+                }
+            ]
+
+        return {
+            "success": True,
+            "username": clean_user,
+            "profile": profile_details,
+            "has_active_story": has_story or profile_details.get("last_active_raw", 0) > 85,
+            "posts": posts_data,
+            "story_urls": story_urls,
+        }
+
+    # ===================================================================
+    # UNIFIED SMART SEARCH ENGINE
+    # ===================================================================
+
+    async def search_profiles_by_username_or_sector(
+        self, sector_keywords: str = "", username_query: str = "", location: str = "", limit: int = 20
+    ) -> List[Dict]:
+        """
+        Unified Smart Search Engine:
+        - Only username_query → Direct Instagram search mode (like Instagram's own search)
+        - Only sector_keywords → 5-Layer Hybrid Sector Search
+        - Both provided → Intersectional search
+        """
+        sec_clean = (sector_keywords or "").strip()
+        u_clean = (username_query or "").strip().lower().replace("@", "").replace(" ", "")
+        loc_clean = _clean_location_for_search(location)
+        target_limit = 50000 if (limit <= 0 or limit >= 50000) else limit
+
+        # MODE A: Direct Username / Profile Search (no keywords)
+        if u_clean and not sec_clean:
+            return await self._search_by_username_direct(u_clean, loc_clean, target_limit)
+
+        # MODE B: Sector search only
+        if sec_clean and not u_clean:
+            return await self.search_profiles_by_sector(sec_clean, loc_clean, target_limit)
+
+        # MODE C: Both → intersectional
+        results = await self.search_profiles_by_sector(sec_clean or u_clean, loc_clean, target_limit)
+        if u_clean and sec_clean:
+            def combo_sort(p: Dict):
+                un = p.get("username", "").lower()
+                is_u_match = 3 if un == u_clean else (2 if un.startswith(u_clean) else (1 if u_clean in un else 0))
+                return (is_u_match, p.get("relevance_score", 0), p.get("followers_raw", 0))
+            results.sort(key=combo_sort, reverse=True)
+        return results
+
+    async def _search_by_username_direct(self, u_clean: str, loc_clean: str, target_limit: int) -> List[Dict]:
+        """
+        Direct username search — mimics Instagram's own search algorithm.
+        Exact match ranks #1, prefix matches #2, substring matches #3.
+        """
+        logger.info(f"Direct Username Search: @{u_clean}")
+        candidate_handles: Set[str] = set()
+
+        # Always include exact handle
+        candidate_handles.add(u_clean)
+
+        # LAYER 1: Real Instagram topsearch API
+        try:
+            topsearch_results = await self._instagram_topsearch(u_clean)
+            for item in topsearch_results:
+                uname = item.get("username", "")
+                if uname and uname not in IGNORED_HANDLES:
+                    candidate_handles.add(uname)
+        except Exception:
+            pass
+
+        # LAYER 2: (Disabled for Direct Username Search)
+        # Direct handle search must NOT append artificial suffixes (_tr, _official, _salon etc.)
+        # to ensure clean, exact results without polluting with unrelated accounts.
+
+        # LAYER 3: Search engine query for handles
+        queries = [
+            f'"{u_clean}" site:instagram.com',
+            f'{u_clean} instagram profil',
+        ]
+        try:
+            async with httpx.AsyncClient(
+                timeout=5.0,
+                follow_redirects=True,
+                limits=self._limits,
+                headers=self.googlebot_headers
+            ) as client:
+                for q in queries[:2]:
+                    try:
+                        url = f"https://www.bing.com/search?q={urllib.parse.quote(q)}"
+                        resp = await client.get(url)
+                        if resp.status_code == 200:
+                            candidate_handles.update(_extract_handles_from_content(resp.text))
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+
+        # LAYER 4: DuckDuckGo
+        try:
+            ddg_q = f'site:instagram.com {u_clean}'
+            ddg_url = f"https://html.duckduckgo.com/html/?q={urllib.parse.quote(ddg_q)}"
+            async with httpx.AsyncClient(
+                timeout=5.0,
+                follow_redirects=True,
+                headers=self.googlebot_headers
+            ) as client:
+                resp = await client.get(ddg_url)
+                if resp.status_code == 200:
+                    candidate_handles.update(_extract_handles_from_content(resp.text))
+        except Exception:
+            pass
+
+        # Filter irrelevant candidates
+        filtered = {
+            h for h in candidate_handles
+            if h and h not in IGNORED_HANDLES and len(h) >= 3 and not h.isdigit()
+        }
+
+        # Sort: exact first, then starts-with, then contains, then others
+        def handle_sort_key(h: str) -> Tuple:
+            if h == u_clean:
+                return (0, 0, len(h))
+            if h.startswith(u_clean):
+                return (1, 0, len(h))
+            if u_clean in h:
+                return (2, 0, len(h))
+            return (3, 0, len(h))
+
+        sorted_handles = sorted(filtered, key=handle_sort_key)
+        handles_to_fetch = sorted_handles[:min(target_limit, 50)]
+
+        logger.info(f"Username search found {len(candidate_handles)} candidates, fetching {len(handles_to_fetch)}")
+
+        # Concurrent fetch with high semaphore
+        sem = asyncio.Semaphore(40)
+
+        async def sem_fetch(h):
+            async with sem:
+                return await self.fetch_profile_details(h, "")
+
+        fetched = await asyncio.gather(*[sem_fetch(h) for h in handles_to_fetch], return_exceptions=True)
+        results: List[Dict] = []
+        for res in fetched:
+            if isinstance(res, dict) and res.get("username"):
+                results.append(res)
+
+        # Sort results: exact match first, then prefix, then contains, then followers
+        def result_sort_key(p: Dict) -> Tuple:
+            un = p["username"].lower()
+            if un == u_clean:
+                match_rank = 0
+            elif un.startswith(u_clean):
+                match_rank = 1
+            elif u_clean in un:
+                match_rank = 2
+            else:
+                match_rank = 3
+            return (match_rank, -p.get("followers_raw", 0))
+
+        results.sort(key=result_sort_key)
+        return results
 
     async def search_profiles_by_sector(
         self, sector_keywords: str, location: str = "", limit: int = 20
     ) -> List[Dict]:
         """
-        Deep Sector Search: Discover and extract rich Instagram profiles based on sector keywords & location.
-        Uses 5-Layer Hybrid Harvesting + Strict 4-Tier Priority Ranking.
+        Deep Sector Search: Discover Instagram profiles based on sector keywords & location.
+        Uses 7-Layer Hybrid Harvesting + Strict 4-Tier Priority Ranking.
         """
         sec_clean = sector_keywords.strip()
         loc_clean = _clean_location_for_search(location)
@@ -218,29 +948,44 @@ class InstagramFinder:
             return []
 
         target_limit = 50000 if (limit <= 0 or limit >= 50000) else limit
-        logger.info(f"Starting 5-Layer Hybrid Instagram sector search for keywords='{sec_clean}', loc='{loc_clean}', target_limit={target_limit}")
+        logger.info(f"7-Layer Sector Instagram search: keywords='{sec_clean}', loc='{loc_clean}', limit={target_limit}")
 
         found_handles: Set[str] = set()
 
-        # -------------------------------------------------------------------
-        # LAYER 1: Universal Dynamic Handle Generator Engine (For ANY Search Query)
-        # -------------------------------------------------------------------
+        # LAYER 1: Universal Dynamic Handle Generator
         found_handles.update(self._generate_universal_dynamic_handles(sec_clean, loc_clean))
-        
-        # Dynamic Google Autocomplete Harvester
+
+        # LAYER 2: Real Instagram topsearch API
         try:
-            auto_handles = await self._harvest_google_autocomplete_suggestions(sec_clean, loc_clean)
+            topsearch_queries = [sec_clean]
+            if loc_clean:
+                topsearch_queries.append(f"{sec_clean} {loc_clean}")
+            for tq in topsearch_queries[:2]:
+                try:
+                    ig_results = await asyncio.wait_for(self._instagram_topsearch(tq), timeout=5.0)
+                    for item in ig_results:
+                        uname = item.get("username", "")
+                        if uname and uname not in IGNORED_HANDLES:
+                            found_handles.add(uname)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+        # LAYER 3: Google Autocomplete Suggestions
+        try:
+            auto_handles = await asyncio.wait_for(
+                self._harvest_google_autocomplete_suggestions(sec_clean, loc_clean), timeout=4.0
+            )
             found_handles.update(auto_handles)
         except Exception:
             pass
 
-        # -------------------------------------------------------------------
-        # LAYER 2 & 3: Fast Parallel OSINT & Directory Provider Integration (Max 3.5s Timeout)
-        # -------------------------------------------------------------------
+        # LAYER 4: Directory Provider Integration
         async def harvest_provider(ProvClass):
             try:
                 prov_inst = ProvClass()
-                p_leads = await asyncio.wait_for(prov_inst.search(sec_clean, loc_clean), timeout=3.5)
+                p_leads = await asyncio.wait_for(prov_inst.search(sec_clean, loc_clean), timeout=4.0)
                 local_handles = set()
                 for lead in p_leads:
                     h_cand = getattr(lead, "instagram_handle", None) or getattr(lead, "instagram_url", None) or ""
@@ -271,25 +1016,66 @@ class InstagramFinder:
         except Exception as e:
             logger.debug(f"Directory harvest notice: {e}")
 
-        # -------------------------------------------------------------------
-        # LAYER 4: Fast Search Engine Snippet Harvesting (Bing & DuckDuckGo)
-        # -------------------------------------------------------------------
+        # LAYER 5: Search Engine Snippet Harvesting
         queries = [
             f'"{sec_clean}" instagram',
             f'{sec_clean} instagram',
-            f'{sec_clean} randevu instagram',
+            f'{sec_clean} {loc_clean} instagram'.strip() if loc_clean else f'{sec_clean} instagram profil',
+            f'site:instagram.com {sec_clean}',
         ]
 
-        async with httpx.AsyncClient(timeout=3.5, follow_redirects=True, headers=self.browser_headers) as client:
-            for q in queries[:2]:
+        async with httpx.AsyncClient(
+            timeout=5.0,
+            follow_redirects=True,
+            limits=self._limits,
+            headers=self.googlebot_headers
+        ) as client:
+            for q in queries[:3]:
                 try:
-                    url = f"https://www.bing.com/search?q={urllib.parse.quote(q)}"
-                    resp = await client.get(url)
+                    bing_url = f"https://www.bing.com/search?q={urllib.parse.quote(q)}"
+                    resp = await client.get(bing_url)
                     if resp.status_code == 200:
                         found_handles.update(_extract_handles_from_content(resp.text))
                 except Exception:
                     pass
 
+        # LAYER 6: DuckDuckGo
+        try:
+            ddg_q = f'site:instagram.com "{sec_clean}"'
+            ddg_url = f"https://html.duckduckgo.com/html/?q={urllib.parse.quote(ddg_q)}"
+            async with httpx.AsyncClient(
+                timeout=5.0,
+                follow_redirects=True,
+                headers=self.googlebot_headers
+            ) as client:
+                resp = await client.get(ddg_url)
+                if resp.status_code == 200:
+                    found_handles.update(_extract_handles_from_content(resp.text))
+        except Exception:
+            pass
+
+        # Google Custom Search API (if configured)
+        if self.api_key and self.cx:
+            try:
+                q = f'site:instagram.com "{sec_clean}" {loc_clean}'.strip()
+                url = "https://customsearch.googleapis.com/customsearch/v1"
+                params = {"key": self.api_key, "cx": self.cx, "q": q, "num": 10}
+                async with httpx.AsyncClient(timeout=6.0) as client:
+                    resp = await client.get(url, params=params)
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        for item in data.get("items", []):
+                            link = item.get("link", "")
+                            if "instagram.com" in link:
+                                parts = link.split("instagram.com/")
+                                if len(parts) > 1:
+                                    h = parts[1].split("/")[0].split("?")[0].strip().lower().replace("@", "")
+                                    if h and h not in IGNORED_HANDLES:
+                                        found_handles.add(h)
+            except Exception:
+                pass
+
+        # Filter and sort candidates
         sec_words_clean = [w for w in re.split(r"\s+", _slugify_tr(sec_clean)) if len(w) >= 3]
         loc_words_clean = [w for w in re.split(r"\s+", _slugify_tr(loc_clean)) if len(w) >= 3]
 
@@ -303,39 +1089,32 @@ class InstagramFinder:
                     score += 5
             return (score, -len(h))
 
-        sorted_handles = sorted(list(found_handles), key=candidate_sort_key, reverse=True)
+        sorted_handles = sorted(
+            [h for h in found_handles if h and h not in IGNORED_HANDLES and len(h) >= 3 and not h.isdigit()],
+            key=candidate_sort_key, reverse=True
+        )
         handles_to_fetch = sorted_handles[:target_limit]
-        logger.info(f"Found {len(found_handles)} total candidate handles, fetching detailed profiles for {len(handles_to_fetch)} handles...")
+        logger.info(f"Found {len(found_handles)} candidate handles → fetching {len(handles_to_fetch)}")
 
-        # -------------------------------------------------------------------
-        # LAYER 5: High-Concurrency Profile Detail Extraction & Recency Enrichment
-        # -------------------------------------------------------------------
-        results: List[Dict] = []
-        sem = asyncio.Semaphore(25)
+        # LAYER 7: High-Concurrency Profile Detail Extraction
+        sem = asyncio.Semaphore(40)
 
         async def sem_fetch(h):
             async with sem:
                 return await self.fetch_profile_details(h, sec_clean)
 
-        tasks = [sem_fetch(handle) for handle in handles_to_fetch]
-        fetched = await asyncio.gather(*tasks, return_exceptions=True)
+        fetched = await asyncio.gather(*[sem_fetch(h) for h in handles_to_fetch], return_exceptions=True)
+        results: List[Dict] = []
         for res in fetched:
             if isinstance(res, dict) and res.get("username"):
                 results.append(res)
 
-        # -------------------------------------------------------------------
-        # STRICT 4-TIER PRIORITY RANKING & SORTING ALGORITHM
-        # User Specification:
-        # Rank 1: Sector keyword is inside Username (@handle)
-        # Rank 2: Sector keyword is inside Full Name / Title
-        # Rank 3: Sector keyword is inside Bio / Description
-        # Rank 4: Other matching business candidates
-        # -------------------------------------------------------------------
+        # 4-TIER PRIORITY RANKING
         def calculate_priority_tuple(p: Dict) -> tuple:
             u_name = p.get("username", "").lower()
             f_name = p.get("full_name", "").lower()
             bio_t = p.get("bio", "").lower()
-            
+
             sec_terms = [w.lower() for w in sec_clean.split() if len(w) >= 3]
             sec_ascii_terms = [w for w in re.split(r"\s+", _slugify_tr(sec_clean)) if len(w) >= 3]
 
@@ -354,316 +1133,55 @@ class InstagramFinder:
                 contact_score += 2
 
             verified_score = 1 if p.get("is_verified") else 0
-            followers_score = p.get("followers_raw", 0)
 
-            # Sort tuple: (-rank [1 comes first], contact_score, verified_score, relevance_score, followers_score)
-            return (-rank, contact_score, verified_score, p.get("relevance_score", 0), followers_score)
+            return (-rank, contact_score, verified_score, p.get("relevance_score", 0), p.get("followers_raw", 0))
 
         results.sort(key=calculate_priority_tuple, reverse=True)
         return results
 
-    async def fetch_profile_details(self, username: str, target_sector: str = "") -> Dict:
-        """
-        Extract rich unredacted metadata for a single Instagram profile using multi-tier fallback headers:
-        Googlebot -> Bingbot -> Instagram Embed -> Contact Scraping (Email, GSM, WhatsApp, Linktree/Shopier).
-        Calculates Engagement Rate (%) and Last Activity indicators.
-        """
-        clean_user = username.strip().lower().replace("@", "")
-        default_data = {
-            "username": clean_user,
-            "full_name": clean_user.replace("_", " ").title(),
-            "profile_url": f"https://www.instagram.com/{clean_user}/",
-            "profile_pic_url": "",
-            "bio": "",
-            "followers": "N/A",
-            "followers_raw": 0,
-            "following": "N/A",
-            "posts": "N/A",
-            "is_verified": False,
-            "is_business": True,
-            "category": target_sector or "İşletme / Hizmet",
-            "email": None,
-            "phone": None,
-            "whatsapp_link": None,
-            "website": None,
-            "linktree_url": None,
-            "relevance_score": 75,
-            "engagement_rate": "N/A",
-            "last_active": "🟢 Aktif İşletme Hesabı",
-            "last_active_raw": 80,
-        }
+    async def find_instagram(self, business_name: str, location: str) -> Optional[str]:
+        """Legacy helper: find a single handle by business name & location."""
+        clean_loc = _clean_location_for_search(location)
+        clean_bname = (business_name or "").replace('"', '').replace("'", "").strip()
 
-        if not clean_user or clean_user in IGNORED_HANDLES:
-            return default_data
-
-        fetched_html = ""
-        # Tier 1: Direct Instagram OpenGraph Fetch via Googlebot
-        try:
-            async with httpx.AsyncClient(timeout=3.0, follow_redirects=True, limits=httpx.Limits(max_connections=100, max_keepalive_connections=50)) as client:
-                page_url = f"https://www.instagram.com/{clean_user}/"
-                resp = await client.get(page_url, headers=self.browser_headers)
-                if resp.status_code == 200:
-                    fetched_html = resp.text
-                else:
-                    # Tier 2 Fallback: Bingbot Header
-                    bing_headers = {
-                        "User-Agent": "Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)",
-                        "Accept-Language": "tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7",
-                    }
-                    resp2 = await client.get(page_url, headers=bing_headers)
-                    if resp2.status_code == 200:
-                        fetched_html = resp2.text
-                    else:
-                        # Tier 3 Fallback: Embed Page Endpoint
-                        embed_url = f"https://www.instagram.com/{clean_user}/embed/"
-                        resp3 = await client.get(embed_url, headers=self.browser_headers)
-                        if resp3.status_code == 200:
-                            fetched_html = resp3.text
-        except Exception as e:
-            logger.debug(f"Profile fetch attempt notice for @{clean_user}: {e}")
-
-        if fetched_html:
-            soup = BeautifulSoup(fetched_html, "html.parser")
-
-            og_image = soup.find("meta", property="og:image")
-            if og_image and og_image.get("content"):
-                default_data["profile_pic_url"] = og_image["content"]
-
-            og_title = soup.find("meta", property="og:title")
-            if og_title and og_title.get("content"):
-                title_val = og_title["content"]
-                name_match = re.search(r"^(.*?)\s*\(@", title_val)
-                if name_match:
-                    default_data["full_name"] = name_match.group(1).strip()
-                else:
-                    default_data["full_name"] = title_val.split("•")[0].split("-")[0].strip()
-
-            og_desc = soup.find("meta", property="og:description")
-            if og_desc and og_desc.get("content"):
-                desc_val = og_desc["content"]
-                
-                # Match both English & Turkish OpenGraph stats format
-                stats_match = re.search(
-                    r"([\d\.,KMBkmb]+)\s+(?:Followers|Takipçi),\s+([\d\.,KMBkmb]+)\s+(?:Following|Takip),\s+([\d\.,KMBkmb]+)\s+(?:Posts|Gönderi|Gonderi)",
-                    desc_val,
-                    re.IGNORECASE,
-                )
-                if stats_match:
-                    default_data["followers"] = stats_match.group(1)
-                    default_data["following"] = stats_match.group(2)
-                    default_data["posts"] = stats_match.group(3)
-                    default_data["followers_raw"] = self._parse_count(stats_match.group(1))
-
-                # Extract bio text
-                if " - " in desc_val:
-                    bio_part = desc_val.split(" - ", 1)[-1]
-                    if ":" in bio_part:
-                        default_data["bio"] = bio_part.split(":", 1)[-1].strip().strip('"').strip("'")
-                    elif "@" in bio_part:
-                        default_data["bio"] = bio_part.strip()
-
-            if "verified" in fetched_html.lower() or "doğrulanmış" in fetched_html.lower():
-                default_data["is_verified"] = True
-
-            # Recency / Last Activity Extraction
-            date_matches = re.findall(r"\b(202[4-6]|\d{1,2}\s+(?:Ocak|Şubat|Mart|Nisan|Mayıs|Haziran|Temmuz|Ağustos|Eylül|Ekim|Kasım|Aralık|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec))\b", fetched_html, re.I)
-            if date_matches:
-                default_data["last_active"] = f"🟢 Aktif (Son İçerik: {date_matches[0]})"
-                default_data["last_active_raw"] = 95
-            elif default_data["followers_raw"] > 1000 and default_data["posts"] != "0":
-                default_data["last_active"] = "🟢 Yüksek Aktiflik (Yüksek Etkileşim)"
-                default_data["last_active_raw"] = 90
-            elif default_data["posts"] == "0":
-                default_data["last_active"] = "🔴 Düşük Aktiflik (Gönderisiz)"
-                default_data["last_active_raw"] = 20
-
-            # Calculate estimated Engagement Rate %
-            f_raw = default_data["followers_raw"]
-            p_cnt = self._parse_count(default_data["posts"])
-            if f_raw > 0 and p_cnt > 0:
-                # Industry formula estimate based on follower bracket
-                if f_raw < 5000:
-                    est_eng = min(9.5, max(2.5, round(12.0 / (f_raw ** 0.15), 1)))
-                elif f_raw < 50000:
-                    est_eng = min(5.5, max(1.8, round(8.0 / (f_raw ** 0.15), 1)))
-                else:
-                    est_eng = min(3.8, max(0.9, round(5.0 / (f_raw ** 0.15), 1)))
-                default_data["engagement_rate"] = f"%{est_eng}"
-
-        # Deep Contact Extraction across Full Text
-        full_text = f"{default_data['full_name']} {default_data['bio']} {default_data.get('website', '')} {fetched_html}"
-        default_data["email"] = self._extract_email(full_text)
-        phone, wp_link = self._extract_phone_and_whatsapp(full_text)
-        default_data["phone"] = phone
-        default_data["whatsapp_link"] = wp_link
-        
-        # Linktree / Bio link extraction
-        linktree_match = re.search(r"https?://(?:linktr\.ee|beacons\.ai|taplink\.cc|shopier\.com)/[a-zA-Z0-9_\.-]+", full_text, re.I)
-        if linktree_match:
-            default_data["linktree_url"] = linktree_match.group(0)
-
-        if not default_data["website"]:
-            default_data["website"] = default_data["linktree_url"] or self._extract_website(full_text)
-
-        default_data["relevance_score"] = self._calculate_relevance_score(default_data, target_sector)
-        return default_data
-
-    async def search_profiles_by_username_or_sector(
-        self, sector_keywords: str = "", username_query: str = "", location: str = "", limit: int = 20
-    ) -> List[Dict]:
-        """
-        Unified Smart Search Engine:
-        - If username_query is provided & sector_keywords empty: Direct Username / Handle search mode.
-          Exact match handle ranks #1, followed by closest fuzzy matches (matching Instagram internal search).
-        - If sector_keywords is provided & username_query empty: 5-Layer Hybrid Sector Search mode.
-        - If both provided: Intersectional Search (handles matching username_query within sector).
-        """
-        sec_clean = (sector_keywords or "").strip()
-        u_clean = (username_query or "").strip().lower().replace("@", "")
-        loc_clean = _clean_location_for_search(location)
-
-        target_limit = 50000 if (limit <= 0 or limit >= 50000) else limit
-
-        # Mode A: Direct Username / Handle Search Mode
-        if u_clean and not sec_clean:
-            logger.info(f"Starting Direct Instagram Username Search for handle='@{u_clean}', loc='{loc_clean}'")
-            candidate_handles: Set[str] = set()
-
-            # Exact handle
-            candidate_handles.add(u_clean)
-
-            # Common handle variations (like Instagram internal search)
-            variations = [
-                f"{u_clean}_tr", f"{u_clean}_official", f"{u_clean}_official_tr",
-                f"{u_clean}_turkiye", f"{u_clean}_", f"_{u_clean}", f"{u_clean}1",
-                f"{u_clean}_studio", f"{u_clean}_desing", f"{u_clean}_salon",
-                f"{u_clean}_resmi", f"{u_clean}_iletisim", f"real_{u_clean}"
-            ]
-            for v in variations:
-                if v not in IGNORED_HANDLES:
-                    candidate_handles.add(v)
-
-            # Search engines for handle query
-            queries = [f'"{u_clean}" instagram', f'{u_clean} instagram']
+        if self.api_key and self.cx:
+            query = f'site:instagram.com "{clean_bname}" {clean_loc}'.strip()
+            url = "https://customsearch.googleapis.com/customsearch/v1"
+            params = {"key": self.api_key, "cx": self.cx, "q": query, "num": 3}
             try:
-                async with httpx.AsyncClient(timeout=3.5, follow_redirects=True, headers=self.browser_headers) as client:
-                    for q in queries:
-                        try:
-                            url = f"https://www.bing.com/search?q={urllib.parse.quote(q)}"
-                            resp = await client.get(url)
-                            if resp.status_code == 200:
-                                candidate_handles.update(_extract_handles_from_content(resp.text))
-                        except Exception:
-                            pass
-            except Exception:
-                pass
+                async with httpx.AsyncClient(timeout=10.0) as client:
+                    response = await client.get(url, params=params)
+                    if response.status_code == 200:
+                        data = response.json()
+                        for item in data.get("items", []):
+                            link = item.get("link", "")
+                            if "instagram.com" in link:
+                                parts = link.split("instagram.com/")
+                                if len(parts) > 1:
+                                    handle_part = parts[1].split("/")[0].split("?")[0].strip().replace("@", "")
+                                    if handle_part and handle_part.lower() not in IGNORED_HANDLES:
+                                        return handle_part.lower()
+            except Exception as e:
+                logger.error(f"Error calling Google Custom Search API: {e}")
 
-            # Fetch profile details in parallel
-            handles_list = list(candidate_handles)[:target_limit]
-            sem = asyncio.Semaphore(25)
-
-            async def sem_fetch(h):
-                async with sem:
-                    return await self.fetch_profile_details(h, "")
-
-            tasks = [sem_fetch(h) for h in handles_list]
-            fetched = await asyncio.gather(*tasks, return_exceptions=True)
-
-            results: List[Dict] = []
-            for res in fetched:
-                if isinstance(res, dict) and res.get("username"):
-                    results.append(res)
-
-            # Ranking: Exact match first, then handle starts with query, then followers
-            def handle_sort_key(p: Dict) -> tuple:
-                un = p["username"].lower()
-                if un == u_clean:
-                    match_rank = 1
-                elif un.startswith(u_clean):
-                    match_rank = 2
-                elif u_clean in un:
-                    match_rank = 3
-                else:
-                    match_rank = 4
-
-                return (match_rank, -p.get("followers_raw", 0))
-
-            results.sort(key=handle_sort_key)
-            return results
-
-        # Mode B & C: Sector search or Intersectional search
-        results = await self.search_profiles_by_sector(sec_clean or u_clean, loc_clean, target_limit)
-        if u_clean and sec_clean:
-            # Filter or boost items matching u_clean
-            def combo_sort(p: Dict):
-                un = p.get("username", "").lower()
-                is_u_match = 1 if u_clean in un else 0
-                return (is_u_match, p.get("relevance_score", 0), p.get("followers_raw", 0))
-            results.sort(key=combo_sort, reverse=True)
-
-        return results
-
-    async def fetch_anonymous_user_posts_and_stories(self, username: str) -> Dict:
-        """
-        Fetch public posts, gallery images, and story status anonymously without login.
-        Uses OpenGraph embed proxies and public embed endpoints.
-        """
-        clean_user = username.strip().lower().replace("@", "")
-        profile_details = await self.fetch_profile_details(clean_user)
-
-        posts_data: List[Dict] = []
-        has_story = False
-
+        # Try topsearch first
         try:
-            async with httpx.AsyncClient(timeout=4.0, follow_redirects=True, headers=self.browser_headers) as client:
-                embed_url = f"https://www.instagram.com/{clean_user}/embed/"
-                resp = await client.get(embed_url)
-                if resp.status_code == 200:
-                    html = resp.text
-                    soup = BeautifulSoup(html, "html.parser")
+            topsearch = await self._instagram_topsearch(clean_bname)
+            if topsearch:
+                return topsearch[0].get("username")
+        except Exception:
+            pass
 
-                    # Extract embedded images / posts
-                    img_tags = soup.find_all("img")
-                    for idx, img in enumerate(img_tags):
-                        src = img.get("src")
-                        alt = img.get("alt", "") or f"{clean_user} gönderisi #{idx + 1}"
-                        if src and "fbcdn.net" in src or "cdninstagram.com" in src:
-                            posts_data.append({
-                                "id": f"post_{idx+1}",
-                                "image_url": src,
-                                "caption": alt[:150],
-                                "post_url": f"https://www.instagram.com/{clean_user}/"
-                            })
-
-                    if "story" in html.lower() or "hikaye" in html.lower():
-                        has_story = True
-        except Exception as e:
-            logger.debug(f"Anonymous post fetch notice for @{clean_user}: {e}")
-
-        # Fallback dummy post placeholders if profile is private or embed restricted
-        if not posts_data:
-            posts_data = [
-                {
-                    "id": "post_1",
-                    "image_url": profile_details.get("profile_pic_url") or "",
-                    "caption": profile_details.get("bio") or f"@{clean_user} profil özeti",
-                    "post_url": profile_details.get("profile_url")
-                }
-            ]
-
-        return {
-            "success": True,
-            "username": clean_user,
-            "profile": profile_details,
-            "has_active_story": has_story or profile_details.get("last_active_raw", 0) > 80,
-            "posts": posts_data
-        }
+        handle = await self._search_ddg_instagram(clean_bname, clean_loc)
+        if handle:
+            return handle
+        return await self._search_bing_instagram(clean_bname, clean_loc)
 
     async def find_similar_profiles(
         self, username: str, category: str = "", location: str = "", limit: int = 10
     ) -> List[Dict]:
         """
-        Semantic Benzer Bul Algorithm: Resolves category synonyms and sub-sectors instead of naive keyword suffixing.
+        Semantic Benzer Bul Algorithm: Resolves category synonyms and sub-sectors.
         """
         sec_term = (category or username).lower().strip()
         synonyms = [sec_term]
@@ -675,25 +1193,9 @@ class InstagramFinder:
         logger.info(f"Semantic Benzer Bul running for @{username} with expanded query '{expanded_query}'")
         return await self.search_profiles_by_sector(expanded_query, location, limit)
 
-    def _parse_count(self, text: str) -> int:
-        if not text:
-            return 0
-        text = text.replace(",", ".").strip().upper()
-        try:
-            if "M" in text:
-                return int(float(text.replace("M", "")) * 1_000_000)
-            if "K" in text or "B" in text:
-                return int(float(text.replace("K", "").replace("B", "")) * 1_000)
-            return int(float(text))
-        except ValueError:
-            return 0
-
-    def _format_count(self, num: int) -> str:
-        if num >= 1_000_000:
-            return f"{num / 1_000_000:.1f}M".replace(".0M", "M")
-        if num >= 1_000:
-            return f"{num / 1_000:.1f}K".replace(".0K", "K")
-        return str(num)
+    # ===================================================================
+    # HELPER METHODS
+    # ===================================================================
 
     def _extract_email(self, text: str) -> Optional[str]:
         if not text:
@@ -701,12 +1203,12 @@ class InstagramFinder:
         m = re.search(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b", text)
         if m:
             email = m.group(0).lower()
-            ignored = {"example.com", "domain.com", "instagram.com"}
+            ignored = {"example.com", "domain.com", "instagram.com", "sentry.io", "facebook.com"}
             if not any(i in email for i in ignored):
                 return email
         return None
 
-    def _extract_phone_and_whatsapp(self, text: str) -> tuple[Optional[str], Optional[str]]:
+    def _extract_phone_and_whatsapp(self, text: str) -> tuple:
         if not text:
             return None, None
         wp_match = re.search(r"https?://(?:wa\.me|api\.whatsapp\.com/send\?phone=)(\d+)", text)
@@ -739,42 +1241,81 @@ class InstagramFinder:
             return None
         m = re.search(r"https?://[^\s<\"']+", text)
         if m:
-            url = m.group(0).rstrip(".,;")
-            if "instagram.com" not in url and "facebook.com" not in url:
+            url = m.group(0).rstrip(".,;)")
+            ignored = {"instagram.com", "facebook.com", "wa.me", "whatsapp.com", "sentry.io", "unavatar.io"}
+            if not any(i in url for i in ignored):
                 return url
         return None
 
     def _calculate_relevance_score(self, profile: Dict, target_sector: str) -> int:
-        score = 60
+        """Calculate realistic relevance score (0-99) based on keyword matching, contact data, and signals."""
+        # Username/handle match to sector terms boosts heavily
         if not target_sector:
-            return score
-        
-        keywords = [w.lower() for w in target_sector.split() if len(w) > 2]
-        text = f"{profile.get('full_name', '')} {profile.get('bio', '')} {profile.get('category', '')}".lower()
-        
-        match_count = sum(1 for k in keywords if k in text)
-        score += min(match_count * 12, 35)
+            # No sector — base score from contact richness only
+            score = 50
+            if profile.get("email"):
+                score += 8
+            if profile.get("phone"):
+                score += 8
+            if profile.get("website"):
+                score += 4
+            if profile.get("is_verified"):
+                score += 5
+            return min(score, 75)  # Max 75 without sector context
 
+        keywords = [w.lower() for w in target_sector.split() if len(w) > 2]
+        ascii_keywords = [_slugify_tr(w) for w in keywords]
+        
+        username_text = profile.get("username", "").lower()
+        full_name_text = profile.get("full_name", "").lower()
+        bio_text = profile.get("bio", "").lower()
+        category_text = profile.get("category", "").lower()
+        
+        # Username match: strongest signal
+        username_matches = sum(1 for k in ascii_keywords if k in username_text)
+        # Full name match: strong signal
+        fullname_matches = sum(1 for k in keywords if k in full_name_text)
+        # Bio match: medium signal
+        bio_matches = sum(1 for k in keywords if k in bio_text)
+        # Category match: medium signal
+        cat_matches = sum(1 for k in keywords if k in category_text)
+        
+        score = 45  # Realistic base
+        score += min(username_matches * 15, 25)   # Username: up to +25
+        score += min(fullname_matches * 10, 20)   # Full name: up to +20
+        score += min(bio_matches * 6, 15)         # Bio: up to +15
+        score += min(cat_matches * 5, 10)         # Category: up to +10
+        
+        # Contact richness bonuses
         if profile.get("email"):
-            score += 5
+            score += 6
         if profile.get("phone"):
-            score += 5
+            score += 6
+        if profile.get("website"):
+            score += 3
         if profile.get("is_verified"):
-            score += 5
-            
-        return min(score, 99)
+            score += 4
+        if profile.get("linktree_url"):
+            score += 2
+        
+        # Penalize if no keyword match at all
+        total_matches = username_matches + fullname_matches + bio_matches + cat_matches
+        if total_matches == 0:
+            score = max(score - 20, 30)
+        
+        return min(int(score), 99)
 
     async def _search_ddg_instagram(self, business_name: str, location: str) -> Optional[str]:
         queries = [
             f'site:instagram.com "{business_name}" {location}'.strip(),
             f'site:instagram.com {business_name} {location}'.strip()
         ]
-        for idx, query in enumerate(queries):
+        for query in queries:
             try:
                 encoded_query = urllib.parse.quote(query)
                 url = f"https://html.duckduckgo.com/html/?q={encoded_query}"
-                async with httpx.AsyncClient(timeout=3.5, follow_redirects=True) as client:
-                    response = await client.get(url, headers=self.browser_headers)
+                async with httpx.AsyncClient(timeout=5.0, follow_redirects=True) as client:
+                    response = await client.get(url, headers=self.googlebot_headers)
                     if response.status_code == 200:
                         handles = _extract_handles_from_content(response.text)
                         if handles:
@@ -787,8 +1328,8 @@ class InstagramFinder:
         query = f'site:instagram.com "{business_name}" {location}'.strip()
         url = f"https://www.bing.com/search?q={urllib.parse.quote(query)}"
         try:
-            async with httpx.AsyncClient(timeout=3.5, follow_redirects=True) as client:
-                response = await client.get(url, headers=self.browser_headers)
+            async with httpx.AsyncClient(timeout=5.0, follow_redirects=True) as client:
+                response = await client.get(url, headers=self.googlebot_headers)
                 if response.status_code == 200:
                     handles = _extract_handles_from_content(response.text)
                     if handles:
@@ -800,9 +1341,8 @@ class InstagramFinder:
     def _generate_universal_dynamic_handles(self, sec_clean: str, loc_clean: str = "") -> Set[str]:
         """
         Universal Dynamic Handle Generator for ANY search query.
-        Splits input query into words, stems suffixes, creates token pairs, 
+        Splits input query into words, stems suffixes, creates token pairs,
         and fuses with universal business prefixes, suffixes, and Turkish provinces/districts.
-        Works dynamically for ANY sector (e.g., diyetisyen, oto tamir, mimar, pilates, tesettür giyim).
         """
         sec_ascii = _slugify_tr(sec_clean)
         loc_ascii = _slugify_tr(loc_clean) if loc_clean else ""
@@ -829,22 +1369,22 @@ class InstagramFinder:
                 terms.add(f"{w1}{w2}")
                 terms.add(f"{w1}_{w2}")
 
-        # Static dictionary synonyms fallback if present
         for key, syn_list in SECTOR_SYNONYMS_MAP.items():
             if key in sec_clean.lower() or _slugify_tr(key) in sec_ascii:
                 terms.update(syn_list)
 
         cities = [loc_ascii] if loc_ascii else TURKEY_MAJOR_CITIES[:20]
         prefixes = [
-            "", "salon_", "studio_", "official_", "resmi_", "vip_", "butik_", "center_", 
-            "uzman_", "pro_", "akademisi_", "dr_", "uzm_", "av_", "pt_", "dt_", "mimar_", 
-            "grup_", "ajans_", "lab_", "klub_", "klinik_", "ofis_"
+            "", "salon_", "studio_", "official_", "resmi_", "vip_", "butik_", "center_",
+            "uzman_", "pro_", "akademisi_", "dr_", "uzm_", "av_", "pt_", "dt_", "mimar_",
+            "grup_", "ajans_", "lab_", "klub_", "klinik_", "ofis_", "proje_",
         ]
         suffixes = [
-            "", "_official", "_resmi", "_turkiye", "_tr", "_center", "_studio", "_salonu", 
-            "_klinik", "_ofis", "_danismanlik", "_hizmetleri", "_uzmani", "_atolyeyi", 
-            "_boutique", "_guzellik", "_vip", "_pro", "_group", "_dunyasi", "_akademi", 
-            "_ajans", "_store", "_shop", "_randevu", "_iletisim", "_destek", "_noktasi"
+            "", "_official", "_resmi", "_turkiye", "_tr", "_center", "_studio", "_salonu",
+            "_klinik", "_ofis", "_danismanlik", "_hizmetleri", "_uzmani", "_atolyeyi",
+            "_boutique", "_guzellik", "_vip", "_pro", "_group", "_dunyasi", "_akademi",
+            "_ajans", "_store", "_shop", "_randevu", "_iletisim", "_destek", "_noktasi",
+            "_online", "_dijital", "_istanbul", "_ankara", "_izmir",
         ]
 
         found: Set[str] = set()
@@ -854,7 +1394,7 @@ class InstagramFinder:
             for p in prefixes:
                 for s in suffixes:
                     h = f"{p}{t}{s}".strip("_")
-                    if len(h) >= 3 and h not in IGNORED_HANDLES:
+                    if len(h) >= 3 and h not in IGNORED_HANDLES and len(h) <= 30:
                         found.add(h)
 
             for city in cities:
@@ -868,19 +1408,16 @@ class InstagramFinder:
         return found
 
     async def _harvest_google_autocomplete_suggestions(self, sec_clean: str, loc_clean: str = "") -> Set[str]:
-        """
-        Dynamically query Google Autocomplete suggestion API for real live search expansions.
-        """
+        """Dynamically query Google Autocomplete suggestion API for real live search expansions."""
         query = f"{sec_clean} {loc_clean} instagram".strip()
         url = f"https://suggestqueries.google.com/complete/search?client=chrome&q={urllib.parse.quote(query)}"
         handles: Set[str] = set()
         try:
-            async with httpx.AsyncClient(timeout=4.0, follow_redirects=True) as client:
+            async with httpx.AsyncClient(timeout=5.0, follow_redirects=True) as client:
                 resp = await client.get(url)
                 if resp.status_code == 200:
                     try:
                         text = resp.content.decode("utf-8", errors="ignore")
-                        import json
                         data = json.loads(text)
                         if isinstance(data, list) and len(data) > 1 and isinstance(data[1], list):
                             for item in data[1]:
@@ -891,6 +1428,3 @@ class InstagramFinder:
         except Exception:
             pass
         return handles
-
-
-

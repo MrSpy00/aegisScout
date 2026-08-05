@@ -3611,38 +3611,52 @@ class GuiApi:
     # Instagram Finder Bridge Methods
     # -------------------------------------------------------------------
     def search_instagram_profiles(self, keywords: str, location: str = "", limit: int = 20):
-        """Search Instagram profiles by sector keywords and location."""
+        """Search Instagram profiles by sector keywords and location (legacy compat)."""
         return self.search_instagram_profiles_v2(keywords, "", location, limit)
 
     def search_instagram_profiles_v2(self, keywords: str = "", username_query: str = "", location: str = "", limit: int = 20):
-        """Unified Search Engine: Sector search, direct username search, or intersectional search."""
+        """
+        Unified Smart Search Engine:
+        - Only username_query → Direct Instagram profile search (like Instagram's native search)
+        - Only keywords → 7-Layer Hybrid Sector Search
+        - Both filled → Intersectional search (username filter within sector results)
+        Returns timing info for performance display.
+        """
+        import time as _time
+        t_start = _time.monotonic()
         try:
             from aegisScout.discovery.instagram_finder import InstagramFinder
             finder = InstagramFinder()
             limit_val = int(limit) if limit is not None else 20
             if limit_val <= 0:
-                limit_val = 10000
+                limit_val = 50000
             else:
-                limit_val = min(10000, max(1, limit_val))
+                limit_val = min(50000, max(1, limit_val))
 
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             try:
                 profiles = loop.run_until_complete(
                     finder.search_profiles_by_username_or_sector(
-                        sector_keywords=keywords,
-                        username_query=username_query,
-                        location=location,
+                        sector_keywords=str(keywords or "").strip(),
+                        username_query=str(username_query or "").strip().lower().replace("@", ""),
+                        location=str(location or "").strip(),
                         limit=limit_val
                     )
                 )
             finally:
                 loop.close()
 
-            return {"success": True, "count": len(profiles), "profiles": profiles}
+            elapsed = round(_time.monotonic() - t_start, 2)
+            return {
+                "success": True,
+                "count": len(profiles),
+                "profiles": profiles,
+                "elapsed_seconds": elapsed,
+            }
         except Exception as e:
             logger.exception(f"search_instagram_profiles_v2 failed: {e}")
-            return {"success": False, "error": str(e), "profiles": []}
+            return {"success": False, "error": str(e), "profiles": [], "elapsed_seconds": 0}
 
     def fetch_anonymous_instagram_details(self, username: str):
         """Fetch public posts, gallery photos, and story status anonymously for a user."""
@@ -3684,7 +3698,7 @@ class GuiApi:
             return {"success": False, "error": str(e), "profiles": []}
 
     def import_instagram_leads_to_crm(self, profiles: list[dict]):
-        """Import list of discovered Instagram profiles into Lead database."""
+        """Import list of discovered Instagram profiles into Lead database (additive, never overwrites existing contact data)."""
         if not profiles or not isinstance(profiles, list):
             return {"success": False, "error": "Geçersiz profil verisi"}
 
@@ -3708,6 +3722,7 @@ class GuiApi:
                     ).first()
 
                     if existing:
+                        # Additive update — only fill blank fields
                         if p.get("email") and not existing.email:
                             existing.email = p["email"]
                         if p.get("phone") and not existing.phone:
@@ -3721,13 +3736,21 @@ class GuiApi:
                     else:
                         note_lines = []
                         if p.get("bio"):
-                            note_lines.append(f"Bio: {p['bio']}")
+                            note_lines.append(f"Bio: {p['bio'][:200]}")
                         if p.get("followers"):
                             note_lines.append(f"Takipçi: {p['followers']}")
+                        if p.get("following"):
+                            note_lines.append(f"Takip: {p['following']}")
                         if p.get("posts"):
                             note_lines.append(f"Gönderi: {p['posts']}")
+                        if p.get("engagement_rate"):
+                            note_lines.append(f"Etkileşim: {p['engagement_rate']}")
                         if p.get("is_verified"):
-                            note_lines.append("Mavi Tik: Doğrulanmış Hesap")
+                            note_lines.append("✅ Mavi Tik: Doğrulanmış Hesap")
+                        if p.get("linktree_url"):
+                            note_lines.append(f"Linktree: {p['linktree_url']}")
+                        if p.get("last_active"):
+                            note_lines.append(f"Aktiflik: {p['last_active']}")
 
                         new_lead = Lead(
                             session_id=self._active_session_id,
@@ -3736,7 +3759,7 @@ class GuiApi:
                             address=str(p.get("location") or "Instagram"),
                             phone=p.get("phone"),
                             email=p.get("email"),
-                            website_url=p.get("website"),
+                            website_url=p.get("website") or p.get("linktree_url"),
                             instagram_handle=username,
                             status="new",
                             source="instagram_finder",
@@ -3777,11 +3800,11 @@ class GuiApi:
 
         if tone == "friendly":
             msg = (
-                f"Selamlar @{clean_u}! 👋\n\n"
+                f"Selamlar @{clean_u}!\n\n"
                 f"{sector_clean} alanındaki Instagram sayfanıza ve harika içeriklerinize denk geldik! "
                 f"{'(' + bio_clean[:80] + '...)' if bio_clean else ''}\n"
                 f"Ekibimizle birlikte {goal_text} hazırlıyoruz ve sizinle çalışmaktan mutluluk duyarız. "
-                f"Kısa bir kahve eşliğinde fikir alışverişi yapmaya ne dersiniz? ☕😊\n\n"
+                f"Kısa bir fikir alışverişi yapmaya ne dersiniz?\n\n"
                 f"Sevgiler,"
             )
         elif tone == "persuasive":
