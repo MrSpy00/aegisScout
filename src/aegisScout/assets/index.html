@@ -1343,6 +1343,10 @@
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         <span data-i18n="menu_leads">Müşteri Keşfi</span>
       </li>
+      <li class="nav-item" onclick="switchTab('instagram', this)" data-tab="instagram" data-tooltip="Instagram Bulucu">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
+        <span data-i18n="menu_instagram">Instagram Bulucu</span>
+      </li>
       <li class="nav-item" onclick="switchTab('map', this)" data-tab="map" data-tooltip="İnteraktif Harita">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
         <span data-i18n="menu_map">İnteraktif Harita</span>
@@ -1623,6 +1627,87 @@
           <div style="text-align: center; color: var(--text-muted); margin-top: 100px;">
             <p>Detayları görmek için sol listeden bir işletme seçin.</p>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Instagram Bulucu (Instagram Finder) Panel -->
+    <div id="panel-instagram" class="panel" style="width: 100%; box-sizing: border-box;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 12px;">
+        <div>
+          <h1 style="font-family: var(--font-display); font-size: 1.6rem; letter-spacing: -0.02em; margin: 0; display: flex; align-items: center; gap: 10px;">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--color-brand)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
+            Gelişmiş Instagram Bulucu
+          </h1>
+          <p class="subtitle" style="margin: 4px 0 0; color: var(--text-muted);">Sektörel kelimeler ile kapsamlı Instagram profilleri, fotoğraf verileri ve OSINT iletişim bilgilerini keşfedin.</p>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <button class="btn btn-secondary" onclick="exportInstagramResults('csv')" title="Sonuçları CSV İndir"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> CSV İndir</button>
+          <button class="btn btn-primary" onclick="bulkImportInstagramToCrm()" title="Tüm Bulunan Profilleri CRM'e Aktar"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> CRM'e Aktar</button>
+        </div>
+      </div>
+
+      <!-- Search Input Card -->
+      <div class="stat-card" style="margin-bottom: 16px; padding: 18px 20px; border-radius: 14px;">
+        <div style="display: grid; grid-template-columns: 2fr 1fr 120px 140px; gap: 12px; align-items: end;">
+          <div>
+            <label style="font-weight: 600; font-size: 0.85rem; display: block; margin-bottom: 6px; color: var(--text-main);">Sektör &amp; Anahtar Kelimeler *</label>
+            <input type="text" id="insta-search-keywords" class="form-control" placeholder="Örn: Güzellik Salonu, Kuaför, Kadıköy, Yazılım Şirketi..." style="width:100%; box-sizing: border-box;" onkeypress="if(event.key==='Enter') searchInstagramProfiles();">
+          </div>
+          <div>
+            <label style="font-weight: 600; font-size: 0.85rem; display: block; margin-bottom: 6px; color: var(--text-main);">Konum (İl/İlçe - İsteğe Bağlı)</label>
+            <input type="text" id="insta-search-location" class="form-control" placeholder="Tüm Türkiye için boş bırakın (veya Örn: Kadıköy, İstanbul)" style="width:100%; box-sizing: border-box;" onkeypress="if(event.key==='Enter') searchInstagramProfiles();">
+          </div>
+          <div>
+            <label style="font-weight: 600; font-size: 0.85rem; display: block; margin-bottom: 6px; color: var(--text-main);">Profil Limiti</label>
+            <select id="insta-search-limit" class="form-control" style="width:100%; box-sizing: border-box;">
+              <option value="10">10 Profil</option>
+              <option value="20">20 Profil</option>
+              <option value="50">50 Profil</option>
+              <option value="100" selected>100 Profil</option>
+              <option value="500">500 Profil</option>
+              <option value="1000">1000 Profil</option>
+              <option value="2000">2000 Profil</option>
+              <option value="5000">5000 Profil</option>
+              <option value="10000">10000 Profil</option>
+              <option value="0">♾️ Sınırsız (Tüm Bulunanlar)</option>
+            </select>
+          </div>
+          <div>
+            <button class="btn btn-primary" id="btn-insta-search" onclick="searchInstagramProfiles()" style="width: 100%; height: 38px; font-weight: 600;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+              Profilleri Bul
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stats Grid -->
+      <div class="stats-grid" style="margin-bottom: 16px;">
+        <div class="stat-card" style="padding: 12px 16px;">
+          <div class="stat-val" id="insta-stat-total" style="color: var(--color-brand);">0</div>
+          <div class="stat-lbl">Bulunan Profil</div>
+        </div>
+        <div class="stat-card" style="padding: 12px 16px;">
+          <div class="stat-val" id="insta-stat-emails" style="color: var(--color-success);">0</div>
+          <div class="stat-lbl">E-postalı Hesaplar</div>
+        </div>
+        <div class="stat-card" style="padding: 12px 16px;">
+          <div class="stat-val" id="insta-stat-phones" style="color: var(--color-accent);">0</div>
+          <div class="stat-lbl">Telefon / WhatsApp</div>
+        </div>
+        <div class="stat-card" style="padding: 12px 16px;">
+          <div class="stat-val" id="insta-stat-verified" style="color: var(--color-warning);">0</div>
+          <div class="stat-lbl">Doğrulanmış (Mavi Tik)</div>
+        </div>
+      </div>
+
+      <!-- Results Container -->
+      <div id="insta-results-container">
+        <div style="text-align: center; padding: 40px; color: var(--text-muted); border: 2px dashed var(--border-subtle); border-radius: 12px;">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom: 12px; opacity: 0.5;"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
+          <p style="font-size: 1.1rem; font-weight: 600; margin-bottom: 6px;">Instagram profillerini aramak için sektör ve anahtar kelimeleri girin</p>
+          <p style="font-size: 0.85rem; margin: 0;">Sistem Instagram profillerinin fotoğraflarını, biyografilerini ve iletişim bilgilerini otomatik ayıklayacaktır.</p>
         </div>
       </div>
     </div>
@@ -2898,11 +2983,377 @@ function applyLanguage(lang) {
       else if (tabId === 'unibox')    loadUnibox();
       else if (tabId === 'waterfall') loadWaterfallConfig();
       else if (tabId === 'warmup')    loadWarmupStatus();
+      else if (tabId === 'instagram') initInstagramFinder();
     }
 
     /* ══════════════════════════════════════════════
-        SIDEBAR COLLAPSE/EXPAND
+        INSTAGRAM BULUCU (INSTAGRAM FINDER) LOGIC
        ══════════════════════════════════════════════ */
+    let currentInstagramResults = [];
+
+    function initInstagramFinder() {
+      if (currentInstagramResults.length > 0) {
+        renderInstagramProfiles(currentInstagramResults);
+      }
+    }
+
+    async function searchInstagramProfiles() {
+      const keywordsInput = document.getElementById("insta-search-keywords");
+      const locationInput = document.getElementById("insta-search-location");
+      const limitInput = document.getElementById("insta-search-limit");
+      const btnSearch = document.getElementById("btn-insta-search");
+      const container = document.getElementById("insta-results-container");
+
+      const keywords = keywordsInput ? keywordsInput.value.trim() : "";
+      const location = locationInput ? locationInput.value.trim() : "";
+      const limit = limitInput ? limitInput.value : 20;
+
+      if (!keywords) {
+        showToast("Lütfen aramak istediğiniz sektör veya anahtar kelimeleri girin.", "warning");
+        if (keywordsInput) keywordsInput.focus();
+        return;
+      }
+
+      if (btnSearch) {
+        btnSearch.disabled = true;
+        btnSearch.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="margin-right:6px;"></span> Profiller Çekiliyor...`;
+      }
+
+      container.innerHTML = `
+        <div style="text-align: center; padding: 50px 20px;">
+          <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem; margin-bottom: 16px;"></div>
+          <h3 style="font-family: var(--font-display); font-size: 1.2rem; margin-bottom: 8px;">Instagram Profilleri Taranıyor...</h3>
+          <p style="color: var(--text-muted); max-width: 500px; margin: 0 auto; font-size: 0.9rem;">"${keywords}" sektörü için Instagram arama ve detaylı profil/fotoğraf verileri çekiliyor. Lütfen bekleyin...</p>
+        </div>
+      `;
+
+      try {
+        let res = null;
+        if (window.pywebview && window.pywebview.api) {
+          res = await window.pywebview.api.search_instagram_profiles(keywords, location, limit);
+        } else {
+          await new Promise(r => setTimeout(r, 1000));
+          res = {
+            success: true,
+            count: 2,
+            profiles: [
+              {
+                username: "kadikoy_guzellik_salonu",
+                full_name: "Kadıköy Güzellik & Bakım Salonu",
+                profile_url: "https://www.instagram.com/kadikoy_guzellik_salonu/",
+                profile_pic_url: "",
+                bio: "Kadıköy Moda'da profesyonel cilt bakımı, lazer epilasyon ve saç tasarımı. Randevu WhatsApp: 05321112233 | E-posta: info@kadikoyguzellik.com",
+                followers: "18.4K",
+                followers_raw: 18400,
+                following: "420",
+                posts: "310",
+                is_verified: true,
+                is_business: true,
+                category: "Güzellik Salonu",
+                email: "info@kadikoyguzellik.com",
+                phone: "+905321112233",
+                whatsapp_link: "https://wa.me/905321112233",
+                website: "https://kadikoyguzellik.com",
+                relevance_score: 95
+              },
+              {
+                username: "moda_hair_studio",
+                full_name: "Moda Hair & Beauty Studio",
+                profile_url: "https://www.instagram.com/moda_hair_studio/",
+                profile_pic_url: "",
+                bio: "Trendy saç modelleri, keratin bakım ve renklendirme. Kadıköy/İstanbul. İletişim: 02163334455",
+                followers: "9.2K",
+                followers_raw: 9200,
+                following: "180",
+                posts: "145",
+                is_verified: false,
+                is_business: true,
+                category: "Kuaför / Saç Tasarım",
+                email: "contact@modahair.com",
+                phone: "02163334455",
+                whatsapp_link: null,
+                website: null,
+                relevance_score: 88
+              }
+            ]
+          };
+        }
+
+        if (res && res.success && res.profiles) {
+          currentInstagramResults = res.profiles;
+          renderInstagramProfiles(currentInstagramResults);
+          showToast(`${res.profiles.length} adet Instagram profili başarıyla çekildi.`, "success");
+        } else {
+          container.innerHTML = `
+            <div style="text-align: center; padding: 40px; color: var(--color-danger);">
+              <h4>Arama Sırasında Bir Hata Oluştu</h4>
+              <p>${res && res.error ? res.error : "Profil verisi çekilemedi."}</p>
+            </div>
+          `;
+          showToast("Instagram araması tamamlanamadı: " + (res ? res.error : "Bilinmeyen hata"), "error");
+        }
+      } catch (err) {
+        console.error("searchInstagramProfiles error:", err);
+        container.innerHTML = `<div style="text-align: center; padding: 40px; color: var(--color-danger);">Hata: ${err.message}</div>`;
+        showToast("Instagram aramasında hata: " + err.message, "error");
+      } finally {
+        if (btnSearch) {
+          btnSearch.disabled = false;
+          btnSearch.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg> Profilleri Bul`;
+        }
+      }
+    }
+
+    function renderInstagramProfiles(profiles) {
+      const container = document.getElementById("insta-results-container");
+      const statTotal = document.getElementById("insta-stat-total");
+      const statEmails = document.getElementById("insta-stat-emails");
+      const statPhones = document.getElementById("insta-stat-phones");
+      const statVerified = document.getElementById("insta-stat-verified");
+
+      if (!container) return;
+
+      if (!profiles || profiles.length === 0) {
+        container.innerHTML = `
+          <div style="text-align: center; padding: 40px; color: var(--text-muted); border: 2px dashed var(--border-subtle); border-radius: 12px;">
+            <p style="font-size: 1.1rem; margin-bottom: 4px;">Aramanıza uygun Instagram profili bulunamadı.</p>
+            <p style="font-size: 0.85rem;">Farklı sektör veya konum anahtar kelimeleri ile tekrar deneyin.</p>
+          </div>
+        `;
+        if (statTotal) statTotal.innerText = "0";
+        if (statEmails) statEmails.innerText = "0";
+        if (statPhones) statPhones.innerText = "0";
+        if (statVerified) statVerified.innerText = "0";
+        return;
+      }
+
+      let emailsCount = 0;
+      let phonesCount = 0;
+      let verifiedCount = 0;
+
+      profiles.forEach(p => {
+        if (p.email) emailsCount++;
+        if (p.phone || p.whatsapp_link) phonesCount++;
+        if (p.is_verified) verifiedCount++;
+      });
+
+      if (statTotal) statTotal.innerText = profiles.length;
+      if (statEmails) statEmails.innerText = emailsCount;
+      if (statPhones) statPhones.innerText = phonesCount;
+      if (statVerified) statVerified.innerText = verifiedCount;
+
+      let cardsHtml = `<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px;">`;
+
+      profiles.forEach((p, idx) => {
+        const username = p.username || "";
+        const fullName = p.full_name || username;
+        const bio = p.bio || "Biyografi eklenmemiş.";
+        const category = p.category || "İşletme";
+        const followers = String(p.followers || "N/A");
+        const following = String(p.following || "N/A");
+        const posts = String(p.posts || "N/A");
+        const score = p.relevance_score || 75;
+
+        let avatarHtml = "";
+        if (p.profile_pic_url) {
+          avatarHtml = `<img src="${p.profile_pic_url}" alt="${fullName}" style="width: 56px; height: 56px; border-radius: 50%; object-fit: cover; border: 2px solid var(--color-brand);" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+          <div style="width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, var(--color-brand), var(--color-accent)); display: none; align-items: center; justify-content: center; font-weight: 700; color: #fff; font-size: 1.3rem;">${username.charAt(0).toUpperCase()}</div>`;
+        } else {
+          avatarHtml = `<div style="width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, var(--color-brand), var(--color-accent)); display: flex; align-items: center; justify-content: center; font-weight: 700; color: #fff; font-size: 1.3rem;">${username.charAt(0).toUpperCase()}</div>`;
+        }
+
+        const verifiedBadge = p.is_verified
+          ? `<span title="Doğrulanmış Rozet (Mavi Tik)" style="color: #3897f0; margin-left: 4px; display: inline-flex; align-items: center;"><svg width="16" height="16" viewBox="0 0 24 24" fill="#3897f0"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" fill="#fff"/></svg></span>`
+          : "";
+
+        let contactBadges = "";
+        if (p.email) {
+          contactBadges += `<a href="mailto:${p.email}" class="badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); text-decoration: none; padding: 4px 8px; border-radius: 6px; font-size: 0.78rem;" title="E-posta Gönder"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>${p.email}</a> `;
+        }
+        if (p.phone) {
+          contactBadges += `<span class="badge" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); padding: 4px 8px; border-radius: 6px; font-size: 0.78rem;" title="Telefon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>${p.phone}</span> `;
+        }
+        if (p.whatsapp_link) {
+          contactBadges += `<a href="${p.whatsapp_link}" target="_blank" class="badge" style="background: rgba(37, 211, 102, 0.15); color: #25d366; border: 1px solid rgba(37, 211, 102, 0.3); text-decoration: none; padding: 4px 8px; border-radius: 6px; font-size: 0.78rem;" title="WhatsApp Sohbet">WhatsApp</a> `;
+        }
+        if (p.website) {
+          contactBadges += `<a href="${p.website}" target="_blank" class="badge" style="background: rgba(192, 132, 252, 0.15); color: #c084fc; border: 1px solid rgba(192, 132, 252, 0.3); text-decoration: none; padding: 4px 8px; border-radius: 6px; font-size: 0.78rem;" title="Web Sitesi"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/></svg>Web</a>`;
+        }
+
+        cardsHtml += `
+          <div class="stat-card" style="display: flex; flex-direction: column; justify-content: space-between; padding: 18px; border-radius: 14px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); position: relative; border: 1px solid var(--border-subtle);">
+            <div>
+              <div style="display: flex; gap: 14px; align-items: center; margin-bottom: 12px;">
+                ${avatarHtml}
+                <div style="flex: 1; min-width: 0;">
+                  <div style="display: flex; align-items: center; justify-content: space-between;">
+                    <h3 style="font-family: var(--font-display); font-size: 1.05rem; font-weight: 700; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center;" title="${fullName}">
+                      ${fullName} ${verifiedBadge}
+                    </h3>
+                    <span class="badge" style="background: rgba(168, 85, 247, 0.2); color: var(--color-accent); font-size: 0.75rem; font-weight: 600; padding: 2px 8px; border-radius: 10px;">%${score} Uyum</span>
+                  </div>
+                  <div style="font-size: 0.85rem; color: var(--color-brand); font-weight: 600; margin-top: 2px;">@${username}</div>
+                  <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 2px;">${category}</div>
+                </div>
+              </div>
+
+              <div style="display: flex; justify-content: space-around; background: rgba(0,0,0,0.25); border-radius: 8px; padding: 8px 6px; margin-bottom: 12px; text-align: center;">
+                <div>
+                  <div style="font-weight: 700; font-size: 0.95rem; color: var(--text-main);">${followers}</div>
+                  <div style="font-size: 0.7rem; color: var(--text-muted);">Takipçi</div>
+                </div>
+                <div style="border-right: 1px solid var(--border-subtle); border-left: 1px solid var(--border-subtle); padding: 0 12px;">
+                  <div style="font-weight: 700; font-size: 0.95rem; color: var(--text-main);">${following}</div>
+                  <div style="font-size: 0.7rem; color: var(--text-muted);">Takip</div>
+                </div>
+                <div>
+                  <div style="font-weight: 700; font-size: 0.95rem; color: var(--text-main);">${posts}</div>
+                  <div style="font-size: 0.7rem; color: var(--text-muted);">Gönderi</div>
+                </div>
+              </div>
+
+              <div style="font-size: 0.83rem; color: var(--text-main); background: var(--bg-surface); padding: 10px 12px; border-radius: 8px; margin-bottom: 12px; line-height: 1.45; max-height: 72px; overflow-y: auto;">
+                ${bio}
+              </div>
+
+              <div style="margin-bottom: 14px; display: flex; flex-wrap: wrap; gap: 6px;">
+                ${contactBadges || '<span style="font-size:0.78rem; color:var(--text-muted);">Açık iletişim verisi bulunamadı</span>'}
+              </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; border-top: 1px solid var(--border-subtle); padding-top: 12px;">
+              <button class="btn btn-secondary" onclick="openInstagramProfile('${username}')" style="font-size: 0.8rem; font-weight: 600; padding: 7px 10px;" title="Instagram'da Aç">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
+                Instagram'da Aç
+              </button>
+              
+              <button class="btn btn-primary" onclick="importSingleInstagramToCrm(${idx})" style="font-size: 0.8rem; font-weight: 600; padding: 7px 10px;" title="Müşteri Keşfine / CRM'e Aktar">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
+                CRM'e Aktar
+              </button>
+
+              <button class="btn btn-secondary" onclick="generateInstagramDmModal('${username}', ${idx})" style="font-size: 0.78rem; padding: 6px 8px;" title="Yapay Zeka ile DM Taslağı Hazırla">
+                ✨ AI DM Üret
+              </button>
+
+              <button class="btn btn-secondary" onclick="findSimilarProfilesAction('${username}', '${category}')" style="font-size: 0.78rem; padding: 6px 8px;" title="Bu hesaba benzer diğer profilleri bul">
+                🔍 Benzer Bul
+              </button>
+            </div>
+          </div>
+        `;
+      });
+
+      cardsHtml += `</div>`;
+      container.innerHTML = cardsHtml;
+    }
+
+    function openInstagramProfile(username) {
+      const cleanU = username.replace("@", "").trim();
+      const targetUrl = `https://www.instagram.com/${cleanU}/`;
+      window.open(targetUrl, "_blank");
+    }
+
+    async function importSingleInstagramToCrm(index) {
+      if (!currentInstagramResults || !currentInstagramResults[index]) return;
+      const profile = currentInstagramResults[index];
+
+      try {
+        if (window.pywebview && window.pywebview.api) {
+          const res = await window.pywebview.api.import_instagram_leads_to_crm([profile]);
+          if (res && res.success) {
+            showToast(`@${profile.username} başarıyla CRM veritabanına aktarıldı!`, "success");
+          } else {
+            showToast("Aktarım hatası: " + (res ? res.error : "Bilinmeyen hata"), "error");
+          }
+        } else {
+          showToast(`[Demo] @${profile.username} CRM veritabanına aktarıldı.`, "success");
+        }
+      } catch (err) {
+        showToast("CRM Aktarım Hatası: " + err.message, "error");
+      }
+    }
+
+    async function bulkImportInstagramToCrm() {
+      if (!currentInstagramResults || currentInstagramResults.length === 0) {
+        showToast("CRM'e aktarılacak Instagram profil sonucu bulunmuyor.", "warning");
+        return;
+      }
+
+      try {
+        if (window.pywebview && window.pywebview.api) {
+          const res = await window.pywebview.api.import_instagram_leads_to_crm(currentInstagramResults);
+          if (res && res.success) {
+            showToast(`Toplam ${res.total} profil CRM veritabanına aktarıldı (${res.saved_count} Yeni, ${res.updated_count} Güncellenen).`, "success");
+          } else {
+            showToast("Toplu aktarım hatası: " + (res ? res.error : "Bilinmeyen hata"), "error");
+          }
+        } else {
+          showToast(`[Demo] Toplam ${currentInstagramResults.length} profil CRM'e aktarıldı.`, "success");
+        }
+      } catch (err) {
+        showToast("Toplu CRM Aktarım Hatası: " + err.message, "error");
+      }
+    }
+
+    async function generateInstagramDmModal(username, index) {
+      const profile = currentInstagramResults[index] || { username: username, bio: "", category: "" };
+
+      try {
+        let dmText = "";
+        if (window.pywebview && window.pywebview.api) {
+          const res = await window.pywebview.api.generate_instagram_dm_draft(
+            profile.username,
+            profile.bio || "",
+            profile.category || ""
+          );
+          if (res && res.success) {
+            dmText = res.dm_draft;
+          }
+        }
+
+        if (!dmText) {
+          dmText = `Merhaba @${username},\n\nInstagram sayfanızdaki harika içeriklerinizi ve çalışmalarınızı inceledik.\nİşletmeniz için müşteri kazanımını artıracak ve satışlarınızı büyütecek özel çözümler sunuyoruz.\nDetayları görüşmek ister misiniz?\n\nSaygılarımızla,`;
+        }
+
+        const userAction = prompt(`@${username} için oluşturulan Instagram DM / İlk İletişim Taslağı:\n(Kopyalamak için Ctrl+C tuşlayın)`, dmText);
+        if (userAction !== null) {
+          showToast("DM metni kopyalanmaya hazır!", "info");
+        }
+      } catch (err) {
+        showToast("DM oluşturma hatası: " + err.message, "error");
+      }
+    }
+
+    async function findSimilarProfilesAction(username, category) {
+      const keywordsInput = document.getElementById("insta-search-keywords");
+      if (keywordsInput) {
+        keywordsInput.value = `${category || username} benzeri`;
+      }
+      searchInstagramProfiles();
+    }
+
+    async function exportInstagramResults(format) {
+      if (!currentInstagramResults || currentInstagramResults.length === 0) {
+        showToast("Dışa aktarılacak profil verisi bulunmuyor.", "warning");
+        return;
+      }
+
+      try {
+        if (window.pywebview && window.pywebview.api) {
+          const res = await window.pywebview.api.export_instagram_profiles(currentInstagramResults, format);
+          if (res && res.success) {
+            showToast(`Profiller Masaüstüne kaydedildi: ${res.output_path}`, "success");
+          } else {
+            showToast("Dışa aktarma hatası: " + (res ? res.error : "Bilinmeyen hata"), "error");
+          }
+        } else {
+          showToast(`[Demo] Profiller ${format} olarak aktarıldı.`, "info");
+        }
+      } catch (err) {
+        showToast("Dışa aktarma hatası: " + err.message, "error");
+      }
+    }
     // Persists the collapsed state under the key 'aegis-sidebar-collapsed'.
     // On page load, restoreSidebarState() reads this value and applies the
     // .collapsed class on the sidebar element so the user's preference survives
@@ -3583,13 +4034,21 @@ function handleThemeChange(theme) {
       const searchInput = document.getElementById('search-leads-input');
       const q = searchInput ? searchInput.value.toLowerCase().trim() : '';
 
-      // Filter array client-side
+      // Filter array client-side (search name, sector, address, phone, email, instagram, website, status)
       const filtered = allLeads.filter(l => {
         if (!q) return true;
         const name = (l.business_name || '').toLowerCase();
         const sector = (l.sector || '').toLowerCase();
         const address = (l.address || '').toLowerCase();
-        return name.includes(q) || sector.includes(q) || address.includes(q);
+        const phone = (l.phone || '').toLowerCase();
+        const email = (l.email || '').toLowerCase();
+        const instagram = (l.instagram_handle || '').toLowerCase();
+        const website = (l.website_url || '').toLowerCase();
+        const status = (l.status || '').toLowerCase();
+        const statusLabel = (FUNNEL_STATUS_LABELS[l.status] || '').toLowerCase();
+        return name.includes(q) || sector.includes(q) || address.includes(q) ||
+               phone.includes(q) || email.includes(q) || instagram.includes(q) ||
+               website.includes(q) || status.includes(q) || statusLabel.includes(q);
       });
 
       // Update total matching count bar
@@ -3663,6 +4122,17 @@ function handleThemeChange(theme) {
         detailView.classList.add('expanded');
         detailView.style.flex = '2';
         if (splitLeft) splitLeft.style.display = 'none';
+      }
+    }
+
+    // Open lead details tab & select lead
+    function openLeadDetails(leadId) {
+      const leadsTab = document.querySelector('.nav-item[data-tab="leads"]');
+      if (typeof switchTab === 'function') {
+        switchTab('leads', leadsTab);
+      }
+      if (typeof selectLead === 'function') {
+        selectLead(leadId);
       }
     }
 
@@ -3857,7 +4327,7 @@ function handleThemeChange(theme) {
                 <div style="font-size: 0.75rem; font-weight: bold; color: #fbbf24; margin-bottom: 4px;">KİŞİSELLEŞTİRİLMİŞ KANCA (THE HOOK)</div>
                 <div style="font-size: 0.8rem; color: var(--text-main); font-style: italic;">"${escapeHtml(lead.outreach_hook)}"</div>
                 <div style="margin-top: 6px; display:flex; justify-content:flex-end;">
-                  <button class="btn btn-secondary" style="font-size:0.7rem; padding:2px 8px; height:24px;" onclick="copyToClipboard('${escapeHtml(lead.outreach_hook)}')"> Kopyala</button>
+                  <button class="btn btn-secondary" style="font-size:0.7rem; padding:2px 8px; height:24px;" onclick="copyToClipboard(this)" data-text="${escapeHtml(lead.outreach_hook)}"> Kopyala</button>
                 </div>
               </div>
               ` : ''}
@@ -8016,7 +8486,11 @@ function handleThemeChange(theme) {
     }
 
     // Clipboard copy helper fallback
-    function copyToClipboard(text) {
+    function copyToClipboard(textOrEl) {
+      let text = textOrEl;
+      if (textOrEl && textOrEl.getAttribute && textOrEl.getAttribute('data-text') !== null) {
+        text = textOrEl.getAttribute('data-text');
+      }
       try {
         const temp = document.createElement('textarea');
         temp.value = text;
@@ -8202,7 +8676,7 @@ function handleThemeChange(theme) {
               <details style="cursor:pointer;">
                 <summary style="color:var(--color-brand);font-size:0.8rem;font-weight:600;">Geliştirici Promptunu Göster</summary>
                 <pre style="background:rgba(0,0,0,0.3);border-radius:6px;padding:10px;margin-top:8px;font-size:0.75rem;color:var(--text-muted);white-space:pre-wrap;word-break:break-word;">${escapeHtml(idea.build_prompt)}</pre>
-                <button onclick="copyToClipboard(${JSON.stringify(idea.build_prompt)})" style="margin-top:6px;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;background:rgba(168,85,247,0.3);color:#e9d5ff;font-size:0.78rem;">Promptu Kopyala</button>
+                <button onclick="copyToClipboard(this)" data-text="${escapeHtml(idea.build_prompt)}" style="margin-top:6px;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;background:rgba(168,85,247,0.3);color:#e9d5ff;font-size:0.78rem;">Promptu Kopyala</button>
               </details>
             ` : ''}
           </div>
@@ -8220,7 +8694,7 @@ function handleThemeChange(theme) {
           <div style="margin-bottom:20px;">
             <h3 style="color:var(--text-main);margin:0 0 10px;font-size:1.1rem;">Saha Pitch Scripti</h3>
             <div style="background:rgba(168,85,247,0.08);border:1px solid rgba(168,85,247,0.25);border-radius:10px;padding:16px;color:var(--text-main);font-size:0.9rem;line-height:1.7;">${pitchHtml}</div>
-            <button onclick="copyToClipboard(${JSON.stringify(data.pitch_script_md || '')})" style="margin-top:8px;padding:6px 16px;border-radius:8px;border:none;cursor:pointer;background:rgba(168,85,247,0.2);color:#e9d5ff;font-size:0.82rem;">Scripti Kopyala</button>
+            <button onclick="copyToClipboard(this)" data-text="${escapeHtml(data.pitch_script_md || '')}" style="margin-top:8px;padding:6px 16px;border-radius:8px;border:none;cursor:pointer;background:rgba(168,85,247,0.2);color:#e9d5ff;font-size:0.82rem;">Scripti Kopyala</button>
           </div>
           ${ideasHtml ? `
           <div>

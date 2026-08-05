@@ -3607,6 +3607,178 @@ class GuiApi:
             logger.exception(f"export_leads_advanced failed: {e}")
             return {"success": False, "error": str(e)}
 
+    # -------------------------------------------------------------------
+    # Instagram Finder Bridge Methods
+    # -------------------------------------------------------------------
+    def search_instagram_profiles(self, keywords: str, location: str = "", limit: int = 20):
+        """Search Instagram profiles by sector keywords and location."""
+        try:
+            from aegisScout.discovery.instagram_finder import InstagramFinder
+            finder = InstagramFinder()
+            limit_val = int(limit) if limit is not None else 20
+            if limit_val <= 0:
+                limit_val = 10000
+            else:
+                limit_val = min(10000, max(1, limit_val))
+
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                profiles = loop.run_until_complete(
+                    finder.search_profiles_by_sector(keywords, location=location, limit=limit_val)
+                )
+            finally:
+                loop.close()
+
+            return {"success": True, "count": len(profiles), "profiles": profiles}
+        except Exception as e:
+            logger.exception(f"search_instagram_profiles failed: {e}")
+            return {"success": False, "error": str(e), "profiles": []}
+
+    def find_similar_instagram_profiles(self, username: str, category: str = "", location: str = "", limit: int = 10):
+        """Find similar Instagram profiles for a given handle or category."""
+        try:
+            from aegisScout.discovery.instagram_finder import InstagramFinder
+            finder = InstagramFinder()
+            limit_val = int(limit) if limit else 10
+
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                profiles = loop.run_until_complete(
+                    finder.find_similar_profiles(username, category=category, location=location, limit=limit_val)
+                )
+            finally:
+                loop.close()
+
+            return {"success": True, "count": len(profiles), "profiles": profiles}
+        except Exception as e:
+            logger.exception(f"find_similar_instagram_profiles failed: {e}")
+            return {"success": False, "error": str(e), "profiles": []}
+
+    def import_instagram_leads_to_crm(self, profiles: list[dict]):
+        """Import list of discovered Instagram profiles into Lead database."""
+        if not profiles or not isinstance(profiles, list):
+            return {"success": False, "error": "Geçersiz profil verisi"}
+
+        saved_count = 0
+        updated_count = 0
+        try:
+            with Session(engine) as session:
+                for p in profiles:
+                    if not isinstance(p, dict):
+                        continue
+                    username = str(p.get("username", "")).strip().lower().replace("@", "")
+                    if not username:
+                        continue
+
+                    # Check existing lead with same instagram handle or business name
+                    existing = session.exec(
+                        select(Lead).where(
+                            (Lead.instagram_handle == username) |
+                            ((Lead.session_id == self._active_session_id) & (Lead.business_name == str(p.get("full_name", username)).strip()))
+                        )
+                    ).first()
+
+                    if existing:
+                        if p.get("email") and not existing.email:
+                            existing.email = p["email"]
+                        if p.get("phone") and not existing.phone:
+                            existing.phone = p["phone"]
+                        if p.get("website") and not existing.website_url:
+                            existing.website_url = p["website"]
+                        existing.instagram_handle = username
+                        existing.updated_at = _utcnow()
+                        session.add(existing)
+                        updated_count += 1
+                    else:
+                        note_lines = []
+                        if p.get("bio"):
+                            note_lines.append(f"Bio: {p['bio']}")
+                        if p.get("followers"):
+                            note_lines.append(f"Takipçi: {p['followers']}")
+                        if p.get("posts"):
+                            note_lines.append(f"Gönderi: {p['posts']}")
+                        if p.get("is_verified"):
+                            note_lines.append("Mavi Tik: Doğrulanmış Hesap")
+
+                        new_lead = Lead(
+                            session_id=self._active_session_id,
+                            business_name=str(p.get("full_name") or username).capitalize(),
+                            sector=str(p.get("category") or "Instagram Keşfi"),
+                            address=str(p.get("location") or "Instagram"),
+                            phone=p.get("phone"),
+                            email=p.get("email"),
+                            website_url=p.get("website"),
+                            instagram_handle=username,
+                            status="new",
+                            source="instagram_finder",
+                            notes="\n".join(note_lines),
+                            discovered_at=_utcnow(),
+                            updated_at=_utcnow()
+                        )
+                        session.add(new_lead)
+                        saved_count += 1
+
+                session.commit()
+                return {
+                    "success": True,
+                    "saved_count": saved_count,
+                    "updated_count": updated_count,
+                    "total": saved_count + updated_count
+                }
+        except Exception as e:
+            logger.exception(f"import_instagram_leads_to_crm failed: {e}")
+            return {"success": False, "error": str(e)}
+
+    def generate_instagram_dm_draft(self, username: str, bio: str = "", sector: str = ""):
+        """Generate an AI-powered personalized Instagram DM intro message."""
+        clean_u = username.strip().replace("@", "")
+        bio_clean = bio.strip()
+        sector_clean = sector.strip() or "Sektör"
+
+        prompt = (
+            f"Merhaba @{clean_u},\n\n"
+            f"{sector_clean} alanındaki Instagram profilinizi ve çalışmalarınızı inceledik. "
+            f"{'(' + bio_clean[:100] + '...)' if bio_clean else ''}\n"
+            f"İşletmeniz için dijital dönüşüm, müşteri kazanımı ve satış süreçlerinizi otomatize edecek harika çözümler sunuyoruz.\n"
+            f"Kısa bir kahve molasında detayları konuşmak ister misiniz?\n\n"
+            f"Saygılarımızla,"
+        )
+
+        return {"success": True, "username": clean_u, "dm_draft": prompt}
+
+    def export_instagram_profiles(self, profiles: list[dict], format_type: str = "csv"):
+        """Export Instagram profiles list to desktop CSV/JSON file."""
+        if not profiles or not isinstance(profiles, list):
+            return {"success": False, "error": "Dışa aktarılacak profil verisi yok"}
+
+        try:
+            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+            ext = "csv" if format_type.lower() == "csv" else "json"
+            desktop_dir = os.path.join(os.path.expanduser("~"), "Desktop")
+            out_path = os.path.join(desktop_dir, f"instagram_profilleri_{ts}.{ext}")
+
+            if ext == "csv":
+                import csv
+                headers = [
+                    "username", "full_name", "category", "followers", "following", "posts",
+                    "email", "phone", "website", "is_verified", "bio", "profile_url"
+                ]
+                with open(out_path, "w", encoding="utf-8-sig", newline="") as f:
+                    writer = csv.DictWriter(f, fieldnames=headers, extrasaction="ignore")
+                    writer.writeheader()
+                    for p in profiles:
+                        writer.writerow(p)
+            else:
+                with open(out_path, "w", encoding="utf-8") as f:
+                    json.dump(profiles, f, ensure_ascii=False, indent=2)
+
+            return {"success": True, "output_path": out_path, "count": len(profiles)}
+        except Exception as e:
+            logger.exception(f"export_instagram_profiles failed: {e}")
+            return {"success": False, "error": str(e)}
+
 
 
 def set_console_visibility(visible: bool):

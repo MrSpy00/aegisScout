@@ -88,55 +88,65 @@ class GoogleMapsScraperDiscoveryProvider(BaseDiscoveryProvider):
 
     async def _search_engine_fallback(self, sector: str, location: str) -> List[LeadCandidate]:
         """
-        Queries DuckDuckGo for 'site:google.com/maps/place/ sector location'
+        Queries DuckDuckGo or Bing for 'site:google.com/maps/place/ sector location'
         and extracts places from search results.
         """
         candidates = []
         query = f"site:google.com/maps/place/ {sector} {location}"
-        url = f"https://html.duckduckgo.com/html/?q={urllib.parse.quote(query)}"
+        urls = [
+            f"https://html.duckduckgo.com/html/?q={urllib.parse.quote(query)}",
+            f"https://www.bing.com/search?q={urllib.parse.quote(query)}"
+        ]
         
-        async with get_async_client(timeout=15.0) as client:
-            resp = await client.get(url)
-            if resp.status_code != 200:
-                return []
-                
-            soup = BeautifulSoup(resp.text, "html.parser")
-            results = soup.find_all("div", class_="result")
-            for r in results:
-                title_a = r.find("a", class_="result__a")
-                if not title_a:
-                    continue
-                title = title_a.text.strip()
-                href = title_a.get("href", "")
-                
-                # Clean name: remove maps suffix/prefix
-                name = title.replace(" - Google Maps", "").replace(" Google Haritalar", "").strip()
-                name = re.sub(r"^\d+\.\s*", "", name) # remove number
-                
-                snippet_elem = r.find("a", class_="result__snippet")
-                snippet = snippet_elem.text.strip() if snippet_elem else ""
-                
-                # Look for phone/website in the snippet
-                phone = None
-                phone_match = re.search(r"(\+?\d[\d\s-]{8,}\d)", snippet)
-                if phone_match:
-                    phone = phone_match.group(1).strip()
-                    
-                website = None
-                web_match = re.search(r"(https?://[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6})", snippet)
-                if web_match:
-                    website = web_match.group(1).strip()
-                
-                if len(name) > 3:
-                    candidate = LeadCandidate(
-                        business_name=name,
-                        sector=sector,
-                        address=location,
-                        phone=phone,
-                        website_url=website,
-                        has_website=bool(website),
-                        source="google_maps_scraper"
-                    )
-                    candidates.append(candidate)
+        async with get_async_client(timeout=5.0) as client:
+            for url in urls:
+                try:
+                    resp = await client.get(url)
+                    if resp.status_code != 200:
+                        continue
+                        
+                    soup = BeautifulSoup(resp.text, "html.parser")
+                    # Try finding results in DDG or Bing structure
+                    results = soup.find_all("div", class_="result") or soup.find_all("li", class_="b_algo")
+                    for r in results:
+                        title_a = r.find("a", class_="result__a") or r.find("a")
+                        if not title_a:
+                            continue
+                        title = title_a.text.strip()
+                        if not title:
+                            continue
+                        
+                        # Clean name: remove maps suffix/prefix
+                        name = title.replace(" - Google Maps", "").replace(" Google Haritalar", "").strip()
+                        name = re.sub(r"^\d+\.\s*", "", name)
+                        
+                        snippet_elem = r.find("a", class_="result__snippet") or r.find("p")
+                        snippet = snippet_elem.text.strip() if snippet_elem else ""
+                        
+                        phone = None
+                        phone_match = re.search(r"(\+?\d[\d\s-]{8,}\d)", snippet)
+                        if phone_match:
+                            phone = phone_match.group(1).strip()
+                            
+                        website = None
+                        web_match = re.search(r"(https?://[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6})", snippet)
+                        if web_match:
+                            website = web_match.group(1).strip()
+                        
+                        if len(name) > 3 and "google.com" not in name.lower():
+                            candidate = LeadCandidate(
+                                business_name=name,
+                                sector=sector,
+                                address=location,
+                                phone=phone,
+                                website_url=website,
+                                has_website=bool(website),
+                                source="google_maps_scraper"
+                            )
+                            candidates.append(candidate)
+                    if candidates:
+                        break
+                except Exception as e:
+                    logger.debug(f"Google maps fallback failed for URL {url}: {e}")
                     
         return candidates

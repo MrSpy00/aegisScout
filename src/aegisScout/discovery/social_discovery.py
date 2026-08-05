@@ -327,8 +327,37 @@ def _google_cse_search(query: str, num: int = 5) -> List[str]:
         return []
 
 
+def _bing_search(query: str, num: int = 8) -> List[str]:
+    """Bing HTML search fallback (no key required). Returns up to *num* URLs."""
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+            "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        ),
+        "Accept-Language": "tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7",
+    }
+    encoded = urllib.parse.quote(query)
+    url = f"https://www.bing.com/search?q={encoded}"
+    try:
+        with httpx.Client(timeout=3.5, follow_redirects=True, headers=headers) as client:
+            r = client.get(url)
+        if r.status_code != 200:
+            return []
+        soup = BeautifulSoup(r.text, "html.parser")
+        links = []
+        for a in soup.find_all("a", href=True):
+            href = a["href"]
+            if href.startswith("http://") or href.startswith("https://"):
+                if "bing.com" not in href and "microsoft.com" not in href:
+                    links.append(href)
+        return links[:num]
+    except Exception as e:
+        logger.debug(f"Bing search failed for '{query}': {e}")
+        return []
+
+
 def _duckduckgo_search(query: str, num: int = 8) -> List[str]:
-    """DuckDuckGo HTML search (no key required). Returns up to *num* URLs."""
+    """DuckDuckGo HTML search with automatic Bing fallback (no key required)."""
     headers = {
         "User-Agent": (
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -338,25 +367,17 @@ def _duckduckgo_search(query: str, num: int = 8) -> List[str]:
     encoded = urllib.parse.quote(query)
     url = f"https://html.duckduckgo.com/html/?q={encoded}"
     try:
-        with httpx.Client(timeout=12.0, follow_redirects=True, headers=headers) as client:
+        with httpx.Client(timeout=3.5, follow_redirects=True, headers=headers) as client:
             r = client.get(url)
-        if r.status_code != 200:
-            logger.debug(f"DDG returned {r.status_code} for query: {query}")
-            return []
-        # Some responses use HTML5 parser; we just need hrefs.
-        try:
-            soup = BeautifulSoup(r.text, "html.parser")
-            # The redirect wrapper hrefs are in result__a tags.
-            for a in soup.find_all("a", class_="result__a"):
-                href = a.get("href", "")
-                if href:
-                    pass  # already extracted by regex below
-        except Exception:
-            pass
-        return _duckduckgo_links(r.text)[:num]
+        if r.status_code == 200:
+            links = _duckduckgo_links(r.text)[:num]
+            if links:
+                return links
     except Exception as e:
         logger.debug(f"DDG search failed for '{query}': {e}")
-        return []
+
+    # Fallback to Bing HTML search when DDG fails or yields no links
+    return _bing_search(query, num)
 
 
 # ---------------------------------------------------------------------------

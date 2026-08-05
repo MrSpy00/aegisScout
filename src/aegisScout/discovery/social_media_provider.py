@@ -207,11 +207,27 @@ class SocialMediaDiscoveryProvider(BaseDiscoveryProvider):
         candidates: List[LeadCandidate] = []
         found_users: Set[str] = set()
 
-        for tag in hashtags[:3]:
+        # 1. Search Instagram business profiles via Bing HTML search
+        for phrase in phrases[:3]:
+            try:
+                q = f"site:instagram.com {phrase}"
+                url = f"https://www.bing.com/search?q={urllib.parse.quote(q)}"
+                resp = await client.get(url, headers=self.headers, timeout=5.0)
+                if resp.status_code == 200:
+                    handles = re.findall(r"instagram\.com/([a-zA-Z0-9_.-]{3,30})", resp.text)
+                    ignored = {"p", "explore", "reels", "stories", "about", "terms", "legal", "developer", "accounts", "directory"}
+                    for h in handles:
+                        if h.lower() not in ignored and not h.isdigit():
+                            found_users.add(h.lower())
+            except Exception as e:
+                logger.debug(f"Instagram search failed for '{phrase}': {e}")
+
+        # 2. Try hashtag tag search if Instagram allows it
+        for tag in hashtags[:2]:
             try:
                 url = f"https://www.instagram.com/api/v1/tags/web_info/?tag_name={urllib.parse.quote(tag)}"
-                resp = await client.get(url, headers=self.instagram_api_headers, timeout=6.0)
-                if resp.status_code == 200:
+                resp = await client.get(url, headers=self.instagram_api_headers, timeout=4.0)
+                if resp.status_code == 200 and "application/json" in resp.headers.get("content-type", ""):
                     data = resp.json()
                     sections = data.get("data", {}).get("top", {}).get("sections", [])
                     for sec in sections:
@@ -223,21 +239,6 @@ class SocialMediaDiscoveryProvider(BaseDiscoveryProvider):
                                 found_users.add(username)
             except Exception as e:
                 logger.debug(f"Instagram tag search failed for #{tag}: {e}")
-
-        # Fallback to search query for Instagram usernames via keyless DDG JSON/HTML
-        for phrase in phrases[:2]:
-            try:
-                q = f"site:instagram.com {phrase}"
-                ddg_url = f"https://api.duckduckgo.com/?q={urllib.parse.quote(q)}&format=json"
-                resp = await client.get(ddg_url, headers=self.headers, timeout=5.0)
-                if resp.status_code == 200:
-                    text = resp.text
-                    handles = re.findall(r"instagram\.com/([a-zA-Z0-9_.-]{3,30})", text)
-                    for h in handles:
-                        if h.lower() not in {"p", "explore", "reels", "stories", "about", "terms", "legal"}:
-                            found_users.add(h.lower())
-            except Exception:
-                pass
 
         # Fetch profile metadata for discovered usernames
         for username in list(found_users)[:12]:

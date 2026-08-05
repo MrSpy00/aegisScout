@@ -79,29 +79,45 @@ def save_waterfall_config(config: List[Dict[str, Any]]) -> None:
 
 async def free_duckduckgo_search_emails(query: str) -> List[str]:
     """
-    Perform a free API-key-less DuckDuckGo search to extract emails from search result snippets.
+    Perform a free API-key-less search (DuckDuckGo + Bing fallback) to extract emails from search snippets.
     Provides a robust backup if Google Custom Search keys are not configured.
     """
-    logger.info(f"Performing free DuckDuckGo search for: {query}")
+    logger.info(f"Performing keyless search for: {query}")
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept-Language": "tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7",
     }
     emails = []
+
+    # 1. Try DuckDuckGo HTML
     try:
         url = f"https://html.duckduckgo.com/html/?q={urllib.parse.quote(query)}"
-        async with httpx.AsyncClient(headers=headers, timeout=12.0) as client:
+        async with httpx.AsyncClient(headers=headers, timeout=4.0, follow_redirects=True) as client:
             resp = await client.get(url)
             if resp.status_code == 200:
-                soup = BeautifulSoup(resp.text, "html.parser")
-                # DuckDuckGo HTML results snippets are in result__snippet class
-                snippets = soup.find_all("a", class_="result__snippet")
-                for snip in snippets:
-                    text = snip.get_text()
-                    found = re.findall(r"[\w.-]+@[\w.-]+\.\w+", text)
-                    emails.extend(found)
+                found = re.findall(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b", resp.text)
+                for email in found:
+                    em_lower = email.lower()
+                    if not any(em_lower.endswith(ext) for ext in [".png", ".jpg", ".jpeg", ".svg", ".gif", ".webp", "example.com", "domain.com"]):
+                        emails.append(em_lower)
     except Exception as e:
-        logger.error(f"Free DuckDuckGo search failed: {e}")
-        
+        logger.debug(f"Free DuckDuckGo email search failed: {e}")
+
+    # 2. If DDG failed or returned 0 emails, fallback to Bing HTML
+    if not emails:
+        try:
+            url = f"https://www.bing.com/search?q={urllib.parse.quote(query)}"
+            async with httpx.AsyncClient(headers=headers, timeout=4.0, follow_redirects=True) as client:
+                resp = await client.get(url)
+                if resp.status_code == 200:
+                    found = re.findall(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b", resp.text)
+                    for email in found:
+                        em_lower = email.lower()
+                        if not any(em_lower.endswith(ext) for ext in [".png", ".jpg", ".jpeg", ".svg", ".gif", ".webp", "example.com", "domain.com"]):
+                            emails.append(em_lower)
+        except Exception as e:
+            logger.debug(f"Free Bing email search failed: {e}")
+
     return list(set(emails))
 
 
