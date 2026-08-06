@@ -1,5 +1,5 @@
 """
-aegisScout - PyInstaller Build Betigi v3
+aegisScout - PyInstaller Build Betigi
 ======================================
 
 Kullanim:
@@ -237,7 +237,6 @@ def build():
 
     if not exe_path.exists():
         for candidate in DIST_DIR.rglob("*.exe"):
-            import shutil
             shutil.copy2(candidate, exe_path)
             break
 
@@ -251,7 +250,6 @@ def build():
         env_src = ROOT / ".env"
         env_dst = DIST_DIR / ".env"
         if env_src.exists():
-            import shutil
             shutil.copy2(env_src, env_dst)
             print(f"    [OK] .env dosyasi dist/ icine kopyalandi.")
         else:

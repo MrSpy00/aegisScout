@@ -1,5 +1,5 @@
 @echo off
-:: aegisScout - Build Launcher v3.2
+:: aegisScout - Build Launcher
 :: Double-click or run: build.bat
 ::
 :: Build modes:
@@ -13,7 +13,7 @@ set "BUILD_SCRIPT=%ROOT%scripts\build_exe.py"
 :: ASCII Banner
 echo.
 echo  ==========================================
-echo     aegisScout Build Launcher v3.2 
+echo     aegisScout Build Launcher 
 echo     Optimized ^| Fast ^| Production-Ready
 echo  ==========================================
 echo.

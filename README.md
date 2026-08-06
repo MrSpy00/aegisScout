@@ -1,12 +1,17 @@
-# aegisScout — İşletme Keşif, Analiz ve Satış Otomasyonu / Business Discovery, Analysis & Outreach Automation
+# aegisScout — Business Discovery, OSINT Intelligence & Sales Outreach Platform
 
-aegisScout; web sitesi, mobil uygulama, tasarım ve dijital pazarlama hizmetleri sunan ajanslar ile freelancerlar için özel olarak tasarlanmış, **kendi bilgisayarınızda çalışan (self-hosted)**, modern ve son derece kapsamlı bir müşteri keşif, araştırma ve ilk temas (outreach) otomasyon platformudur.
+[![English README](https://img.shields.io/badge/Language-English-blue.svg)](README.md)
+[![Türkçe README](https://img.shields.io/badge/Dil-Türkçe-red.svg)](README.tr.md)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python 3.11+](https://img.shields.io/badge/Python-3.11+-brightgreen.svg)](https://www.python.org/)
+
+**aegisScout** is a modern, **self-hosted**, 100% private and local business discovery, deep OSINT enrichment, AI copywriting, and multi-channel outreach automation platform built specifically for web agencies, freelancers, software houses, and digital marketing professionals.
 
 ---
 
-## 🖼️ Application UI Screenshots
+## 🖼️ Application Desktop Screenshots
 
-Here are actual screenshots of the desktop application's main panels:
+Real application screenshots from the desktop dashboard (all sample data shown is placeholder):
 
 ### 📊 Dashboard & Discovery Radar
 ![Dashboard](assets/screenshot_dashboard.png)
@@ -17,492 +22,185 @@ Here are actual screenshots of the desktop application's main panels:
 ### 🎯 Campaigns Manager
 ![Campaigns Manager](assets/screenshot_campaigns.png)
 
-### ⚙️ Settings & Configuration
+### ⚙️ Settings & Configuration Panel
 ![Settings Panel](assets/screenshot_settings.png)
 
 ---
 
-# 🇹🇷 BÖLÜM 1: TÜRKÇE KULLANIM VE TEKNİK DOKÜMANTASYON
+## ✨ Detailed Feature Architecture
 
-## 📌 Temel Özellikler
+### 1. Business Discovery Engine & Zero-Key OSINT Framework
 
-### 1. İşletme Keşif Motoru & OSINT Dizin Kazıyıcıları (Discovery Engine — 25+ Sıfır Keyli Servis)
-- **Harita, Geocoding & Konum Servisleri (`photon_provider.py`, `location_provider.py`, `osm_provider.py`):** Komoot Photon API (`photon.komoot.io`), OpenStreetMap Nominatim, BigDataCloud istemci taraflı ters geocoding (`api.bigdatacloud.net`) ve Country.is IP konum tespiti (`api.country.is`) ile %100 anahtarsız canlı konum ve adres geocoding sunar.
-- **İşletme OSINT, Domain & WHOIS Denetimi (`domain_audit.py`):** ICANN RDAP (`rdap.org/domain`) ile domain yaşı/WHOIS bilgisi, Cloudflare DNS-over-HTTPS (`1.1.1.1`) ile MX altyapısı (Google Workspace, Microsoft 365, cPanel, ProtonMail) ve SPF/DMARC kontrolleri, IP-API (`ip-api.com`) ile sunucu konumu/ISP/hosting tespiti ve Ipify (`api.ipify.org`) ile kamu IP sorgulaması yapar.
-- **Görsel Zenginleştirme & Web Ekran Görüntüsü (`media_resolver.py`):** Google Favicon API (`s2/favicons`) ile 128x128 kurumsal logoları, Unavatar (`unavatar.io`) ile çoklu sosyal profil resimlerini, UI-Avatars (`ui-avatars.com`) ile dinamik renkli baş harf ikonlarını, Microlink (`api.microlink.io`) ile OpenGraph özetlerini ve Thum.io (`image.thum.io`) ile canlı mobil/masaüstü önizleme kartlarını sıfır key ile üretir.
-- **E-Posta & İletişim Doğrulama (Email OSINT — `contact_validator.py`):** Debounce (`disposable.debounce.io`) geçici mail kontrolü, EmailOSINT (`api.emailosint.org`) sızıntı/profil taraması ve Rapid Email Verifier (`rapid-email-verifier.fly.dev`) MX geçerlilik testleri ile %100 anahtarsız e-posta güvenilirlik skoru hesaplar.
-- **İçerik Zenginleştirme & Otomatik Çeviri (`jina_reader.py`, `translation_service.py`):** `r.jina.ai` entegrasyonu ile web sitelerini 0.5 saniyede LLM'e hazır temiz Markdown'a dönüştürür; DuckDuckGo Instant Answer (`api.duckduckgo.com`) ile işletme özetleri çeker; MyMemory (`api.mymemory.translated.net`) ile Türkçe/İngilizce otomatik çeviri yapar.
-- **Maksimum Detaylı CMD & Dosya Loglama Sistemi (`logger.py`):** Milisaniye hassasiyetli zaman damgaları, izleme seviyeleri (`DEBUG`), dosya/satır numaraları (`[filename:lineno]`), iş parçacığı ID'leri ve `log_execution_time` context manager ile CMD konsol ve dosya çıktılarını maksimum detay seviyesinde sunar.
-- **GUI Win32 Odaklanma & Tıklanabilirlik Düzeltmesi (`gui_impl.py`, `gui.py`):** Win32 `set_console_visibility` işlevinde `SW_SHOWNA` (8: Activesiz Göster) durum kodu kullanılarak konsol görünürlük değişikliklerinde PyWebView masaüstü arayüzünün tıklanabilirliğini ve pencere odağını kaybetmesi kesin olarak engellenmiştir.
-- **SerpApi Google Maps & Local Pack Entegrasyonu (API & Ücretsiz Düşüş):** `serpapi_maps` ve `serpapi_local` motorları ile Google Haritalar ve Local 3-Pack verilerini anti-bot korumalarına takılmadan çeker. API anahtarı bulunmadığında otomatik olarak ücretsiz web kazıyıcılara düşerek kesintisiz keşif sunar.
-- **Google Yorum Analizi & AI Kanca (Outreach Hook):** Müşteri yorumlarını analiz edip kişiselleştirilmiş AI iletişim kancaları üretir.
-- **Google Places API Entegrasyonu (Gelişmiş/Opsiyonel):** Essentials API field mask özelliğini kullanarak işletme puanı, yorum sayıları ve adres verilerini ek ücretler oluşturmadan çeker.
+- **Geocoding & Location Intelligence:**
+  - **OpenStreetMap (OSM) & Overpass API:** Unlimited sector and location business discovery without requiring external API keys.
+  - **Komoot Photon API (`photon.komoot.io`):** Performs real-time address geocoding and coordinate resolution with zero key requirement.
+  - **BigDataCloud & Country.is:** Provides client-side reverse geocoding and IP-based geolocation detection.
+  - **Google Places API & SerpApi Local 3-Pack:** Optional integration for Google Maps and Local 3-Pack data; automatically falls back to free web scrapers when API keys are absent.
 
-### 2. Akıllı Araştırma, Web Scraping ve Görsel Denetim (Vision-Audit)
-- Bulunan işletmelerin web sitelerini derinlemesine tarar.
-- Playwright ve HTTP Web-Shot API yedeklemeleri sayesinde web sitelerinin ekran görüntülerini (Screen-Audit) kesintisiz kaydeder.
-- Viewport mobil uyumluluğu, SSL sertifikası geçerliliği ve SEO meta etiketlerinin varlığı üzerinden **100 üzerinden otomatik Web Sitesi Kalite Skoru** hesaplar.
-- Web sitesi üzerinden Instagram kullanıcı adlarını, telefon numaralarını ve iletişim e-postalarını tespit eder.
+- **Zero-Key Deep OSINT Services:**
+  - **ICANN RDAP (`rdap.org`):** Fetches domain registration age, registrar details, and WHOIS information.
+  - **Cloudflare DNS-over-HTTPS (`1.1.1.1`):** Analyzes target MX infrastructure (Google Workspace, Microsoft 365, cPanel, ProtonMail) and audits SPF/DMARC security configurations.
+  - **Shodan InternetDB (`internetdb.shodan.io`):** Detects open ports, known CVE vulnerabilities, and server tags without an API key.
+  - **crt.sh Certificate Mining:** Extracts target subdomains from public SSL/TLS Certificate Transparency logs.
+  - **Mozilla Observatory & Wayback Machine:** Queries web security compliance scores and historical site archives.
+  - **IP-API & Ipify:** Identifies server IP address, hosting provider, ISP, and geographical datacenter location.
 
-### 3. Çoklu API Key Rotasyonu ve SQLite WAL Mode Veritabanı
-- **Çoklu API Key Rotasyonu:** Gemini, Serper, OpenAI gibi sağlayıcılarda virgülle ayrılmış birden fazla API anahtarı girildiğinde her istekte otomatik rotasyon yaparak kota ve oran limitlerini korur.
-- **SQLite WAL Mode & Otomatik Kilit Önleme:** `PRAGMA journal_mode=WAL;` ve 30s kilit zamanaşımı ile tekli ve toplu silme işlemlerinde (`detaylı sil`, `tümünü sil`) kilitlenme ve autoflush hataları tamamen engellenmiştir.
-
-### 4. Çoklu LLM Sağlayıcı Altyapısı (LLM Router)
-- **Desteklenen Yapay Zeka Modelleri:**
-  - **OpenRouter API** (Onlarca açık kaynaklı ve ticari modele erişim)
-  - **Google Gemini API** (Yerel Gemini 2.5 Flash desteğiyle yüksek hızlı analiz)
-  - **Groq API** (Llama-3.3-70b-versatile modeliyle ultra hızlı çıkarım)
-  - **Mistral AI API** (Mistral Large desteğiyle kurumsal analizler)
-  - **DeepSeek API** (Maliyet-etkin derin düşünme)
-  - **OpenAI API** (GPT-4o & GPT-4o mini)
-  - **Anthropic Claude API** (Claude 3.5 Haiku)
-  - **Ollama** (Tamamen yerel ve ücretsiz offline LLM desteği)
-- **Otomatik Hata Kurtarma (Failover Routing):** Birincil yapay zeka sağlayıcınızda kesinti yaşandığında, sistem otomatik olarak yedek (fallback) sağlayıcıya geçerek operasyonu kesintisiz sürdürür.
-- **Kişiselleştirilmiş Taslak Üretimi:** `config.toml` dosyası üzerinden dil (Türkçe/İngilizce) ve erişim tonu (samimi, kurumsal, profesyonel) ayarlanabilir.
-
-### 4. Kampanya Yönetimi (Campaign Management)
-- Keşfedilen potansiyel müşterileri kampanya bazlı gruplandırabilme (Örnek: "Kadıköy Güzellik Salonları", "Beşiktaş Restoranlar").
-- Sektör ve konuma göre adayları kampanyalara otomatik veya manuel atama seçeneği.
-- Kampanya bazlı erişim istatistikleri ve yanıt (Conversion/Reply Rate) analizi.
-
-### 5. Erişim Modları (Outreach & DM Automation)
-- **Mod A (Yardımcı Erişim — Varsayılan & %100 Güvenli):** CLI veya GUI üzerinden tek tuşla işletmenin Instagram DM sayfasını tarayıcıda açar, AI tarafından üretilen özelleştirilmiş mesajı panoya kopyalar.
-- **Mod B (Tam Otomasyon — Opsiyonel & Riskli):** Instagram API simülatörü (`instagrapi`) kullanarak doğrudan veritabanından oturum açıp otomatik DM gönderir. Günlük gönderim limitlerini (Rate Limiter) aşmadan arka planda çalışabilir.
-
-### 6. Yanıt İzleme ve Bildirimler (Watcher Daemon)
-- Arka planda gelen kutularını kontrol eden servis sayesinde, potansiyel müşterilerden gelen yanıtlar otomatik tespit edilir.
-- Yanıt geldiğinde anında **Telegram Bot** veya **E-posta (SMTP)** bildirimleri tetiklenerek satış kaçırma riskini ortadan kaldırır.
-
-### 7. Modern ve Gelişmiş Grafik Arayüz (GUI)
-- PyWebView tabanlı, pürüzsüz geçişlere ve koyu tema (dark mode) tasarımına sahip masaüstü uygulaması.
-- Kampanya yönetimi, canlı arama paneli, detaylı AI analiz ekranı ve yapılandırma sekmeleriyle eksiksiz kontrol sunar.
-- Çift modlu çalışma: Parametresiz başlatıldığında (`aegisScout.exe` veya `python main.py` doğrudan çalıştırıldığında) Windows konsol pencerelerini arka planda gizleyerek yerel bir GUI uygulaması gibi açılır; argümanlarla çalıştırıldığında ise CLI modunda çalışmaya devam eder.
-
-### 8. Optimizasyon ve Kararlılık (Optimizasyon & Stabilizasyon)
-- **Küçük Paket Boyutu**: PyInstaller excludes listesi optimize edilerek `.exe` dosya boyutu **%24.4 oranında** (57 MB'tan 43 MB'a) düşürüldü.
-- **Modüler Bağımlılıklar**: `instagrapi` gibi ağır ve opsiyonel paketler dinamik/tembel (lazy import) olarak yüklenir, temel Mod A kurulumlarında ve başlatmada hata alınması engellenir.
-- **Güvenli PyWebView İletişimi**: `evaluate_js` veri aktarımları `json.dumps` ile güvenli hale getirilerek JS tarafında oluşabilecek SyntaxError vb. donma hataları engellendi.
-
-### 9. Yerel E-posta Doğrulama (Local Email Verifier — V2)
-- **SMTP El Sıkışma (Handshake) Simülasyonu:** Bulunan e-posta adresini regex format, disposable domain kontrolü, DNS MX sorgulama ve soket tabanlı SMTP el sıkışması ile 4 aşamada yerel olarak doğrular.
-- **Ücretsiz & API'siz:** Hiçbir harici API anahtarı gerektirmez. Tüm kontroller Python socket ve dnspython kütüphanesi ile gerçekleştirilir.
-- **Geçici E-posta Tespiti:** 30+ bilinen disposable e-posta sağlayıcısını kara listede tutar; ek dosya (`data/disposable_domains.txt`) ile genişletilebilir.
-
-### 10. Waterfall Zenginleştirme Basamakları (Enrichment Cascade — V2)
-- **Kademeli E-posta Keşfi:** Sırasıyla web sitesi kazıma, arama motoru sorgusu (Google/DuckDuckGo), Instagram biyografi kazıma ve e-posta doğrulama adımlarını otomatik olarak çalıştırır.
-- **Akıllı Durdurma:** Herhangi bir adımda e-posta bulunursa sonraki adımlar atlanır, gereksiz API kullanımı engellenir.
-- **Yapılandırılabilir:** `data/waterfall_config.json` dosyası üzerinden her adım etkinleştirilip/devre dışı bırakılabilir ve arama sorgu şablonları özelleştirilebilir.
-- **API'siz Arama Yedekleme:** Google Custom Search API anahtarı yoksa otomatik olarak ücretsiz DuckDuckGo aramasına düşer.
-
-### 11. Çoklu-Ajan AI Taslak Üretimi (Multi-Agent AI Draft — V2)
-- **3 Ajanlı İş Akışı:** Inspector (teknik fırsat tespiti), Copywriter (kişiselleştirilmiş taslak yazımı) ve Editor (doğal dil düzeltmesi) olmak üzere üç yapay zeka ajanı sırayla çalışır.
-- **RAG Destekli Kişiselleştirme:** Yerel bilgi tabanında sektöre uygun referanslar ve örnek vaka çalışmaları aranarak taslak içeriği zenginleştirilir.
-- **Emoji ve Klişe Filtreleme:** Editor ajanı, AI tarafından üretilen taslaklardaki yapay zeka jargonu, klişe selamlaşmalar ve uydurma istatistikleri temizler.
-
-### 12. Yerel RAG Bilgi Tabanı (Local RAG Knowledge Base — V2)
-- **Çift Motorlu Arama:** Saf Python TF-IDF algoritması (çevrimdışı, hiçbir harici bağımlılık gerektirmez) ve opsiyonel embedding (Ollama veya Gemini API) ile benzerlik araması yapar.
-- **Çoklu Format Desteği:** `data/knowledge_base/` klasöründeki `.txt`, `.md` ve `.pdf` dosyalarını otomatik olarak tarar, parçalara ayırır (chunk) ve indeksler.
-- **Otomatik Embedding Fallback:** Embedding hesaplanamazsa TF-IDF cosine similarity'ye düşer; kesintisiz çalışma sağlar.
-
-### 13. SMTP Hesap Havuzu ve Hız Sınırlama (SMTP Pool & Rate Limiting — V2)
-- **Otomatik Hesap Rotasyonu:** Veritabanında tanımlı birden çok SMTP hesabı arasında en az kullanılanı seçerek yük dağıtımı yapar.
-- **Saatlik Limit Yönetimi:** Her SMTP hesabı için saatte maksimum 5 e-posta gönderim limiti uygulanır; limit aşımında otomatik olarak sıradaki hesaba geçer.
-- **Şifreli Kimlik Bilgileri:** SMTP şifreleri veritabanında AES-256 Fernet ile şifrelenir.
-
-### 14. Soğuk E-posta Motoru ve Takip Dizileri (Cold Email & Follow-ups — V2)
-- **Çok Aşamalı Sıralı E-posta:** İlk e-posta (initial), 1. takip (3 gün sonra) ve 2. takip (7 gün sonra) olmak üzere kampanya bazında yapılandırılabilir takip dizileri.
-- **Akıllı Atlama:** Potansiyel müşteriden gelen yanıt (inbound) algılandığında takip e-postaları otomatik olarak atlanır.
-- **Kampanyaya Özel Şablonlar:** Her kampanya kendi konu satırı, e-posta gövdesi ve gecikme sürelerini taşır.
-- **IMAP Tabanlı Gelen Kutusu İzleme:** Tüm aktif SMTP hesaplarının IMAP gelen kutuları taranarak yanıtlar otomatik tespit edilir.
-
-### 15. P2P E-posta Isıtma (Warmup Engine — V2)
-- **Gönderen-Alıcı Eşleştirmesi:** Rastgele seçilen iki aktif SMTP hesabı arasında doğal e-posta trafiği simüle eder.
-- **Spam Kurtarma:** IMAP üzerinden spam/junk klasörleri taranır, warmup e-postaları otomatik olarak Gelen Kutusu'na taşınır ve okunmuş olarak işaretlenir.
-- **AI veya Şablon Tabanlı İçerik:** Gemini API varsa yapay zeka ile doğal dilde e-posta üretir; yoksa offline şablon havuzundan rastgele seçim yapar.
-- **Otomatik Yanıt Döngüsü:** Alıcı, gönderene otomatik yanıt oluşturur; her iki taraf da gelen e-postaları okur, yıldızlar ve spam'dan kurtarır.
-- **İstatistik Takibi:** `data/warmup_stats.json` dosyasına gönderim, yanıt, spam kurtarma ve yıldız sayıları kaydedilir.
-
-### 16. Multimodal Ekran Denetimi (Screen Audit — V2)
-- **Playwright ile Otomatik Ekran Görüntüsü:** Adayın web sitesinin masaüstü görünümü headless Chromium ile yakalanır ve `data/screenshots/` klasörüne kaydedilir.
-- **Gemini Vision AI ile Görsel Analiz:** Ekran görüntüsü Gemini Vision API'ye gönderilerek mobil uyumluluk, kontrast hataları ve dönüşüm optimizasyonu fırsatları tespit edilir.
-- **Yerel Sezgisel Yedek:** Gemini API anahtarı yoksa sayfa hızı, kırık link ve CTA eksikliği gibi metrikler üzerinden kalite skoru hesaplanır.
-- **Outreach Hook Üretimi:** Tespit edilen görsel hatalara dayanarak yüksek dönüşümlü, kişiselleştirilmiş bir outreach hook'u otomatik oluşturulur.
-
-### 17. WhatsApp Web ve LinkedIn Playwright Otomasyonu (V2)
-- **Kalıcı Tarayıcı Profilleri:** WhatsApp Web ve LinkedIn için ayrı Playwright persistent context profilleri kullanılır, QR kodu veya giriş bilgileri bir kez girilir.
-- **WhatsApp Web Otomatik Mesaj:** Telefon numarasına doğrudan WhatsApp Web üzerinden otomatik mesaj gönderir.
-- **LinkedIn Bağlantı ve Mesaj Otomasyonu:** Hedef LinkedIn profiline giderek "Bağlantı Kur" veya "Mesaj Gönder" butonlarını otomatik tespit eder.
-- **Anti-Bot Koruması:** headless=False modunda çalışarak bot tespit riskini azaltır.
-
-### 18. Arka Plan Görev Kuyruğu (Task Queue — V2)
-- **Singleton Async Kuyruk:** Tüm arka plan görevleri tek bir asyncio event loop üzerinde sırayla çalışır.
-- **Görev Yaşam Döngüsü:** Her görev `pending -> running -> completed / failed / cancelled` durumları arasında geçiş yapar; duraklatma ve devam ettirme desteği vardır.
-- **İlerleme Takibi:** Çalışan görevler yüzde bazında ilerleme bildirir; tüm görevlerin durumu listelenebilir.
-- **İptal ve Duraklatma:** Çalışan veya bekleyen görevler güvenle iptal edilebilir veya duraklatılabilir.
-
-### 19. Gelişmiş Ürün Yol Haritası ve Platform Güncellemeleri (V3 Roadmap)
-- **AI Sağlayıcı Bağımsızlığı:** Cloud AI sağlayıcılar (Gemini, OpenAI, Claude, Groq, DeepSeek, Mistral, OpenRouter) birincil öncelikli kılınmış; Ollama isteğe bağlı yerel yedek seçeneği olarak yapılandırılmıştır.
-- **Sıfır Maliyetli Yerel E-Posta Doğrulayıcı (`email_verifier.py`):** Regex formatı, geçici (disposable) domain engelleme veritabanı, DNS MX kaydı sorgulama ve SMTP handshake simülasyonu (`HELO`, `MAIL FROM`, `RCPT TO`) ile e-posta göndermeden 4 katmanlı yerel doğrulama.
-- **Çok Kanallı WhatsApp & LinkedIn Erişimi (`assisted_mode.py`):** WhatsApp Web (`wa.me`) mesaj yönlendiricisi, panoya kopyalama ve LinkedIn şirket/profil erişim yardımcısı.
-- **Anti-Bot HTTP/SOCKS5 Proxy Havuzu (`proxy_pool.py`):** HTTP/SOCKS5 proxy rotasyonu, canlılık/gecikme testi (latency check) ve otomatik havuz yenileme.
-- **Açılır/Kapanır (Collapsible) Sol Menü & 9 Dilde Tam i18n Desteği:** `#sidebar-toggle-btn` butonu, daraltılmış mod araç ipuçları, 9 dilde (Türkçe, İngilizce, Almanca, İspanyolca, Fransızca, Arapça, Çince, Rusça, Hintçe) dinamik çeviri ve 12 temada renk kontrastı optimizasyonları.
-
-### 20. Derin OSINT ve Çoklu Sosyal Medya Taraması (V4/V5)
-- **Genişletilmiş Platform Desteği:** Web sitelerinden Instagram, Facebook, LinkedIn, Twitter/X, TikTok, Telegram, YouTube, GitHub, Medium, Substack, Behance, Dribbble, Snapchat, Spotify, SoundCloud, Twitch bağlantılarını otomatik tespit eder.
-- **TikTok & Sosyal Profil Tespiti:** Sosyal profil ağlarını analiz ederek doğrudan iletişim adreslerini ve şirket hesaplarını eşleştirir.
-
-### 21. Zamanlanmış Görev Motoru (Cron Manager — V4/V5)
-- **Zamanlanmış Otomatik Görevler:** Periyodik müşteri keşfi, otomatik takip e-postaları, gelen kutusu denetimi ve veri senkronizasyonunu arka planda düzenli aralıklarla otomatik çalıştırır.
-
-### 22. SQLite WAL ve Yüksek Başarımlı Veritabanı (V5)
-- **WAL Modu ve İndeksleme:** Veritabanı performansı WAL (Write-Ahead Logging) ve özel SQLite indeksleri ile güçlendirilmiş, eşzamanlı okuma/yazma işlemleri hızlandırılmıştır.
-- **Otomatik Tekilleştirme (Deduplication):** Tekrarlayan adres ve alan adı girdileri veritabanı seviyesinde otomatik olarak engellenir.
-
-### 23. Kapsamlı Master Plan İyileştirmeleri ve Sıfır Key OSINT (Master Plan V6)
-- **50+ Ücretsiz OSINT API Entegrasyonu:** Shodan InternetDB (`internetdb.shodan.io`) ile sıfır key ile açık port, CVE ve etiket tespiti; crt.sh ile SSL sertifika subdomain keşfi; Mozilla Observatory ile web güvenlik skoru sorgulama; Wayback Machine ile tarihsel site arşivi denetimi.
-- **AI Ürün Fikirleri Motoru (`product_ideation.py`):** Her keşfedilen işletme için Türkiye pazarına uygun TL fiyat tahminli 2-3 adet özel yazılım/dijital ürün fikri, kapıda söylenecek satış kancası (pitch hook), müşteri itirazlarına yanıtlar ve AI geliştirme promptları üretir.
-- **Tam 9 Dilde i18n Çeviri Motoru ve Sağdan Sola (RTL) Düzen:** Türkçe, İngilizce, Almanca, İspanyolca, Fransızca, Arapça, Çince, Rusça ve Hintçe dillerinde 300'ün üzerinde arayüz metni eksiksiz desteklenir; Arapça seçiminde otomatik `dir="rtl"` düzenine geçilir.
-- **SingletonPool ve Veritabanı Bağlantı Optimizasyonu:** SQLite dosya veritabanlarında per-query PRAGMA çalıştırma yükü ve bağlantı kilitlenmeleri `SingletonPool` mimarisi ile sıfıra indirildi. Migrasyon sistemi tablo varlık kontrolü ve geri dönüş mekanizmaları ile güçlendirildi.
-- **Eksiksiz Ücretsiz Telefon ve Breach OSINT (`phone_intel.py`, `breach_checker.py`):** Yerel `phonenumbers` kütüphanesi ile offline operatör/numara doğrulama, wa.me ve t.me kontrolü; HIBP Pwned Passwords ve XposedOrNot servisleri ile sıfır keyli veri sızıntısı tespiti.
-- **Sıfır Bağlantı Sızıntısı & NullPool Güvenliği:** SQLite veritabanı motoru için `NullPool` (in-memory testler için `StaticPool`) entegrasyonu yapılarak `QueuePool` bağlantı kilitlenmeleri ve zaman aşımları tamamen ortadan kaldırılmıştır.
-- **100% Temayla Entegre SVG İkonlar & Sessiz Tema/Dil Kalıcılığı:** Tüm arayüz buton ve widget'larındaki emojiler dinamik SVG vektör simgeler ile değiştirilmiş; ayarlar giriş/çıkışlarında tekrarlayan spam bildirimler temizlenmiş ve sol menü daraltma (collapsed) görünümü mükemmelleştirilmiştir.
+- **Visual Enrichment:**
+  - **Google Favicon API & Unavatar:** Fetches 128x128 corporate logos and multi-platform social media avatars automatically.
+  - **UI-Avatars, Microlink & Thum.io:** Generates dynamic colored initials, OpenGraph summaries, and real-time mobile/desktop site preview cards.
 
 ---
 
+### 2. Multi-Channel Contact Discovery & Waterfall Enrichment
 
-## 🛠️ Kurulum ve Yapılandırma
+- **Waterfall Email Discovery Cascade:**
+  1. **Website Scraping:** Deep-crawls target web pages to locate contact emails, phone numbers, and contact forms.
+  2. **Search Engine Query:** Executes fallback search queries via Google and DuckDuckGo for public contact listings.
+  3. **Social Bio Scraping:** Extracts contact details directly from Instagram, Facebook, and LinkedIn bios.
+  4. **Smart Early Exit:** If a valid email is found at any stage, subsequent steps are skipped to conserve network bandwidth and API credits.
 
-### 1. Sistem Gereksinimleri
-- Python 3.11 veya üzeri
-- `uv` paket yöneticisi (Tavsiye edilen hızlı kurulum aracı)
+- **Deep Social Touchpoint Mining:**
+  - Automatically identifies and matches social profiles across 15+ networks: Instagram, Facebook, LinkedIn, Twitter/X, TikTok, Telegram, YouTube, GitHub, Medium, Substack, Behance, Dribbble, Snapchat, Spotify, and Twitch.
 
-### 2. Kurulum Adımları
-Projeyi klonladıktan sonra dizine gidip aşağıdaki komutlarla ilgili modları kurabilirsiniz:
-
-```bash
-# Temel Kurulum (Sadece Mod A - Manuel Outreach)
-uv sync
-
-# Masaüstü Grafik Arayüzü (GUI) dahil kurulum
-uv sync --extra gui
-
-# Tam Otomatik Erişim (Mod B) dahil kurulum
-uv sync --extra mod-b
-
-# Geliştirici ve test araçlarıyla birlikte kurulum
-uv sync --extra dev
-```
-
-> **Not:** `uv` kullanmıyorsanız standart kurulum için `pip install -e .` komutunu çalıştırabilirsiniz.
-
-### 3. Yapılandırma
-1. Proje kök dizininde `.env` dosyasını oluşturun:
-   ```bash
-   copy .env.example .env
-   ```
-2. `.env` dosyasını açıp kullanmak istediğiniz LLM ve arama sağlayıcılarının API anahtarlarını ve ek parametreleri girin:
-   - `OPENROUTER_API_KEY`
-   - `GEMINI_API_KEY`
-   - `GROQ_API_KEY`
-   - `MISTRAL_API_KEY`
-   - `DEEPSEEK_API_KEY`
-   - `OPENAI_API_KEY`
-   - `ANTHROPIC_API_KEY`
-   - `GOOGLE_PLACES_API_KEY`
-   - `LLM_TIMEOUT` (Yapay zeka istekleri için zaman aşımı süresi - saniye)
-   - `NOTIFY_EMAIL_RECIPIENT` (Bildirimlerin gönderileceği e-posta adresi)
-3. Proje ayarları için `config.toml` dosyasını kopyalayın ve düzenleyin:
-   ```bash
-   copy config\config.example.toml config\config.toml
-   ```
-
-### 🔒 Güvenlik ve Sıkılaştırma (Security & Hardening)
-- **Oturum Şifreleme (Session Encryption):** Mod B oturum verileri (`data/sessions/session.json`) AES-256 (Fernet) ile güçlü bir şekilde şifrelenir. Şifreleme anahtarı `.env` dosyasındaki `INSTAGRAM_SESSION_ENCRYPTION_KEY` değişkeninden veya otomatik olarak `0600` izinleriyle oluşturulan `data/.fernet_key` dosyasından okunur. Geçersiz şifre anahtarı kullanıldığında sistem hata fırlatır ve asla şifresiz düz metin okumaya geri dönmez (no plaintext fallback).
-- **GUI Sır Sınırı (Secrets Boundary):** PyWebView arayüzüne bağlanan Python API (`is_configured` / `get_settings`) kesinlikle hiçbir API anahtarı veya şifreyi JavaScript tarafına sızdırmaz. GUI formları üzerinden girilen gizli anahtarlar doğrudan `.env` dosyasına yazılır fakat JS köprüsüne asla geri döndürülmez.
+- **Phone & Breach Intelligence:**
+  - **Offline Phone Validation:** Uses `phonenumbers` for offline carrier, country code, and format validation; generates direct WhatsApp (`wa.me`) and Telegram (`t.me`) action links.
+  - **Breach Audit:** Queries HIBP Pwned Passwords and XposedOrNot APIs to check whether corporate emails have appeared in public data breaches.
 
 ---
 
-## 💻 Kullanım Kılavuzu (CLI & GUI)
+### 3. Local Email Verification & Deliverability Engine
 
-### Masaüstü Arayüzünü Başlatma
-Doğrudan GUI ekranını açmak için hiçbir parametre vermeden komutu çalıştırmanız veya `dist/aegisScout.exe` dosyasına çift tıklamanız yeterlidir:
-```bash
-aegisScout
-```
-
-### CLI Temel Komutları
-
-#### 1. İşletme Keşfetme
-```bash
-# Belirli konum ve sektör araması yap
-aegisScout discover --sector "kuaför" --location "Kadıköy, İstanbul" --radius 5
-
-# Google Places sağlayıcısı ile arama yap
-aegisScout discover --sector "klinik" --location "Nişantaşı" --provider google_places
-```
-
-#### 2. Kampanya Yönetimi
-```bash
-# Yeni kampanya oluştur
-aegisScout campaign create --name "Kadıköy Güzellik Salonları" --sector "kuaför" --location "Kadıköy"
-
-# Kampanya listesi ve başarı oranlarını göster
-aegisScout campaign list
-
-# Mevcut adayları kampanyaya filtreleriyle otomatik ata
-aegisScout campaign assign --campaign-id 1 --auto-filter
-```
-
-#### 3. Araştırma ve AI Analizi Çalıştırma
-```bash
-# 1 nolu adayı derinlemesine araştır ve web sitesini analiz et
-aegisScout research --lead-id 1
-
-# Adayı zorla yeniden araştır
-aegisScout research --lead-id 1 --force
-```
-
-#### 4. İnceleme ve Erişim (Review & Send)
-```bash
-# Keşfedilen tüm adayları ve üretilen AI taslaklarını interaktif incele
-aegisScout review
-
-# Mod A aracılığıyla adaya manuel mesaj gönder (panoya kopyalar, tarayıcıda açar)
-aegisScout send --lead-id 1
-```
-
-#### 5. Verileri Dışa Aktarma
-```bash
-# Veritabanındaki adayları CSV olarak dışa aktar
-aegisScout export --output data/exports/leads.csv
-
-# Belirli bir kampanya veya duruma göre filtreleyerek dışa aktar
-aegisScout export --campaign-id 1 --status contacted --output data/exports/campaign_1.csv
-```
-
-#### 6. Waterfall E-posta Zenginleştirme (V2)
-```bash
-# Belirli bir lead için waterfall basamaklarını çalıştır
-aegisScout waterfall --lead-id 1
-
-# Adımlar: web scraping -> arama sorgusu -> Instagram bio -> e-posta doğrulama
-```
-
-#### 7. Multimodal Ekran Denetimi (V2)
-```bash
-# Adayın web sitesini Playwright ile görüntüle, Gemini Vision ile analiz et
-aegisScout audit --lead-id 1
-
-# Kalite skoru, hata raporu ve kişiselleştirilmiş outreach hook üretir
-```
-
-#### 8. E-posta Doğrulama (V2)
-```bash
-# Bir e-posta adresini SMTP handshake ile yerel olarak doğrula
-aegisScout verify "ornek@firma.com"
-
-# Format, disposable domain, DNS MX ve SMTP olmak üzere 4 aşamalı kontrol
-```
-
-#### 9. P2P E-posta Isıtma (V2)
-```bash
-# İki SMTP hesabı arasında warmup döngüsü başlat
-aegisScout warmup
-
-# Doğal dilde e-posta gönderimi, spam kurtarma ve otomatik yanıt içerir
-```
-
-#### 10. Arka Plan Görev Yönetimi (V2)
-```bash
-# Tüm arka plan görevlerini listele
-aegisScout tasks list
-
-# Belirli bir görevi iptal et
-aegisScout tasks cancel <task_id>
-```
+- **4-Stage Local Validation Pipeline:**
+  1. **Regex Syntax Check:** Validates email format against standard RFC specifications.
+  2. **Disposable Domain Filtering:** Blocks 30+ known disposable and temporary email providers (extendable via `data/disposable_domains.txt`).
+  3. **DNS MX Record Resolution:** Verifies active mail exchange server records for the domain.
+  4. **Socket-Level SMTP Handshake Simulation:** Simulates `HELO`, `MAIL FROM`, and `RCPT TO` commands to verify mailbox existence without sending actual emails.
+- **100% Free & Zero-API:** Operates entirely locally using native Python sockets and dnspython.
 
 ---
 
-## 🔒 Güvenlik ve Gizlilik Politikası
-- **Yerel Veritabanı:** Keşfedilen tüm adaylar, mesaj geçmişleri, analizler ve ayarlarınız sadece bilgisayarınızdaki yerel SQLite veritabanında (`data/aegisScout.db`) saklanır. Herhangi bir harici sunucuya veya bulut sistemine aktarılmaz.
-- **Hassas Bilgilerin Korunması:** API anahtarları, şifreler ve Instagram oturum verileri kesinlikle kaynak kod içine gömülmez. Tüm gizli değişkenler `.env` dosyası üzerinden okunur. 
-- **Veri Şifreleme:** Instagram hesap şifreleri ve hassas kimlik bilgileri, veritabanında AES-256 tabanlı Fernet şifreleme algoritmasıyla kriptolanmış olarak tutulur.
+### 4. Multimodal Screen Audit & Design Intelligence
+
+- **Playwright Automated Capture:** Takes desktop screenshots of target websites using headless Chromium and stores them locally.
+- **Gemini Vision AI Analysis:** Analyzes web screenshots using multimodal vision AI to detect mobile responsiveness flaws, color contrast issues, typography hierarchy errors, and missing Call-to-Action (CTA) elements.
+- **Local Heuristic Scoring:** When Vision API is unconfigured, computes a **100-point Website Quality Score** based on page load performance, broken link rates, and meta tag completeness.
+- **Outreach Hook Generation:** Crafts high-converting, personalized conversation starters based on specific visual and technical issues discovered during the audit.
 
 ---
 
-## ⚖️ Kullanım Şartları ve Sorumluluk Reddi
-- **Instagram ToS Warning:** Mod B (Tam Otomasyon) özelliğinin kullanımı Meta/Instagram Kullanım Koşulları'nı (ToS) ihlal eder. Otomasyon tespit mekanizmaları nedeniyle hesaplarınızın kısıtlanması veya kapatılması riski mevcuttur. aegisScout geliştiricileri bu aracın otomatik kullanımından doğabilecek hesap kayıplarından veya yasal sorunlardan sorumluluk kabul etmez. Otomasyon modunu kullanırken **yedek/ikincil hesaplar** kullanmanız ve günlük limitleri (maks. 15-20 mesaj) aşmamanız önerilir.
-- **Yasal Uyarı — KVKK ve İYS:** Bu araç ile toplanan kişisel verilerin (telefon numarası, e-posta vb.) işlenmesi, Kişisel Verilerin Korunması Kanunu (KVKK) kapsamına girebilir. Ayrıca, reklam amaçlı elektronik ileti göndermeden önce İleti Yönetim Sistemi (İYS) kapsamındaki mevzuata uyulması zorunludur. **Bu aracı kullanmadan önce bir hukuk danışmanına danışmanız önerilir.**
+### 5. Multi-Agent AI Copywriter & Local RAG Knowledge Base
+
+- **3-Agent AI Workflow:**
+  - **Inspector:** Analyzes technical gaps, design flaws, and business opportunities.
+  - **Copywriter:** Generates customized value propositions and outreach email drafts tailored to the target lead.
+  - **Editor:** Strips generic AI jargon, robotic salutations, and unverified data to produce natural, human-sounding outreach messages.
+
+- **Local RAG (Retrieval-Augmented Generation) Knowledge Base:**
+  - Scans and indexes local `.txt`, `.md`, and `.pdf` files inside `data/knowledge_base/` containing portfolio items and case studies.
+  - **Dual Engine Search:** Features offline TF-IDF Cosine Similarity and optional semantic vector embeddings via Ollama or Gemini API.
+
+- **Product Ideation Engine:**
+  - Generates 2-3 tailored digital product ideas, pitch hooks, and objection handlers customized for each target business profile.
 
 ---
----
 
-# 🇺🇸 SECTION 2: ENGLISH USER GUIDE & TECHNICAL DOCUMENTATION
+### 6. Multi-LLM Router Architecture & Rate Limiting
 
-## 📌 Core Features
-
-### 1. Business Discovery Engine
-- **OpenStreetMap (OSM) Integration (Free & Unlimited):** Scans businesses in specified sectors and locations using the Overpass API. Employs smart tag-mapping configurations to filter out irrelevant data.
-- **Google Places API Integration (Advanced/Optional):** Utilizes the Essentials API with field masks to fetch ratings, review counts, and addresses without incurring unnecessary costs.
-
-### 2. Intelligent Scraper & Research Module
-- Crawls target websites deeply to verify contact information and online presence.
-- Automatically calculates a **Website Quality Score (out of 100)** by analyzing mobile viewport compatibility, SSL validity, and SEO meta tags.
-- Extracts Instagram handles, phone numbers, and contact emails directly from website sources.
-- Double-checks and validates crawled social handles via Google Custom Search API lookups.
-
-### 3. Multi-LLM Provider Architecture (LLM Router)
 - **Supported AI Providers:**
-  - **OpenRouter API** (Accesses dozens of open-source and commercial models seamlessly)
-  - **Google Gemini API** (High-speed content generation via Gemini 2.5 Flash)
-  - **Groq API** (Ultra-low latency generation using Llama-3.3-70b-versatile)
-  - **Mistral AI API** (Enterprise-grade reasoning using Mistral Large)
-  - **DeepSeek API** (Deep reasoning with minimal costs)
+  - **OpenRouter API** (Access dozens of commercial and open-source models seamlessly)
+  - **Google Gemini API** (High-speed analysis via Gemini 2.5 Flash)
+  - **Groq API** (Ultra-low latency generation via Llama-3.3-70b)
+  - **Mistral AI API** (Enterprise reasoning via Mistral Large)
+  - **DeepSeek API** (Cost-effective deep reasoning)
   - **OpenAI API** (GPT-4o & GPT-4o mini)
   - **Anthropic Claude API** (Claude 3.5 Haiku)
-  - **Ollama** (Completely offline, private, and free local model support)
-- **Automatic Failover Routing:** If your primary AI provider fails, the system automatically redirects requests to a secondary configured fallback provider.
-- **Customized Prompt Templates:** Configurable language (Turkish/English) and communication tone (casual, professional, warm) customizable in `config.toml`.
+  - **Ollama** (Fully offline, private, and free local LLM support)
 
-### 4. Campaign Management
-- Group leads into structured campaigns (e.g., "Chelsea Hair Salons", "Downtown Restaurants").
-- Assign leads to campaigns manually or automatically using campaign-level sector and location filters.
-- Real-time campaign stats and conversion (Reply Rate) analytics.
+- **Failover Routing & Key Rotation:**
+  - Rotates multiple comma-separated API keys automatically. Automatically redirects requests to a secondary fallback provider if the primary service experiences outages or rate limits.
 
-### 5. Smart Outreach Modes
-- **Mode A (Assisted Outreach — Default & 100% Safe):** Copies the generated message to your clipboard and opens the lead's Instagram DM profile in your default browser with a single click.
-- **Mode B (Full Automation — Optional & Risky):** Log in and send direct messages automatically from your database using the simulated Instagram API (`instagrapi`). Operates in the background with local database rate limiters.
+---
 
-### 6. Inbox Watcher & Notification Daemon
-- A background worker scans your inbox and detects responses from outreach leads.
-- Automatically sends instant alerts via **Telegram Bot** or **Email (SMTP)** when a lead replies.
+### 7. Outreach Engine & Multi-Channel Automation
 
-### 7. Modern Desktop GUI
-- A sleek, responsive PyWebView desktop dashboard built with premium dark-mode styling and smooth animations.
-- Fully controls campaigns, settings, lead discovery, and AI analysis pipelines.
-- **Dual Startup Mode:** Double-clicking `dist/aegisScout.exe` (or running `python main.py` without arguments) automatically hides console terminal windows on Windows. Running with CLI arguments bypasses the GUI and executes the corresponding CLI commands.
+- **Mode A (Assisted Outreach — Default & 100% Safe):**
+  - Copies personalized AI drafts to your system clipboard and opens the lead's Instagram DM or WhatsApp Web profile in your default browser with a single click.
+- **Mode B (Direct Automation — Optional):**
+  - Logs into Instagram via simulated API (`instagrapi`) and sends direct messages directly from the database within configured daily rate limits.
+- **WhatsApp Web & LinkedIn Automation:**
+  - Employs Playwright persistent context browser profiles to automate messaging via WhatsApp Web and send connection requests ("Connect") with personalized notes on LinkedIn.
 
-### 8. Optimization & Stability
-- **Lightweight Executable**: PyInstaller exclusions have been optimized to reduce the `.exe` package size by **24.4%** (from 57 MB to 43 MB).
-- **Modular Dependencies**: Optional libraries like `instagrapi` are loaded lazily. Standard installs without `mod-b` can startup and run Mode A safely.
-- **Robust IPC**: Escapes evaluate_js communication safely using JSON serialization, preventing WebView script syntax errors.
+---
 
-### 9. Local Email Verification (V2)
-- **SMTP Handshake Simulation:** Verifies email addresses through 4 local stages: regex format check, disposable domain lookup, DNS MX resolution, and socket-based SMTP handshake.
-- **Zero API Cost:** All checks run locally using Python sockets and dnspython. No external API keys required.
-- **Disposable Detection:** Maintains a built-in blocklist of 30+ known disposable providers, extendable via `data/disposable_domains.txt`.
+### 8. SMTP Pool, Multi-Stage Sequences & P2P Warmup Engine
 
-### 10. Waterfall Enrichment Cascade (V2)
-- **Sequential Email Discovery:** Runs website scraping, search engine query (Google/DuckDuckGo), Instagram bio scraping, and email verification in a configurable cascade.
-- **Smart Early Exit:** If an email is found at any step, subsequent steps are skipped automatically to conserve API credits.
-- **Configurable Pipeline:** Each step can be enabled or disabled in `data/waterfall_config.json` with customizable search query templates.
-- **API-Free Fallback:** Falls back to free DuckDuckGo HTML search when Google Custom Search API keys are not configured.
+- **SMTP Pool & Hourly Rate Control:**
+  - Balances sending load across multiple configured SMTP accounts with strict limits (default: max 5 emails/hour per account). All credentials are encrypted with AES-256 Fernet.
+- **Multi-Stage Cold Email Sequences:**
+  - Runs automated sequence chains: Initial Email -> Follow-up 1 (after 3 days) -> Follow-up 2 (after 7 days). Follow-up sequence is automatically halted when an inbound reply is detected.
+- **P2P Email Warmup Engine:**
+  - Simulates natural email exchanges between configured accounts. Automatically monitors IMAP Spam/Junk folders, rescues landed emails to the Inbox, marks them as read, and improves overall domain deliverability.
 
-### 11. Multi-Agent AI Draft Generation (V2)
-- **3-Agent Workflow:** A pipeline of Inspector (technical opportunity spotting), Copywriter (personalized draft writing), and Editor (natural language cleanup) agents collaborate sequentially.
-- **RAG-Enhanced Personalization:** Searches the local knowledge base for relevant case studies and portfolio references to enrich draft content.
-- **Anti-Cliché Filtering:** The Editor agent strips AI jargon, cliché salutations, and fabricated statistics from generated drafts.
-- **Configurable Language & Tone:** Supports Turkish/English language and warm/professional/casual tone settings in `config.toml`.
+---
 
-### 12. Local RAG Knowledge Base (V2)
-- **Dual Search Engine:** Pure Python TF-IDF (fully offline, zero dependencies) with optional embedding-based search via Ollama or Gemini API for semantic similarity.
-- **Multi-Format Support:** Automatically scans, chunks, and indexes `.txt`, `.md`, and `.pdf` files from `data/knowledge_base/`.
-- **Graceful Fallback:** Falls back to TF-IDF cosine similarity when embedding models are unavailable, ensuring uninterrupted operation.
-- **Persistent Index:** The processed index is cached in `data/kb_vectors.json` and does not require re-indexing on restart.
+### 9. Async Task Queue & Cron Scheduler
 
-### 13. SMTP Pool & Rate Limiting (V2)
-- **Automatic Account Rotation:** Selects the least recently used SMTP account from the pool for balanced load distribution.
-- **Per-Account Rate Limits:** Enforces a maximum of 5 emails per hour per SMTP account. Automatically rotates to the next account when the limit is reached.
-- **Encrypted Credentials:** SMTP passwords are encrypted at rest using AES-256 Fernet and decrypted at runtime.
-- **Global Fallback:** Falls back to global SMTP settings from `.env` when no database accounts are configured.
+- **Async Task Queue:** Manages background execution (scraping, auditing, sending) via a single event loop transitioning through `pending -> running -> completed / failed` states with pause/cancel controls.
+- **Cron Scheduler:** Periodically executes scheduled discovery routines, automated follow-up sequences, and inbox audits at specified time intervals.
 
-### 14. Cold Email Engine & Follow-Up Sequences (V2)
-- **Multi-Stage Email Sequences:** Per-campaign configurable follow-up chains: initial email, follow-up 1 (3-day delay), and follow-up 2 (7-day delay).
-- **Smart Skip Logic:** Automatically skips follow-ups when an inbound reply is detected from the lead, preventing unnecessary messages.
-- **Campaign-Specific Templates:** Each campaign carries its own subject lines, email bodies, and delay durations (`followup_delay_1_days`, `followup_delay_2_days`).
-- **IMAP Inbox Monitoring:** Polls IMAP inboxes across all active SMTP accounts to automatically detect and deduplicate replies.
+---
 
-### 15. P2P Email Warmup Engine (V2)
-- **Random Sender-Receiver Pairing:** Simulates natural email traffic between two randomly selected active SMTP accounts.
-- **Spam Rescue:** Automatically scans Spam/Junk folders via IMAP, moves warmup emails to Inbox, and marks them as read.
-- **AI or Template Content:** Generates natural language email content via Gemini API when available, or falls back to an offline template pool.
-- **Auto-Reply Cycle:** The receiver automatically generates a reply, and both sides mark incoming messages as read, starred, and rescued from spam.
-- **Statistics Tracking:** Sends, replies, spam rescues, and stars are logged to `data/warmup_stats.json`.
+### 10. Modern Desktop GUI & SQLite WAL Engine
 
-### 16. Multimodal Website Screen Audit (V2)
-- **Playwright Screenshot Capture:** Takes a desktop viewport screenshot of the lead's website using headless Chromium, saved to `data/screenshots/`.
-- **Gemini Vision AI Analysis:** Sends the screenshot to Gemini Vision API to detect mobile responsiveness issues, contrast errors, layout flaws, and conversion optimization opportunities.
-- **Local Heuristic Fallback:** Falls back to page speed, broken links, and CTA presence metrics for quality scoring when Gemini API is unavailable.
-- **Outreach Hook Generation:** Automatically crafts a high-converting, personalized outreach hook based on the specific visual flaws discovered.
+- **PyWebView Dark Mode Dashboard:** Sleek, responsive desktop application. When launched without CLI arguments, console terminal windows are hidden automatically.
+- **9-Language Complete i18n:** Built-in internationalization supporting English, Turkish, German, Spanish, French, Arabic (with automatic RTL layout), Chinese, Russian, and Hindi.
+- **SQLite WAL Mode & Connection Pool:** Implements `PRAGMA journal_mode=WAL;` and SingletonPool / NullPool engine configurations to prevent database deadlocks and read/write latency.
 
-### 17. WhatsApp Web & LinkedIn Browser Automation (V2)
-- **Persistent Browser Profiles:** Separate Playwright persistent context profiles for WhatsApp Web and LinkedIn. QR codes and login credentials are entered once and reused.
-- **WhatsApp Web Auto-Send:** Sends messages directly via WhatsApp Web using the target phone number. Country code (90 for Turkey) is appended automatically.
-- **LinkedIn Connect & Message Automation:** Navigates to target profiles, automatically detects "Connect" or "Message" buttons, and sends connection requests with personalized notes or direct messages.
-- **Anti-Detection Safeguards:** Runs in headful (non-headless) mode to reduce bot detection risk. Scans "More" dropdown menus for hidden connect options.
+---
 
-### 18. Background Task Queue (V2)
-- **Singleton Async Queue:** All background tasks run sequentially on a single asyncio event loop for efficient resource use.
-- **Task Lifecycle:** Each task transitions through `pending -> running -> completed / failed / cancelled`. Pause and resume are supported.
-- **Progress Tracking:** Running tasks report percentage-based progress. All task statuses can be listed via the CLI.
-- **Safe Cancellation:** Running or pending tasks can be safely cancelled or paused from the command line.
+## 🔒 Security, Privacy & Hardening
 
-### 19. Deep OSINT & Multi-Platform Social Discovery (V4/V5)
-- **Extended Social Mining:** Automatically extracts Instagram, Facebook, LinkedIn, Twitter/X, TikTok, Telegram, YouTube, GitHub, Medium, Substack, Behance, Dribbble, Snapchat, Spotify, SoundCloud, Twitch links from target websites.
-- **Deep Contact Association:** Cross-verifies social profiles to map target leads to their direct corporate touchpoints.
-
-### 20. Automated Cron Task Scheduler (V4/V5)
-- **Cron Manager:** Periodically schedules discovery, follow-ups, inbox scanning, and data synchronization without manual intervention.
-
-### 21. SQLite WAL & Database Performance Boost (V5)
-- **WAL Mode & Custom Indexes:** Employs Write-Ahead Logging (WAL) and optimized SQL indexing for ultra-fast query execution and concurrent read/writes.
-- **Automated Deduplication:** Prevents duplicate leads and domains at the database query layer.
-- **Zero Connection Leakage & NullPool Engine:** Configured SQLite connection pool with `NullPool` (`StaticPool` for in-memory DBs) to eliminate `QueuePool` limits and thread deadlock timeouts.
-- **100% Theme-Integrated SVG Icons & Silent Settings Persistence:** Replaced all UI emojis and text symbols with dynamic theme-adaptive SVG icons; sanitized setting load/navigation events to prevent toast spamming and optimized collapsed sidebar layout.
+- **100% Local Data Storage:** All leads, credentials, settings, and conversation logs remain exclusively inside your local SQLite database (`data/aegisScout.db`).
+- **Secrets Boundary:** API keys and passwords are never exposed to the JavaScript PyWebView bridge. Settings forms save keys directly to `.env`.
+- **AES-256 Fernet Encryption:** Session tokens, passwords, and sensitive credentials are encrypted using AES-256 Fernet tokens prior to database persistence.
 
 ---
 
 ## 🛠️ Installation & Setup
 
 ### 1. Requirements
-- Python 3.11 or higher
+- **Python 3.11** or higher
 - `uv` package manager (recommended for fast installation)
 
-### 2. Install Instructions
-Clone the repository, navigate into the project directory, and choose your install flags:
+### 2. Installation Commands
 
 ```bash
-# Basic setup (Mode A only - Assisted Outreach)
+# Clone repository and enter directory
+git clone https://github.com/MrSpy00/aegisScout.git
+cd aegisScout
+
+# Basic Installation (Mode A - Assisted Outreach)
 uv sync
 
-# Install with Desktop GUI dashboard
+# Install with Desktop GUI Dashboard
 uv sync --extra gui
 
 # Install with Full Automation (Mode B)
 uv sync --extra mod-b
 
-# Install with developer and testing dependencies
+# Install with Developer & Testing Dependencies
 uv sync --extra dev
 ```
 
-> **Note:** Standard installation without `uv` can be completed using `pip install -e .`
+> **Alternative Pip Install:** `pip install -e .`
 
-### 3. Environment Setup
-1. Create a local `.env` file from the template:
+### 3. Environment Configuration
+1. Create a local `.env` file:
    ```bash
    copy .env.example .env
    ```
-2. Open `.env` and fill in your API credentials:
-   - `OPENROUTER_API_KEY`
-   - `GEMINI_API_KEY`
-   - `GROQ_API_KEY`
-   - `MISTRAL_API_KEY`
-   - `DEEPSEEK_API_KEY`
-   - `OPENAI_API_KEY`
-   - `ANTHROPIC_API_KEY`
-   - `GOOGLE_PLACES_API_KEY`
-3. Set up the config file:
+2. Fill in your API keys in `.env`.
+3. Create your `config.toml`:
    ```bash
    copy config\config.example.toml config\config.toml
    ```
@@ -511,117 +209,62 @@ uv sync --extra dev
 
 ## 💻 Usage Guide (CLI & GUI)
 
-### Launching the GUI
-To start the desktop application window directly, run the command without arguments or double-click the `dist/aegisScout.exe` file:
+### Launching Desktop Application
+To launch the desktop GUI, double-click the executable or run main without arguments:
 ```bash
-aegisScout
+python src/aegisScout/main.py
+# Or compiled executable:
+dist/aegisScout.exe
 ```
 
 ### Essential CLI Commands
 
-#### 1. Business Discovery
 ```bash
-# Scan a specific sector in a location
-aegisScout discover --sector "barber" --location "Chelsea, London" --radius 5
+# 1. Discover Businesses
+aegisScout discover --sector "barber" --location "London, UK" --radius 5
 
-# Discover businesses using Google Places API
-aegisScout discover --sector "dentist" --location "Manhattan" --provider google_places
-```
-
-#### 2. Campaign Management
-```bash
-# Create a new campaign
-aegisScout campaign create --name "Chelsea Hair Salons" --sector "hair" --location "Chelsea"
-
-# List campaigns and their performance
+# 2. Campaign Management
+aegisScout campaign create --name "London Salons" --sector "barber" --location "London"
 aegisScout campaign list
-
-# Auto-assign matching unassigned leads using campaign filters
 aegisScout campaign assign --campaign-id 1 --auto-filter
-```
 
-#### 3. Lead Research & AI Analysis
-```bash
-# Perform deep scraping and generate AI message draft for a lead
+# 3. Lead Research & AI Analysis
 aegisScout research --lead-id 1
-
-# Force re-analyze a lead
 aegisScout research --lead-id 1 --force
-```
 
-#### 4. Review & Outreach
-```bash
-# Review leads and AI outreach drafts interactively
+# 4. Review & Outreach
 aegisScout review
-
-# Execute Mode A outreach for a lead
 aegisScout send --lead-id 1
-```
 
-#### 5. Data Export
-```bash
-# Export all leads to a CSV file
-aegisScout export --output data/exports/leads.csv
-
-# Export filtered leads
-aegisScout export --campaign-id 1 --status contacted --output data/exports/campaign_1.csv
-```
-
-#### 6. Waterfall Email Enrichment (V2)
-```bash
-# Run the waterfall cascade for a specific lead
+# 5. Waterfall Email Enrichment
 aegisScout waterfall --lead-id 1
 
-# Steps: website scrape -> search query -> Instagram bio -> email verify
-```
-
-#### 7. Multimodal Screen Audit (V2)
-```bash
-# Capture website screenshot and analyze with Gemini Vision
+# 6. Web Visual Audit (Multimodal Audit)
 aegisScout audit --lead-id 1
 
-# Generates quality score, design flaw report, and outreach hook
-```
-
-#### 8. Email Verification (V2)
-```bash
-# Verify an email address locally via SMTP handshake
+# 7. Email Verification (Local SMTP Handshake)
 aegisScout verify "user@example.com"
 
-# 4-stage check: format, disposable domain, DNS MX, SMTP
-```
-
-#### 9. P2P Email Warmup (V2)
-```bash
-# Run a warmup cycle between two SMTP accounts
+# 8. P2P Email Warmup
 aegisScout warmup
 
-# Generates natural emails, rescues from spam, and auto-replies
-```
-
-#### 10. Background Task Management (V2)
-```bash
-# List all background tasks with status and progress
+# 9. Background Task Management
 aegisScout tasks list
-
-# Cancel a specific running or pending task
 aegisScout tasks cancel <task_id>
+
+# 10. Data Export
+aegisScout export --output data/exports/leads.csv
 ```
 
 ---
 
-## 🔒 Security & Privacy Rules
-- **Local Databases:** All leads, messages, settings, and credentials remain private and are stored solely in your local SQLite database (`data/aegisScout.db`). No cloud uploads or external trackers are involved.
-- **Protected Secrets:** No API keys or credentials are ever hardcoded in the codebase. All variables are loaded dynamically from your local `.env`.
-- **Credential Encryption:** High-risk credentials (e.g. Instagram passwords, session keys) are encrypted using AES-256 Fernet tokens before being written to the database.
+## ⚖️ Terms of Use & Legal Compliance
 
----
-
-## ⚖️ Terms of Use & Disclaimer
-- **Instagram ToS Warning:** Using Mode B (Full Automation) violates Meta/Instagram's Terms of Service. There is an inherent risk of temporary restrictions or permanent account bans. The developers of aegisScout assume no liability for account losses, bans, or penalties. It is highly recommended to use **secondary/throwaway accounts** and adhere strictly to daily messaging safety limits (max 15-20 messages/day).
-- **Compliance Warning — GDPR & local laws:** Scraping personal contact details or sending promotional messages to cold businesses may be subject to GDPR or local direct marketing compliance frameworks. **Ensure you consult with a legal professional before initiating commercial messaging campaigns.**
+- **Instagram ToS Warning:** Using Mode B (Full Automation) may violate Meta/Instagram Terms of Service. Account safety requires observing daily rate limits (max 15-20 DMs/day) and utilizing secondary accounts.
+- **Regulatory Compliance (GDPR, CAN-SPAM, KVKK):** The user is responsible for ensuring compliance with applicable data privacy and anti-spam legislation when harvesting public business details and initiating direct cold communication.
 
 ---
 
 ## 📄 License
-This project is licensed under the **MIT License**. For more information, see the [LICENSE](LICENSE) file.
+
+This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) file for details.
