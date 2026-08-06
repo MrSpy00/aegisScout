@@ -6,8 +6,8 @@
 ---
 
 ### 🌐 Dil Seçimi / Language Selection
-- 🇹🇷 **[Bölüm 1: Türkçe Kullanım ve Teknik Dokümantasyon](#-bölüm-1-türkçe-kullanim-ve-teknik-dokümantasyon)**
-- 🇬🇧 **[Section 2: English User Guide & Technical Documentation](#-section-2-english-user-guide--technical-documentation)**
+- <img src="assets/flag_tr.svg" width="22" height="15" alt="TR" valign="middle"> **[Bölüm 1: Türkçe Kullanım ve Teknik Dokümantasyon](#-bölüm-1-türkçe-kullanim-ve-teknik-dokümantasyon)**
+- <img src="assets/flag_gb.svg" width="22" height="15" alt="GB" valign="middle"> **[Section 2: English User Guide & Technical Documentation](#-section-2-english-user-guide--technical-documentation)**
 
 ---
 
@@ -30,7 +30,7 @@ Uygulama masaüstü arayüzüne ait canlı panel görüntüleri (Tüm veriler te
 ---
 ---
 
-# 🇹🇷 BÖLÜM 1: TÜRKÇE KULLANIM VE TEKNİK DOKÜMANTASYON
+# <img src="assets/flag_tr.svg" width="32" height="22" alt="TR" valign="middle"> BÖLÜM 1: TÜRKÇE KULLANIM VE TEKNİK DOKÜMANTASYON
 
 ## 📌 Proje Hakkında
 
@@ -43,7 +43,7 @@ Uygulama masaüstü arayüzüne ait canlı panel görüntüleri (Tüm veriler te
 ### 1. İşletme Keşif Motoru & Sıfır-Key OSINT Çerçevesi
 
 - **Harita, Geocoding ve Konum Zenginleştirme:**
-  - **OpenStreetMap (OSM) & Overpass API:** Harici bir API anahtarı veya ödeme gerektirmeden sektör ve bölge bazlı sınırsız işletme taraması yapar.
+  - **OpenStreetMap (OSM) & Overpass API:** Harici bir API anahtarı veya ödeme gerektirmeden sektor ve bölge bazlı sınırsız işletme taraması yapabilir.
   - **Komoot Photon API (`photon.komoot.io`):** Adres ve coğrafi koordinat dönüşümlerini (geocoding) sıfır API anahtarı ile canlı gerçekleştirir.
   - **BigDataCloud & Country.is:** İstemci taraflı ters geocoding (reverse geocoding) ve IP bazlı konum tespiti sunar.
   - **Google Places API & SerpApi Local 3-Pack:** İsteğe bağlı olarak Google Haritalar ve Yerel 3'lü Harita Paketi verilerini çeker; API anahtarı bulunmadığında otomatik olarak ücretsiz web kazıma servislerine düşer.
@@ -277,7 +277,7 @@ aegisScout export --output data/exports/leads.csv
 ---
 ---
 
-# 🇬🇧 SECTION 2: ENGLISH USER GUIDE & TECHNICAL DOCUMENTATION
+# <img src="assets/flag_gb.svg" width="32" height="22" alt="GB" valign="middle"> SECTION 2: ENGLISH USER GUIDE & TECHNICAL DOCUMENTATION
 
 ## 📌 About the Project
 
