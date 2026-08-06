@@ -1,4 +1,4 @@
-# aegisScout — İşletme Keşif, OSINT Analiz ve Satış Otomasyonu / Business Discovery, OSINT Intelligence & Sales Outreach
+# aegisScout — İşletme Keşif, OSINT Analiz ve Satış Otomasyonu / Business Discovery, OSINT Intelligence & Client Acquisition
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11+-brightgreen.svg)](https://www.python.org/)
@@ -34,7 +34,7 @@ Uygulama masaüstü arayüzüne ait canlı panel görüntüleri (Tüm veriler te
 
 ## 📌 Proje Hakkında
 
-**aegisScout**; web tasarımı, yazılım geliştirme, dijital pazarlama ve SEO hizmeti sunan ajanslar ile freelancerlar için özel olarak geliştirilmiş, **kendi bilgisayarınızda çalışan (self-hosted)**, %100 yerel ve gizlilik odaklı bir müşteri keşif, derin OSINT araştırması, AI destekli metin yazımı ve çok kanallı outreach otomasyon platformudur.
+**aegisScout**; web tasarımı, yazılım geliştirme, dijital pazarlama ve SEO hizmeti sunan ajanslar ile freelancerlar için özel olarak geliştirilmiş, **kendi bilgisayarınızda çalışan (self-hosted)**, %100 yerel ve gizlilik odaklı bir potansiyel müşteri keşfi, açık kaynak istihbarat (OSINT) zenginleştirmesi, yapay zeka destekli kişiselleştirilmiş teklif üretimi ve çok kanallı iletişim otomasyon platformudur.
 
 ---
 
@@ -42,110 +42,110 @@ Uygulama masaüstü arayüzüne ait canlı panel görüntüleri (Tüm veriler te
 
 ### 1. İşletme Keşif Motoru & Sıfır-Key OSINT Çerçevesi
 
-- **Harita, Geocoding ve Yer Tespiti:**
-  - **OpenStreetMap (OSM) & Overpass API:** Harici API anahtarı gerektirmeden sektör ve konuma göre sınırsız işletme taraması yapar.
-  - **Komoot Photon API (`photon.komoot.io`):** Canlı adres ve geocoding koordinat dönüşümlerini sıfır key ile gerçekleştirir.
-  - **BigDataCloud & Country.is:** İstemci taraflı ters geocoding ve IP tabanlı konum tespiti sunar.
-  - **Google Places API & SerpApi Local 3-Pack:** İsteğe bağlı olarak Google Haritalar ve Local 3-Pack verilerini çeker; API anahtarı yoksa otomatik olarak ücretsiz web kazıyıcılara geçer.
+- **Harita, Geocoding ve Konum Zenginleştirme:**
+  - **OpenStreetMap (OSM) & Overpass API:** Harici bir API anahtarı veya ödeme gerektirmeden sektör ve bölge bazlı sınırsız işletme taraması yapar.
+  - **Komoot Photon API (`photon.komoot.io`):** Adres ve coğrafi koordinat dönüşümlerini (geocoding) sıfır API anahtarı ile canlı gerçekleştirir.
+  - **BigDataCloud & Country.is:** İstemci taraflı ters geocoding (reverse geocoding) ve IP bazlı konum tespiti sunar.
+  - **Google Places API & SerpApi Local 3-Pack:** İsteğe bağlı olarak Google Haritalar ve Yerel 3'lü Harita Paketi verilerini çeker; API anahtarı bulunmadığında otomatik olarak ücretsiz web kazıma servislerine düşer.
 
-- **Sıfır-Key Derin OSINT Servisleri:**
-  - **ICANN RDAP (`rdap.org`):** Domain kayıt yaşı, tescil firması ve WHOIS detaylarını sorgular.
-  - **Cloudflare DNS-over-HTTPS (`1.1.1.1`):** Hedef işletmenin MX altyapısını (Google Workspace, Microsoft 365, cPanel, ProtonMail) ve SPF/DMARC güvenlik kayıtlarını analiz eder.
-  - **Shodan InternetDB (`internetdb.shodan.io`):** Açık portları, bilinen zafiyetleri (CVE) ve sunucu etiketlerini API anahtarsız tespit eder.
-  - **crt.sh Sertifika Taraması:** SSL/TLS şeffaflık günlüklerinden işletmeye ait alt alan adlarını (subdomains) çıkartır.
-  - **Mozilla Observatory & Wayback Machine:** Web güvenlik skorlarını ve geçmiş site arşivlerini denetler.
-  - **IP-API & Ipify:** Sunucu IP adresini, hosting sağlayıcısını ve coğrafi lokasyonunu belirler.
+- **Sıfır-Key Derin Açık Kaynak İstihbaratı (OSINT):**
+  - **ICANN RDAP (`rdap.org`):** Alan adı tescil yaşını, tescil firmasını (registrar) ve WHOIS verilerini sorgular.
+  - **Cloudflare DNS-over-HTTPS (`1.1.1.1`):** Hedef işletmenin e-posta altyapısını (Google Workspace, Microsoft 365, cPanel, ProtonMail) ve SPF/DMARC e-posta güvenlik kayıtlarını denetler.
+  - **Shodan InternetDB (`internetdb.shodan.io`):** Sunucudaki açık portları, bilinen güvenlik zafiyetlerini (CVE) ve sistem etiketlerini API anahtarsız tespit eder.
+  - **crt.sh Sertifika Madenciliği:** SSL/TLS şeffaflık günlüklerinden (Certificate Transparency) işletmeye ait alt alan adlarını (subdomain) çıkarır.
+  - **Mozilla Observatory & Wayback Machine:** Web güvenlik uyumluluk skorlarını ve geçmiş site arşivlerini denetler.
+  - **IP-API & Ipify:** Sunucu IP adresini, veri merkezi sağlayıcısını ve coğrafi konumunu belirler.
 
-- **Görsel Zenginleştirme:**
-  - **Google Favicon API & Unavatar:** 128x128 kurumsal logoları ve sosyal medya profil resimlerini otomatik çeker.
-  - **UI-Avatars, Microlink & Thum.io:** Dinamik renkli harf ikonları, OpenGraph özetleri ve canlı mobil/masaüstü web site önizleme kartları oluşturur.
+- **Görsel Zenginleştirme Servisleri:**
+  - **Google Favicon API & Unavatar:** 128x128 çözünürlükte kurumsal logoları ve sosyal medya profil resimlerini otomatik olarak çeker.
+  - **UI-Avatars, Microlink & Thum.io:** Dinamik renkli harf ikonları, OpenGraph özet kartları ve canlı mobil/masaüstü web sitesi önizlemeleri üretir.
 
 ---
 
-### 2. Çok Kanallı İletişim & Waterfall Zenginleştirme (Cascade)
+### 2. Kademeli Zenginleştirme (Waterfall Enrichment) & Çok Kanallı Temas Noktaları
 
 - **Kademeli E-posta Keşif Şelalesi (Waterfall Cascade):**
-  1. **Web Scraping:** Hedef web sitesinin tüm sayfalarını derinlemesine tarayarak e-posta ve iletişim formlarını tespit eder.
-  2. **Arama Engine Sorgusu:** Google / DuckDuckGo aramaları üzerinden işletmeye ait kamu e-postalarını sorgular.
-  3. **Sosyal Biyo Kazıma:** Instagram, Facebook ve LinkedIn biyografilerinden iletişim bilgilerini ayıklar.
-  4. **Akıllı Erken Çıkış (Early Exit):** E-posta adresi herhangi bir aşamada bulunduğunda sonraki adımlar atlanır, kaynak tüketimi önlenir.
+  1. **Derin Web Scraping:** Hedef web sitesinin tüm alt sayfalarını tarayarak iletişim e-postalarını ve formları tespit eder.
+  2. **Arama Motoru Sorgusu:** Google ve DuckDuckGo indexleri üzerinden işletmeye ait kamuya açık e-postaları sorgular.
+  3. **Sosyal Medya Biyo Kazıma:** Instagram, Facebook ve LinkedIn biyografi alanlarından e-posta ve iletişim verilerini çıkarır.
+  4. **Akıllı Erken Çıkış (Early Exit):** E-posta adresi herhangi bir aşamada bulunduğunda sonraki adımlar atlanarak ağ trafiği ve kota tasarrufu sağlanır.
 
-- **Derin Sosyal Medya İletişim Taraması:**
-  - Web siteleri ve açık kaynaklardan Instagram, Facebook, LinkedIn, Twitter/X, TikTok, Telegram, YouTube, GitHub, Medium, Substack, Behance, Dribbble, Snapchat, Spotify ve Twitch profillerini otomatik tespit eder ve işletme kartı ile eşleştirir.
+- **Sosyal Medya İletişim Taraması:**
+  - Web siteleri ve açık kaynaklardan Instagram, Facebook, LinkedIn, Twitter/X, TikTok, Telegram, YouTube, GitHub, Medium, Substack, Behance, Dribbble, Snapchat, Spotify ve Twitch hesaplarını otomatik olarak tespit eder ve işletme profili ile eşleştirir.
 
-- **Telefon & Veri Sızıntısı Analizi (Phone & Breach Intel):**
-  - **Yerel Telefon Doğrulama:** `phonenumbers` kütüphanesi ile offline operatör, ülke kodu ve biçimlendirme doğrulaması yapar; WhatsApp (`wa.me`) ve Telegram (`t.me`) bağlantılarını kontrol eder.
-  - **Sızıntı Denetimi:** HIBP Pwned Passwords ve XposedOrNot servisleri ile e-posta adreslerinin kamuya açık veri ihlallerinde yer alıp almadığını sorgular.
-
----
-
-### 3. Yerel E-posta Doğrulama ve Teslim Edilebilirlik Motoru
-
-- **4 Aşamalı Yerel Doğrulama:**
-  1. **Regex & Biçim Denetimi:** E-posta söz diziminin standartlara uygunluğunu doğrular.
-  2. **Geçici (Disposable) Domain Tespiti:** 30+ bilinen tek kullanımlık e-posta sağlayıcısını engeller (`data/disposable_domains.txt` ile genişletilebilir).
-  3. **DNS MX Sorgusu:** Domainin aktif e-posta sunucu kayıtlarını kontrol eder.
-  4. **Socket Tabanlı SMTP Handshake Simülasyonu:** Gerçek e-posta göndermeden `HELO`, `MAIL FROM`, `RCPT TO` komutları ile e-posta kutusunun varlığını doğrular.
-- **%100 Ücretsiz & API'siz:** Tüm işlemler doğrudan Python socket ve dnspython kütüphaneleriyle yerel olarak yürütülür.
+- **Telefon ve Veri Sızıntısı Analizi (Phone & Breach Intel):**
+  - **Yerel Telefon Doğrulama:** `phonenumbers` kütüphanesi ile offline operatör, ülke kodu ve biçimlendirme doğrulaması yapar; doğrudan WhatsApp (`wa.me`) ve Telegram (`t.me`) erişim bağlantıları oluşturur.
+  - **Veri Sızıntısı Denetimi:** HIBP Pwned Passwords ve XposedOrNot servisleri ile e-posta adreslerinin kamuya açık veri ihlallerinde yer alıp almadığını sorgular.
 
 ---
 
-### 4. Multimodal Ekran Denetimi & Tasarım Analizi (Screen Audit)
+### 3. Yerel E-posta Doğrulama ve Teslim Edilebilirlik Motoru (Deliverability)
 
-- **Playwright ile Görsel Yakalama:** Hedef web sitesinin masaüstü ekran görüntüsünü headless Chromium ile yakalar ve kaydeder.
-- **Gemini Vision AI Görsel Analizi:** Ekran görüntüsünü yapay zeka ile analiz ederek mobil uyumluluk sorunlarını, zayıf renk kontrastlarını, tipografi hatalarını ve eksik CTA (Call-to-Action) butonlarını tespit eder.
-- **Yerel Sezgisel Skorlama:** Gemini API bulunmadığı durumlarda sayfa açılış hızı, kırık bağlantılar ve SEO etiketleri üzerinden **100 üzerinden Web Sitesi Kalite Skoru** hesaplar.
-- **Satış Kancası Üretimi (Outreach Hook):** Tespit edilen tasarım eksikliklerine dayanarak yüksek dönüşümlü, kişiselleştirilmiş ilk temas cümleleri oluşturur.
+- **4 Aşamalı Doğrulama Hattı:**
+  1. **Söz Dizimi (Regex) Denetimi:** E-posta adresinin RFC standartlarına uygunluğunu doğrular.
+  2. **Geçici (Disposable) Domain Tespiti:** 30'dan fazla bilinen tek kullanımlık e-posta sağlayıcısını engeller (`data/disposable_domains.txt` ile genişletilebilir).
+  3. **DNS MX Kaydı Sorgulaması:** Domainin aktif e-posta alma sunucularını kontrol eder.
+  4. **Socket Tabanlı SMTP Handshake Simülasyonu:** Gerçek e-posta göndermeden `HELO`, `MAIL FROM`, `RCPT TO` komutlarıyla e-posta kutusunun sunucuda var olduğunu yerel olarak doğrular.
+- **%100 Ücretsiz ve API Anahtarsız:** Tüm doğrulama süreci doğrudan Python socket ve dnspython kütüphaneleriyle yerel olarak yürütülür.
 
 ---
 
-### 5. Çoklu-Ajan AI Metin Yazarı & Yerel RAG Bilgi Tabanı
+### 4. Görsel ve Teknik Web Denetimi (Multimodal Screen Audit & Design Intelligence)
+
+- **Playwright ile Görsel Yakalama:** Hedef işletmenin web sitesini headless Chromium tarayıcısı ile masaüstü çözünürlüğünde kaydeder.
+- **Gemini Vision AI Yapay Zeka Analizi:** Web sitesi ekran görüntüsünü yapay zeka ile inceleyerek mobil uyumluluk hatalarını, renk kontrastı yetersizliklerini, tipografi ve hizalama sorunlarını, eksik Call-to-Action (CTA) butonlarını tespit eder.
+- **Yerel Sezgisel Skorlama:** Gemini API bulunmadığı durumlarda sayfa açılış hızı, kırık bağlantılar ve SEO etiket eksiklikleri üzerinden **100 üzerinden Web Sitesi Kalite Skoru** hesaplar.
+- **Satış Kancası Üretimi (Outreach Hook):** Tespit edilen tasarım ve teknik eksikliklere dayalı, yüksek dönüşüm oranına sahip kişiselleştirilmiş ilk temas cümleleri oluşturur.
+
+---
+
+### 5. Çoklu-Ajan AI Metin Yazarı (Multi-Agent Copywriter) & Yerel RAG Bilgi Tabanı
 
 - **3 Ajanlı Yapay Zeka İş Akışı:**
-  - **Inspector (İncelemeci):** İşletmenin teknik ve tasarım fırsatlarını raporlar.
-  - **Copywriter (Yazar):** İşletmeye özel teklif ve e-posta taslağını oluşturur.
-  - **Editor (Editör):** Yapay zeka jargonunu, klişe selamlaşmaları ve uydurma verileri temizler; doğal insan dili formatına getirir.
+  - **Inspector (Denetçi):** İşletmenin teknik, tasarım ve dijital pazarlama fırsatlarını analiz eder.
+  - **Copywriter (Yazar):** İşletmeye özel teklif, e-posta ve mesaj taslaklarını kaleme alır.
+  - **Editor (Editör):** Yapay zeka jargonunu, klişe selamlaşmaları ve yapay verileri temizleyerek metni doğal insan diline çevirir.
 
 - **Yerel RAG (Retrieval-Augmented Generation) Bilgi Tabanı:**
-  - `data/knowledge_base/` klasöründeki `.txt`, `.md` ve `.pdf` formatındaki portföy ve referans dosyalarını tarar ve indeksler.
-  - **Çift Motorlu Arama:** Offline TF-IDF Cosine Similarity ve opsiyonel Vektör Embedding (Ollama / Gemini API) ile arama yapar.
+  - `data/knowledge_base/` klasöründeki `.txt`, `.md` ve `.pdf` formatındaki portföy, başarı hikayesi ve referans dosyalarını tarar ve indeksler.
+  - **Çift Motorlu Arama:** İnternetsiz çalışan yerel TF-IDF Benzerliği ve opsiyonel Vektör Embedding (Ollama / Gemini API) ile akıllı referans araması yapar.
 
-- **Ürün Fikirleri Motoru:**
-  - Keşfedilen her işletme için Türkiye pazarına uygun TL fiyat tahminli 2-3 adet özel yazılım/dijital ürün fikri, kapıda söylenecek satış kancası ve müşteri itirazlarına yanıtlar üretir.
+- **Özel Ürün Fikirleri Motoru:**
+  - Keşfedilen her işletme için Türkiye pazarına uygun TL fiyat tahminli 2-3 adet özel yazılım/dijital ürün fikri, satış kancası ve müşteri itirazlarına yanıtlar üretir.
 
 ---
 
-### 6. Çoklu LLM Yönlendirici (LLM Router) & Kota Yönetimi
+### 6. Akıllı Yapay Zeka Yönlendirici (Multi-LLM Router) & Kota Yönetimi
 
 - **Desteklenen Yapay Zeka Sağlayıcıları:**
-  - **OpenRouter API** (Açık kaynak ve ticari modellere tek anahtarla erişim)
-  - **Google Gemini API** (Gemini 2.5 Flash ile yüksek hızlı analiz)
-  - **Groq API** (Llama-3.3-70b ile ultra düşük gecikme)
+  - **OpenRouter API** (Açık kaynak ve ticari onlarca modele tek anahtarla erişim)
+  - **Google Gemini API** (Gemini 2.5 Flash ile yüksek hızlı içerik üretimi)
+  - **Groq API** (Llama-3.3-70b ile ultra düşük gecikmeli analiz)
   - **Mistral AI API** (Mistral Large ile kurumsal akıl yürütme)
   - **DeepSeek API** (Maliyet etkin derin analiz)
   - **OpenAI API** (GPT-4o & GPT-4o mini)
   - **Anthropic Claude API** (Claude 3.5 Haiku)
-  - **Ollama** (Tamamen yerel, ücretsiz ve internet gerektirmeyen çevrimdışı LLM desteği)
+  - **Ollama** (Tamamen yerel, çevrimdışı ve ücretsiz LLM desteği)
 
-- **Yedekli Yönlendirme (Failover) ve API Key Rotasyonu:**
-  - Virgülle ayrılmış birden fazla API anahtarını otomatik döndürür. Birincil sağlayıcıda kesinti veya kota sınırı yaşandığında sistem otomatik olarak ikincil yedek sağlayıcıya geçer.
+- **Otomatik Yedekleme (Failover Routing) ve API Key Rotasyonu:**
+  - Virgülle ayrılmış birden fazla API anahtarını sırayla döndürür. Birincil sağlayıcıda kesinti veya kota sınırı yaşandığında sistem otomatik olarak ikincil yedek sağlayıcıya geçer.
 
 ---
 
-### 7. Erişim Modları & Çok Kanallı Otomasyon
+### 7. Çok Kanallı İletişim ve Otomasyon Modları
 
 - **Mod A (Yardımcı Erişim — Varsayılan & %100 Güvenli):**
-  - AI tarafından üretilen özelleştirilmiş mesajı panoya kopyalar ve tek tıkla işletmenin Instagram DM veya WhatsApp tarayıcı sayfasını açar.
+  - Yapay zeka tarafından üretilen kişiselleştirilmiş mesajı panoya kopyalar ve tek tıkla işletmenin Instagram DM veya WhatsApp tarayıcı sayfasını açar.
 - **Mod B (Tam Otomasyon — Opsiyonel):**
-  - Simüle edilmiş Instagram API (`instagrapi`) kullanarak doğrudan veritabanından oturum açar ve belirlenen günlük limitler dahilinde otomatik DM gönderir.
-- **WhatsApp Web & LinkedIn Playwright Otomasyonu:**
-  - Kalıcı tarayıcı profilleri (persistent context) kullanarak WhatsApp Web üzerinden doğrudan mesaj gönderir ve LinkedIn üzerinde otomatik bağlantı isteği ("Connect") oluşturur.
+  - Simüle edilmiş Instagram API (`instagrapi`) kullanarak veritabanı üzerinden oturum açar ve belirlenen günlük limitler dahilinde otomatik direkt mesaj gönderir.
+- **WhatsApp Web ve LinkedIn Playwright Otomasyonu:**
+  - Kalıcı tarayıcı profilleri (persistent context) kullanarak WhatsApp Web üzerinden mesaj gönderir ve LinkedIn üzerinde otomatik bağlantı isteği ("Connect") oluşturur.
 
 ---
 
-### 8. SMTP Hesap Havuzu, Takip Dizileri ve P2P Isıtma (Warmup)
+### 8. SMTP Hesap Havuzu, Takip Dizileri (Sequences) ve E-posta Isıtma (Warmup)
 
-- **SMTP Hesap Havuzu & Saatlik Limitler:**
+- **SMTP Havuzu ve Saatlik Gönderim Limitleri:**
   - Veritabanındaki SMTP hesapları arasında otomatik yük dağıtımı yapar; hesap başına saatlik maksimum 5 e-posta gönderim limiti uygular. Şifreler veritabanında AES-256 Fernet ile saklanır.
 - **Çok Aşamalı Soğuk E-posta Dizileri:**
   - İlk e-posta, 1. Takip (3 gün sonra) ve 2. Takip (7 gün sonra) şeklinde yapılandırılabilir takip zinciri çalıştırır. Gelen yanıt algılandığında takip e-postaları otomatik olarak durdurulur.
