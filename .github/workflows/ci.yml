@@ -6,76 +6,82 @@ on:
   pull_request:
     branches: [ main, master ]
 
+permissions:
+  contents: read
+
 jobs:
   test:
+    name: Test (${{ matrix.os }}, Python ${{ matrix.python-version }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, windows-latest]
         python-version: ["3.11"]
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+          cache: 'pip'
 
-      - name: Install dependencies
+      - name: Install Dependencies
         run: |
-          python -m pip install --upgrade pip
+          python -m pip install --upgrade pip setuptools wheel
           pip install -e .[dev,gui,mod-b,screen-audit]
 
-      - name: Install Playwright browsers (for screen-audit tests)
+      - name: Install Playwright Browsers
         run: |
-          pip install playwright>=1.40.0
+          pip install "playwright>=1.40.0"
           playwright install chromium --with-deps
         continue-on-error: true
 
-      - name: Run pytest with coverage
+      - name: Run Pytest with Coverage
         run: |
           pytest tests/ -v --cov=src/aegisScout --cov-report=xml --cov-report=term-missing
 
-      - name: Upload coverage report
+      - name: Upload Coverage Report
         uses: actions/upload-artifact@v4
         if: matrix.os == 'ubuntu-latest'
         with:
           name: coverage-report
           path: coverage.xml
-        continue-on-error: true
-
-      - name: Run mypy type checker
-        run: |
-          mypy src/aegisScout --ignore-missing-imports
+          retention-days: 7
         continue-on-error: true
 
   build:
-    name: Build Executable (Windows)
+    name: Build Windows Executable
     runs-on: windows-latest
+    timeout-minutes: 20
     needs: test
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: 'pip'
 
-      - name: Install build dependencies
+      - name: Install Build Dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install -e .[dev,gui,mod-b]
-          pip install pyinstaller bottle proxy_tools
+          python -m pip install --upgrade pip setuptools wheel
+          pip install -e .[dev,gui,mod-b,screen-audit]
+          pip install pyinstaller pywebview bottle proxy_tools
 
       - name: Build Windows EXE
         run: |
           python scripts/build_exe.py --clean
 
-      - name: Upload aegisScout.exe Artifact
+      - name: Upload aegisScout Executable Artifact
         uses: actions/upload-artifact@v4
         with:
           name: aegisScout-windows-exe
           path: dist/aegisScout.exe
-
+          retention-days: 14

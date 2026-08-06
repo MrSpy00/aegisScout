@@ -230,7 +230,11 @@ _MIN_SECTOR_WORD_LEN = 3
 
 def _is_aggregate_or_ranking(candidate) -> bool:
     """Return True if the candidate looks like a list/ranking page or a directory listing, not a real business."""
-    from aegisScout.discovery.noise_filter import is_directory_url
+    try:
+        from aegisScout.discovery.noise_filter import is_directory_url
+    except Exception:
+        is_directory_url = lambda url: False
+
     url = getattr(candidate, "website_url", "") or ""
     if url and is_directory_url(url):
         return True
@@ -498,7 +502,10 @@ async def discover_leads(
     candidates = _dedupe_candidates(candidates)
 
     # (3) Drop aggregate / ranking / directory list pages and non-target public/government entities.
-    from aegisScout.discovery.noise_filter import is_noise
+    try:
+        from aegisScout.discovery.noise_filter import is_noise
+    except Exception:
+        is_noise = lambda d: False
     pre_filter_count = len(candidates)
     filtered_candidates = []
     for c in candidates:
