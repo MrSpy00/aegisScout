@@ -120,7 +120,7 @@ Uygulama masaüstü arayüzüne ait canlı panel görüntüleri (Tüm veriler te
 - **Desteklenen Yapay Zeka Sağlayıcıları:**
   - **OpenRouter API** (Açık kaynak ve ticari onlarca modele tek anahtarla erişim)
   - **Google Gemini API** (Gemini 2.5 Flash ile yüksek hızlı içerik üretimi)
-  - **Groq API** (Llama-3.3-70b ile ultra düşük gecikmeli analiz)
+  - **Groq API** (openai/gpt-oss-120b ile ultra düşük gecikmeli analiz)
   - **Mistral AI API** (Mistral Large ile kurumsal akıl yürütme)
   - **DeepSeek API** (Maliyet etkin derin analiz)
   - **OpenAI API** (GPT-4o & GPT-4o mini)
@@ -367,7 +367,7 @@ aegisScout export --output data/exports/leads.csv
 - **Supported AI Providers:**
   - **OpenRouter API** (Access dozens of commercial and open-source models seamlessly)
   - **Google Gemini API** (High-speed analysis via Gemini 2.5 Flash)
-  - **Groq API** (Ultra-low latency generation via Llama-3.3-70b)
+  - **Groq API** (Ultra-low latency generation via openai/gpt-oss-120b)
   - **Mistral AI API** (Enterprise reasoning via Mistral Large)
   - **DeepSeek API** (Cost-effective deep reasoning)
   - **OpenAI API** (GPT-4o & GPT-4o mini)

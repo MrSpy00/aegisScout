@@ -13,10 +13,74 @@ Inspired by Gropector's DEFAULT_EXCLUDED_TYPES and POST_FILTER_EXCLUDED_TYPES.
 """
 from __future__ import annotations
 
+import re
+import unicodedata
 from typing import List, Optional
 from aegisScout.utils.logger import get_logger
 
 logger = get_logger("discovery.noise_filter")
+
+
+def _slugify_tr(text: str) -> str:
+    """Normalize Turkish characters to clean ASCII slug string."""
+    if not text:
+        return ""
+    cleaned = text.replace("ı", "i").replace("İ", "I").replace("i̇", "i")
+    nfkd = unicodedata.normalize("NFKD", cleaned)
+    ascii_str = "".join([c for c in nfkd if not unicodedata.combining(c)])
+    return ascii_str.lower().strip()
+
+
+# Patterns detecting Instagram directory / aggregator handles
+AGGREGATOR_HANDLE_PATTERNS = [
+    r"rehberi$", r"portali$", r"turkiye$", r"firmalari$",
+    r"sayfalari$", r"dizin$", r"rehber$", r"katalogu$",
+    r"^rehber_", r"^portal_", r"^dizin_", r"^turkiye_",
+    r"doktorlar$", r"doktorlari$", r"firmalar$", r"sayfasi$"
+]
+
+# Patterns detecting bio directory phrases
+AGGREGATOR_BIO_PATTERNS = [
+    "firma rehberi", "türkiye rehberi", "turkiye rehberi",
+    "sektörel dizin", "sektorel dizin", "ücretsiz firma kaydı",
+    "tüm firmalar", "türkiyenin en büyük rehberi", "rehber portalı", "rehber portali",
+    "doktorlar portalı", "doktorlar portali", "tüm doktorlar", "firma portalı", "firma portali",
+    "portalı", "portali"
+]
+
+
+def is_aggregator_profile(profile: dict) -> bool:
+    """
+    Detect if an Instagram candidate profile is a directory/aggregator account.
+    """
+    if not profile or not isinstance(profile, dict):
+        return False
+
+    username = _slugify_tr(str(profile.get("username", "")))
+    full_name = _slugify_tr(str(profile.get("full_name", "")))
+    bio = str(profile.get("bio", "")).lower()
+    website = str(profile.get("website", "") or profile.get("website_url", ""))
+
+    # 1. Handle regex suffix/prefix check
+    for pat in AGGREGATOR_HANDLE_PATTERNS:
+        if re.search(pat, username):
+            return True
+
+    # 2. Bio phrase check
+    for phrase in AGGREGATOR_BIO_PATTERNS:
+        if phrase in bio:
+            return True
+
+    # 3. Website directory URL check
+    if website and is_directory_url(website):
+        return True
+
+    # 4. NOISE_NAME_PATTERNS check on full_name
+    for noise_pat in ("firma rehberi", "sarı sayfalar", "yellowpages", "bulurum"):
+        if noise_pat in full_name:
+            return True
+
+    return False
 
 # OpenStreetMap / Google Places category types to EXCLUDE by default
 DEFAULT_EXCLUDED_OSM_TAGS = {
@@ -252,6 +316,10 @@ __all__ = [
     "is_noise",
     "filter_noise",
     "get_opportunity_score",
+    "is_aggregator_profile",
+    "is_directory_url",
+    "AGGREGATOR_HANDLE_PATTERNS",
+    "AGGREGATOR_BIO_PATTERNS",
     "DEFAULT_EXCLUDED_OSM_TAGS",
     "DEFAULT_EXCLUDED_GOOGLE_TYPES",
 ]

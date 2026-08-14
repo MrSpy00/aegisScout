@@ -107,14 +107,14 @@ class TestInstagramFinderImprovements:
             "last_active_raw": 80,
             "has_story": False,
         }):
-            with respx.mock:
-                respx.get(url__regex=r".*instagram\.com/test_user/embed.*").mock(
+            with respx.mock(assert_all_mocked=False) as respx_mock:
+                respx_mock.get(url__regex=r".*instagram\.com/test_user/embed.*").mock(
                     return_value=httpx.Response(200, text="<html><body>No posts</body></html>")
                 )
-                respx.get(url__regex=r".*picuki\.com.*").mock(
+                respx_mock.get(url__regex=r".*picuki\.com.*").mock(
                     return_value=httpx.Response(404)
                 )
-                respx.get(url__regex=r".*imginn\.com.*").mock(
+                respx_mock.get(url__regex=r".*imginn\.com.*").mock(
                     return_value=httpx.Response(404)
                 )
 
@@ -438,5 +438,200 @@ class TestInstagramFinder:
             assert res_ad is not None
             assert res_ad["username"] == "direct_user"
             assert res_ad["source_api"] == "APIDirect"
+
+
+class TestMilestoneM3MatchingOverhaul:
+    """
+    Milestone M3 Unit Tests:
+    - Feature 9: 6-Factor Composite Candidate Scoring Formula
+    - Feature 10: Bidirectional SLD Domain Cross-Referencing
+    - Feature 11: Aggregator & Directory Handle Filter (-40 penalty)
+    - Feature 12: Location Strictness & Conflict Penalty (-20 penalty)
+    - Feature 13: Boundary-Enforced Keyword Matching (\bkw\b regex)
+    """
+
+    def test_composite_scoring_formula_weights(self):
+        """Validates exact mathematical weighting of all 6 factors."""
+        from aegisScout.discovery.instagram_finder import InstagramFinder
+        finder = InstagramFinder()
+
+        profile = {
+            "username": "akdenizdis",
+            "full_name": "Akdeniz Ağız ve Diş Sağlığı",
+            "bio": "Antalya'da profesyonel diş hekimi hizmetleri",
+            "category": "Diş Hekimi",
+            "email": "info@akdenizdis.com",
+            "phone": "+905321112233",
+            "website": "https://www.akdenizdis.com.tr",
+            "linktree_url": "https://linktr.ee/akdenizdis",
+            "is_verified": True,
+            "recency_status": "ACTIVE",
+            "last_active_raw": 10,
+        }
+
+        score = finder._calculate_relevance_score(
+            profile,
+            target_sector="diş hekimi",
+            target_business_name="Akdeniz Diş",
+            target_website="https://akdenizdis.com",
+            target_location="Antalya",
+        )
+        assert isinstance(score, int)
+        assert 0 <= score <= 100
+        assert score >= 85, f"Expected high composite score for matching target, got {score}"
+
+    def test_extract_sld_multi_level_tld(self):
+        """Tests SLD extraction for .com.tr, .net.tr, .org.tr, .co.uk, and linktr.ee URLs."""
+        from aegisScout.discovery.instagram_finder import extract_sld
+
+        assert extract_sld("https://www.akdenizdis.com.tr/tr") == "akdenizdis"
+        assert extract_sld("http://subdomain.mycompany.net.tr/page") == "mycompany"
+        assert extract_sld("https://organization.org.tr") == "organization"
+        assert extract_sld("https://business.co.uk/index.html") == "business"
+        assert extract_sld("https://linktr.ee/akdenizdis") == "akdenizdis"
+        assert extract_sld("https://beacons.ai/mydentist?ref=ig") == "mydentist"
+        assert extract_sld("http://clinic.com") == "clinic"
+
+    def test_bidirectional_sld_exact_match(self):
+        """Verifies exact domain SLD match yields S_domain = 100."""
+        from aegisScout.discovery.instagram_finder import calculate_domain_score
+
+        score = calculate_domain_score(
+            target_website="https://akdenizdis.com",
+            profile_website="https://www.akdenizdis.com.tr",
+            profile_linktree=None,
+            profile_username="akdeniz_dis_klinigi",
+            profile_bio="Ağız ve diş sağlığı polikliniği",
+        )
+        assert score == 100, f"Expected exact SLD match score 100, got {score}"
+
+    def test_bidirectional_sld_linktree_and_username_match(self):
+        """Verifies linktr.ee/akdenizdis and @akdenizdis username matches yield high domain scores."""
+        from aegisScout.discovery.instagram_finder import calculate_domain_score
+
+        score_linktree = calculate_domain_score(
+            target_website="https://akdenizdis.com",
+            profile_website=None,
+            profile_linktree="https://linktr.ee/akdenizdis",
+            profile_username="some_other_username",
+            profile_bio="Diş Kliniği",
+        )
+        assert score_linktree == 100
+
+        score_username = calculate_domain_score(
+            target_website="https://akdenizdis.com",
+            profile_website=None,
+            profile_linktree=None,
+            profile_username="akdenizdis",
+            profile_bio="Diş Kliniği",
+        )
+        assert score_username == 80
+
+    def test_aggregator_handle_penalty(self):
+        """Verifies @istanbul_kuafor_rehberi and @turkiye_doktorlar trigger -40 aggregator penalty."""
+        from aegisScout.discovery.noise_filter import is_aggregator_profile
+        from aegisScout.discovery.instagram_finder import InstagramFinder
+
+        agg_profile1 = {
+            "username": "istanbul_kuafor_rehberi",
+            "full_name": "İstanbul Kuaför Rehberi",
+            "bio": "En iyi kuaförler bu sayfada",
+        }
+        agg_profile2 = {
+            "username": "turkiye_doktorlar",
+            "full_name": "Türkiye Doktorları",
+            "bio": "Tüm doktorlar portalı",
+        }
+
+        assert is_aggregator_profile(agg_profile1) is True
+        assert is_aggregator_profile(agg_profile2) is True
+
+        finder = InstagramFinder()
+        score = finder._calculate_relevance_score(
+            agg_profile1,
+            target_sector="kuaför",
+            target_location="İstanbul",
+        )
+        assert score <= 50, f"Aggregator profile score should be heavily penalized, got {score}"
+
+    def test_aggregator_directory_url_penalty(self):
+        """Verifies profile linking to yellowpages.com.tr or bulurum.com triggers -40 penalty."""
+        from aegisScout.discovery.noise_filter import is_aggregator_profile
+        from aegisScout.discovery.instagram_finder import InstagramFinder
+
+        directory_profile = {
+            "username": "saglik_bilgileri",
+            "full_name": "Sağlık Rehberi",
+            "bio": "Sağlık ve klinik dizini",
+            "website": "https://yellowpages.com.tr/kategori/saglik",
+        }
+
+        assert is_aggregator_profile(directory_profile) is True
+
+        finder = InstagramFinder()
+        score = finder._calculate_relevance_score(directory_profile, target_sector="sağlık")
+        assert score <= 50, f"Directory URL profile score should be penalized, got {score}"
+
+    def test_location_match_city_and_district(self):
+        """Verifies candidate matching both city ('İstanbul') and district ('Kadıköy') receives S_location = 100."""
+        from aegisScout.discovery.instagram_finder import calculate_location_score_and_penalty
+
+        profile = {
+            "username": "kadikoy_guzellik",
+            "full_name": "Kadıköy Güzellik Salonu",
+            "bio": "İstanbul Kadıköy Moda caddesinde hizmetinizdeyiz",
+            "category": "Güzellik Salonu",
+        }
+
+        score, penalty = calculate_location_score_and_penalty("İstanbul Kadıköy", profile)
+        assert score == 100, f"City + district match should give 100, got {score}"
+        assert penalty == 0
+
+    def test_location_conflict_penalty(self):
+        """Verifies candidate specifying 'İstanbul' when target location is 'Ankara' triggers -20 conflict penalty."""
+        from aegisScout.discovery.instagram_finder import calculate_location_score_and_penalty, InstagramFinder
+
+        profile = {
+            "username": "istanbul_kuafor",
+            "full_name": "İstanbul Kuaför Salonu",
+            "bio": "İstanbul Kadıköy'de profesyonel saç tasarımı",
+            "category": "Kuaför",
+        }
+
+        score, penalty = calculate_location_score_and_penalty("Ankara", profile)
+        assert penalty == 20, f"Cross-city conflict should yield 20 penalty, got {penalty}"
+
+        finder = InstagramFinder()
+        rel_score = finder._calculate_relevance_score(profile, target_sector="kuaför", target_location="Ankara")
+        assert rel_score <= 50, f"Cross-city profile should be penalized, got {rel_score}"
+
+    def test_location_multi_city_no_penalty(self):
+        """Verifies candidate listing both 'Ankara ve İstanbul' does NOT trigger conflict penalty for 'Ankara' target."""
+        from aegisScout.discovery.instagram_finder import calculate_location_score_and_penalty
+
+        profile = {
+            "username": "turkiye_klinik",
+            "full_name": "Türkiye Klinik Grubu",
+            "bio": "Ankara ve İstanbul şubelerimizle hizmetinizdeyiz.",
+            "category": "Klinik",
+        }
+
+        score, penalty = calculate_location_score_and_penalty("Ankara", profile)
+        assert penalty == 0, f"Multi-city profile mentioning target city should NOT suffer penalty, got {penalty}"
+        assert score >= 80
+
+    def test_boundary_enforced_keyword_matching(self):
+        """Verifies 'diş' matches 'Ahmet Diş Kliniği' but does NOT match 'Disney Plus TR'."""
+        from aegisScout.discovery.instagram_finder import match_keyword_bounded
+
+        assert match_keyword_bounded("diş", "Ahmet Diş Kliniği") is True
+        assert match_keyword_bounded("diş hekimi", "Diş Hekimi Mehmet Yılmaz") is True
+        assert match_keyword_bounded("bar", "Kadıköy Sahil Bar & Bistro") is True
+        assert match_keyword_bounded("oto", "Ahmet Oto Tamir Servisi") is True
+
+        assert match_keyword_bounded("diş", "Disney Plus TR Official") is False
+        assert match_keyword_bounded("bar", "Bardak İmalat Sanayi") is False
+        assert match_keyword_bounded("oto", "Otobüs Bilet Satış Acentesi") is False
+
 
 

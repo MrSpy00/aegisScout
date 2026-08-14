@@ -5,11 +5,16 @@ import re
 import unicodedata
 import urllib.parse
 import random
+from datetime import datetime, timezone
 from typing import Dict, List, Optional, Set, Tuple
 import httpx
 from bs4 import BeautifulSoup
 
 from aegisScout.core.config import settings
+from aegisScout.discovery.instagram_session import InstagramSessionManager
+from aegisScout.discovery.web_mirrors import WebMirrorPipeline
+from aegisScout.discovery.recency_classifier import RecencyClassifier, RecencyResult
+from aegisScout.discovery.noise_filter import is_aggregator_profile
 from aegisScout.utils.logger import get_logger
 
 logger = get_logger("discovery.instagram_finder")
@@ -30,6 +35,14 @@ TURKEY_MAJOR_CITIES = [
     "malatya", "erzurum", "gebze", "kahramanmaras", "van", "batman",
     "tekirdag", "balikesir", "manisa", "hatay", "sivas"
 ]
+
+TURKISH_MAJOR_CITIES = {
+    "istanbul", "ankara", "izmir", "bursa", "antalya", "adana", "konya",
+    "gaziantep", "kocaeli", "mersin", "diyarbakir", "hatay", "manisa",
+    "kayseri", "samsun", "balikesir", "kahramanmaras", "van", "aydin",
+    "denizli", "tekirdag", "mugla", "eskisehir", "trabzon", "ordu",
+    "sanliurfa", "malatya", "erzurum", "sakarya", "rize", "canakkale"
+}
 
 # Rotating user agents — multi-platform simulation
 _USER_AGENTS = [
@@ -53,6 +66,254 @@ def _slugify_tr(text: str) -> str:
     nfkd = unicodedata.normalize("NFKD", cleaned)
     ascii_str = "".join([c for c in nfkd if not unicodedata.combining(c)])
     return ascii_str.lower().strip()
+
+
+def extract_sld(url_or_domain: str) -> str:
+    """
+    Extract Second-Level Domain (SLD) from URL or hostname.
+    Supports Turkish multi-level TLDs (.com.tr, .net.tr, .org.tr, .gov.tr, .edu.tr)
+    and social link aggregators (linktr.ee/username, beacons.ai/username, taplink.cc/username, etc.).
+
+    Examples:
+        'https://www.akdenizdis.com.tr/tr' -> 'akdenizdis'
+        'https://linktr.ee/akdenizdis' -> 'akdenizdis'
+        'http://subdomain.mycompany.com' -> 'mycompany'
+    """
+    if not url_or_domain:
+        return ""
+
+    cleaned = url_or_domain.strip().lower()
+    cleaned = re.sub(r"^https?://", "", cleaned)
+
+    aggregator_domains = (
+        "linktr.ee", "beacons.ai", "taplink.cc", "shopier.com",
+        "linkin.bio", "lnk.to", "bio.site", "link.bio", "allmylinks.com"
+    )
+    for agg in aggregator_domains:
+        if cleaned.startswith(agg):
+            parts = cleaned.split("/")
+            if len(parts) > 1 and parts[1].strip():
+                return _slugify_tr(parts[1].split("?")[0].strip())
+
+    host = cleaned.split("/")[0].split("?")[0].split(":")[0]
+    if host.startswith("www."):
+        host = host[4:]
+
+    parts = host.split(".")
+    if len(parts) == 1:
+        return _slugify_tr(parts[0])
+
+    two_part_tlds = {"com.tr", "net.tr", "org.tr", "gov.tr", "edu.tr", "co.uk", "com.br", "co.jp"}
+    joined_last_two = f"{parts[-2]}.{parts[-1]}"
+
+    if joined_last_two in two_part_tlds and len(parts) >= 3:
+        sld = parts[-3]
+    else:
+        sld = parts[-2]
+
+    return _slugify_tr(sld)
+
+
+def match_keyword_bounded(keyword: str, text: str) -> bool:
+    """
+    Boundary-enforced keyword matching supporting Turkish text and multi-word phrases.
+    Prevents false-positive substring matches (e.g. 'diş' matching 'disney', 'bar' matching 'bardak').
+    Treats underscores (_) as whitespace to support Instagram handle conventions (e.g. 'kuafor_istanbul').
+
+    Example:
+        match_keyword_bounded("diş", "Diş Hekimi Ahmet") -> True
+        match_keyword_bounded("diş", "Disney Plus TR") -> False
+    """
+    if not keyword or not text:
+        return False
+
+    kw_slug = _slugify_tr(keyword.strip()).replace("_", " ")
+    text_slug = _slugify_tr(text.strip()).replace("_", " ")
+    if not kw_slug or not text_slug:
+        return False
+
+    pattern = r"\b" + re.escape(kw_slug) + r"\b"
+    return bool(re.search(pattern, text_slug, re.IGNORECASE))
+
+
+def calculate_domain_score(
+    target_website: str,
+    profile_website: str,
+    profile_linktree: str,
+    profile_username: str,
+    profile_bio: str,
+) -> int:
+    """
+    Calculate Domain SLD Cross-Referencing Score (0-100).
+    """
+    if not target_website:
+        return 70 if (profile_website or profile_linktree) else 50
+
+    target_sld = extract_sld(target_website)
+    if not target_sld:
+        return 50
+
+    cand_web_sld = extract_sld(profile_website)
+    cand_link_sld = extract_sld(profile_linktree)
+    cand_u_slug = _slugify_tr(profile_username)
+    bio_slug = _slugify_tr(profile_bio)
+
+    # 1. Exact SLD match on website or linktree URL
+    if (cand_web_sld and cand_web_sld == target_sld) or (cand_link_sld and cand_link_sld == target_sld):
+        return 100
+
+    # 2. Partial SLD match (target SLD contained in candidate SLD or vice versa)
+    if cand_web_sld and (target_sld in cand_web_sld or cand_web_sld in target_sld) and len(cand_web_sld) >= 4:
+        return 85
+    if cand_link_sld and (target_sld in cand_link_sld or cand_link_sld in target_sld) and len(cand_link_sld) >= 4:
+        return 85
+
+    # 3. Username matches target SLD
+    if cand_u_slug and (cand_u_slug == target_sld or target_sld in cand_u_slug):
+        return 80
+
+    # 4. Target SLD mentioned in bio
+    if target_sld in bio_slug and len(target_sld) >= 4:
+        return 70
+
+    # Target website specified but no candidate domain match
+    return 0
+
+
+def calculate_location_score_and_penalty(target_location: str, profile: dict) -> tuple[int, int]:
+    """
+    Returns (location_score, location_conflict_penalty).
+    location_score: 0-100
+    location_conflict_penalty: 0 or 20
+    """
+    if not target_location:
+        return 50, 0
+
+    target_loc_clean = _slugify_tr(target_location)
+    target_tokens = set(re.findall(r"\w+", target_loc_clean))
+
+    cand_text = _slugify_tr(
+        f"{profile.get('bio', '')} {profile.get('full_name', '')} {profile.get('username', '')} {profile.get('category', '')}"
+    )
+    cand_tokens = set(re.findall(r"\w+", cand_text))
+
+    target_cities = target_tokens.intersection(TURKISH_MAJOR_CITIES)
+
+    # 1. Location Score Calculation
+    matching_tokens = target_tokens.intersection(cand_tokens)
+    if target_cities and target_cities.issubset(cand_tokens) and len(matching_tokens) > len(target_cities):
+        # City AND district matched
+        location_score = 100
+    elif target_cities and target_cities.issubset(cand_tokens):
+        # City matched
+        location_score = 80
+    elif matching_tokens:
+        # District or region matched
+        location_score = 70
+    elif "turkiye" in cand_text or "tr" in cand_text:
+        location_score = 60
+    else:
+        # Target location specified, but candidate mentions no location
+        location_score = 40
+
+    # 2. Location Conflict Penalty Calculation
+    penalty = 0
+    if target_cities:
+        target_city = next(iter(target_cities))
+        other_cities_in_cand = cand_tokens.intersection(TURKISH_MAJOR_CITIES) - {target_city}
+
+        if other_cities_in_cand and target_city not in cand_tokens:
+            penalty = 20
+
+    return location_score, penalty
+
+
+def calculate_sector_score(target_sector: str, profile: dict) -> int:
+    """
+    Calculate boundary-enforced sector keyword match score (0-100).
+    """
+    if not target_sector:
+        return 50
+
+    keywords = [w.strip() for w in re.split(r"\s+", target_sector) if len(w.strip()) >= 3]
+    if not keywords:
+        return 50
+
+    username = profile.get("username", "")
+    full_name = profile.get("full_name", "")
+    bio = profile.get("bio", "")
+    category = profile.get("category", "")
+
+    score = 0
+    for kw in keywords:
+        if match_keyword_bounded(kw, username):
+            score += 40
+        if match_keyword_bounded(kw, full_name):
+            score += 30
+        if match_keyword_bounded(kw, bio):
+            score += 20
+        if match_keyword_bounded(kw, category):
+            score += 20
+
+    return min(score, 100)
+
+
+def calculate_name_score(target_business_name: str, target_sector: str, profile: dict) -> int:
+    """
+    Calculate target name match score (0-100).
+    """
+    target_name = target_business_name.strip() if target_business_name else ""
+    if not target_name:
+        if target_sector:
+            sec_words = [w.strip() for w in re.split(r"\s+", target_sector) if len(w.strip()) >= 3]
+            for kw in sec_words:
+                if match_keyword_bounded(kw, profile.get("username", "")):
+                    return 85
+                elif match_keyword_bounded(kw, profile.get("full_name", "")):
+                    return 75
+        return 50
+
+    t_slug = _slugify_tr(target_name)
+    if not t_slug:
+        return 50
+
+    cand_u_slug = _slugify_tr(profile.get("username", ""))
+    cand_f_slug = _slugify_tr(profile.get("full_name", ""))
+
+    # 1. Exact handle match
+    if cand_u_slug == t_slug or cand_u_slug == t_slug.replace(" ", ""):
+        return 100
+
+    # 2. Full name exact match
+    if cand_f_slug == t_slug:
+        return 90
+
+    # 3. Prefix handle match
+    t_no_space = t_slug.replace(" ", "")
+    if (cand_u_slug and t_no_space and (cand_u_slug.startswith(t_no_space) or t_no_space.startswith(cand_u_slug))) and len(cand_u_slug) >= 3 and len(t_no_space) >= 3:
+        return 85
+
+    # 4. Target slug inside handle or handle inside target slug
+    if (t_no_space in cand_u_slug or cand_u_slug in t_no_space) and len(cand_u_slug) >= 4 and len(t_no_space) >= 4:
+        return 75
+
+    # 5. Token overlap ratio
+    t_tokens = set(re.findall(r"\w+", t_slug))
+    cand_tokens = set(re.findall(r"\w+", f"{cand_u_slug} {cand_f_slug}"))
+    if t_tokens and cand_tokens:
+        overlap = t_tokens.intersection(cand_tokens)
+        if overlap:
+            ratio = len(overlap) / len(t_tokens)
+            return min(int(100 * ratio), 100)
+
+    return 0
+
+
+# Helper Aliases
+match_keyword_boundary = match_keyword_bounded
+_extract_domain_sld = extract_sld
+_is_directory_or_aggregator = is_aggregator_profile
+_evaluate_location_signals = calculate_location_score_and_penalty
 
 
 def _clean_location_for_search(location: str) -> str:
@@ -136,6 +397,155 @@ def _extract_handles_from_content(text_content: str) -> Set[str]:
     return handles
 
 
+# ===================================================================
+# M3 FEATURE HELPERS: Domain SLD, Boundary Match, Aggregator, Location
+# ===================================================================
+
+def match_keyword_boundary(kw: str, text: str) -> bool:
+    """
+    Perform boundary-enforced keyword matching against ASCII/Turkish text.
+    Uses regex pattern (?:^|[^a-z0-9])kw(?:[^a-z0-9]|$) to prevent false positive substring matches
+    (e.g., prevents 'diş' matching 'disney' or 'disko').
+    """
+    if not kw or not text:
+        return False
+    kw_ascii = _slugify_tr(kw)
+    text_ascii = _slugify_tr(text)
+    if not kw_ascii or not text_ascii:
+        return False
+    pattern = rf"(?:^|[^a-z0-9]){re.escape(kw_ascii)}(?:[^a-z0-9]|$)"
+    return bool(re.search(pattern, text_ascii))
+
+
+def _extract_domain_sld(url: str) -> Optional[str]:
+    """
+    Extract Second-Level Domain (SLD) or brand slug from web URLs and link aggregators.
+    Examples:
+      - 'https://www.akdenizdis.com.tr' -> 'akdenizdis'
+      - 'https://akdenizdis.com' -> 'akdenizdis'
+      - 'https://linktr.ee/akdenizdis' -> 'akdenizdis'
+      - 'https://beacons.ai/akdenizdis' -> 'akdenizdis'
+    """
+    if not url:
+        return None
+    url_clean = str(url).strip().lower()
+    if not url_clean or url_clean in {"none", "null"}:
+        return None
+    if not url_clean.startswith(("http://", "https://")):
+        url_clean = "https://" + url_clean
+    try:
+        parsed = urllib.parse.urlparse(url_clean)
+        netloc = parsed.netloc.split(":")[0]
+        if netloc.startswith("www."):
+            netloc = netloc[4:]
+        elif netloc.startswith("m."):
+            netloc = netloc[2:]
+
+        aggregator_domains = {
+            "linktr.ee", "beacons.ai", "taplink.cc", "shopier.com",
+            "linkin.bio", "lnk.to", "bio.site", "link.bio", "allmylinks.com"
+        }
+        if any(agg in netloc for agg in aggregator_domains):
+            path_parts = [p for p in parsed.path.split("/") if p]
+            if path_parts:
+                return _slugify_tr(path_parts[0])
+
+        parts = netloc.split(".")
+        if len(parts) < 2:
+            return _slugify_tr(parts[0]) if parts and parts[0] else None
+
+        # Multi-part TLD detection (e.g. .com.tr, .net.tr, .co.uk, .gov.tr, .edu.tr)
+        if len(parts) >= 3 and parts[-2] in {"com", "net", "org", "gov", "edu", "co", "bel", "k12"} and parts[-1] in {"tr", "uk", "de", "fr", "au", "br", "jp"}:
+            sld = parts[-3]
+        else:
+            sld = parts[-2]
+
+        return _slugify_tr(sld) if sld else None
+    except Exception:
+        return None
+
+
+AGGREGATOR_HANDLE_PATTERNS = [
+    r"(?:^|_)(?:rehber|rehberi|portali|portal|turkiye|dizin|sarisayfalar|firmarehberi|sehirrehberi|guncelrehber)(?:_|$)",
+    r"(?:^|_)(?:bulurum|yellowpages|firmasec|turkfirmalar|haritane|findcomtr)(?:_|$)",
+    r"(?:^|_)(?:firma|firmalar|rehberlik)(?:_|$)",
+    r"rehber[i_]?$",
+    r"portal[i_]?$",
+]
+
+AGGREGATOR_TEXT_PATTERNS = [
+    "firma rehberi", "sarı sayfalar", "sari sayfalar", "türkiye rehberi", "turkiye rehberi",
+    "şehir portalı", "sehir portali", "işletme dizini", "isletme dizini", "tüm firmalar",
+    "tum firmalar", "tanıtım ve reklam için dm", "tanitim ve reklam icin dm",
+    "reklam için dm", "reklam icin dm", "firma ekle", "rehberine ekle"
+]
+
+
+def _is_directory_or_aggregator(profile: Dict) -> bool:
+    """Check if profile handle or bio matches aggregator/directory account characteristics."""
+    username = (profile.get("username") or "").lower()
+    full_name = (profile.get("full_name") or "").lower()
+    bio = (profile.get("bio") or "").lower()
+
+    for pat in AGGREGATOR_HANDLE_PATTERNS:
+        if re.search(pat, username):
+            return True
+
+    combined = f"{full_name} {bio}".lower()
+    combined_ascii = _slugify_tr(combined)
+    for pat in AGGREGATOR_TEXT_PATTERNS:
+        pat_ascii = _slugify_tr(pat)
+        if pat in combined or pat_ascii in combined_ascii:
+            return True
+
+    return False
+
+
+TURKISH_MAJOR_PROVINCES = {
+    "istanbul", "ankara", "izmir", "bursa", "antalya", "adana", "konya", "gaziantep",
+    "sanliurfa", "kocaeli", "mersin", "diyarbakir", "hatay", "manisa", "kayseri",
+    "samsun", "balikesir", "kahramanmaras", "van", "aydin", "tekirdag", "sakarya",
+    "denizli", "mugla", "eskisehir", "trabzon", "erzurum", "malatya", "ordu", "eskişehir"
+}
+
+
+def _evaluate_location_signals(profile: Dict, target_location: str) -> Tuple[int, int]:
+    """
+    Evaluates candidate location compliance.
+    Returns: (S_location [0-100], Penalty_location_conflict [0 or 20])
+    """
+    if not target_location:
+        return 50, 0
+
+    loc_clean = _slugify_tr(_clean_location_for_search(target_location))
+    loc_tokens = [w for w in loc_clean.split() if len(w) >= 3]
+    if not loc_tokens:
+        return 50, 0
+
+    combined_text = _slugify_tr(
+        f"{profile.get('bio', '')} {profile.get('full_name', '')} {profile.get('username', '')} {profile.get('category', '')}"
+    )
+
+    matched_count = sum(1 for tok in loc_tokens if match_keyword_boundary(tok, combined_text))
+    if matched_count == len(loc_tokens):
+        s_location = 100
+    elif matched_count > 0:
+        s_location = 80
+    else:
+        s_location = 30
+
+    target_city = next((c for c in TURKISH_MAJOR_PROVINCES if c in loc_clean), None)
+    penalty_conflict = 0
+    if target_city:
+        cand_cities = [c for c in TURKISH_MAJOR_PROVINCES if match_keyword_boundary(c, combined_text)]
+        if cand_cities and target_city not in cand_cities:
+            penalty_conflict = 20
+            s_location = 0
+
+    return s_location, penalty_conflict
+
+
+
 def _parse_count(text: str) -> int:
     if not text:
         return 0
@@ -212,7 +622,7 @@ class InstagramFinder:
     7. 3rd-Party Instagram Parser Fallback (picuki, imginn, etc.)
     """
 
-    def __init__(self):
+    def __init__(self, session_manager: Optional[InstagramSessionManager] = None):
         self.api_key = settings.google_custom_search_api_key
         self.cx = settings.google_custom_search_cx
         self.hikerapi_api_key = getattr(settings, "hikerapi_api_key", None)
@@ -226,6 +636,8 @@ class InstagramFinder:
         self.scrapecreators_key = getattr(settings, "scrapecreators_api_key", None)
         self.ig_login_token = getattr(settings, "instagram_login_access_token", None)
         self.ig_proxy = getattr(settings, "instagram_proxy", None) or getattr(settings, "proxy_pool", None)
+        self.session_manager = session_manager or InstagramSessionManager(proxy=self.ig_proxy)
+        self.web_mirror_pipeline = WebMirrorPipeline(self.session_manager)
 
         self.googlebot_headers = {
             "User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
@@ -271,6 +683,25 @@ class InstagramFinder:
             keepalive_expiry=10.0
         )
 
+    def _get_resilient_client(
+        self,
+        headers: Optional[Dict[str, str]] = None,
+        proxy: Optional[str] = None,
+        timeout: float = 10.0,
+        follow_redirects: bool = True,
+        use_guest_cookies: bool = True,
+    ) -> httpx.AsyncClient:
+        """
+        Helper contract method: delegates client creation to InstagramSessionManager.
+        """
+        return self.session_manager.get_resilient_client(
+            headers=headers,
+            proxy=proxy or self.ig_proxy,
+            timeout=timeout,
+            follow_redirects=follow_redirects,
+            use_guest_cookies=use_guest_cookies,
+        )
+
     # ===================================================================
     # LAYER 2: Real Instagram Search API (Anonymous)
     # ===================================================================
@@ -281,50 +712,68 @@ class InstagramFinder:
         Returns list of profile dicts with username, full_name, profile_pic_url.
         """
         results = []
+        try:
+            await self.session_manager.get_guest_cookies()
+        except Exception:
+            pass
+
+        # All known topsearch / user-search endpoints — tried in priority order
         endpoints = [
-            # Instagram web topsearch (no auth needed for public results)
+            # Instagram web topsearch (no auth, works with guest cookies)
             f"https://www.instagram.com/web/search/topsearch/?context=blended&query={urllib.parse.quote(query)}&rank_token=0",
-            # Alternative Instagram search endpoint
+            # Instagram mobile API v1 user search
             f"https://www.instagram.com/api/v1/users/search/?q={urllib.parse.quote(query)}&count=30",
+            # Instagram mobile API v2 user search (newer fallback)
+            f"https://i.instagram.com/api/v1/users/search/?q={urllib.parse.quote(query)}&count=30",
+            # Blended search (hashtags + accounts + places — extract users)
+            f"https://www.instagram.com/web/search/topsearch/?context=user&query={urllib.parse.quote(query)}&rank_token=0",
         ]
-        
+
+        ua_variants = [self.ig_iphone_headers, self.ig_android_headers, self.googlebot_headers]
+
         for endpoint in endpoints:
-            for ua_headers in [self.ig_iphone_headers, self.ig_android_headers, self.googlebot_headers]:
+            for ua_headers in ua_variants:
                 try:
-                    async with httpx.AsyncClient(
-                        timeout=6.0,
+                    async with self._get_resilient_client(
+                        timeout=7.0,
                         follow_redirects=True,
-                        limits=self._limits,
-                        headers=ua_headers
+                        headers=ua_headers,
                     ) as client:
-                        resp = await client.get(endpoint)
+                        resp = await self.session_manager.request_with_retry(client, "GET", endpoint)
+                        if resp is None:
+                            continue
                         if resp.status_code == 200:
                             try:
                                 data = resp.json()
+                                # Handle both response formats
                                 users = (
-                                    data.get("users", []) or
-                                    data.get("user", {}).get("items", []) or
+                                    data.get("users") or
+                                    data.get("user", {}).get("items") or
                                     []
                                 )
                                 for item in users:
-                                    user = item.get("user") or item
+                                    user = item.get("user") if isinstance(item, dict) and "user" in item else item
                                     if isinstance(user, dict):
-                                        uname = user.get("username", "")
-                                        if uname and uname not in IGNORED_HANDLES:
+                                        uname = (user.get("username") or "").lower().strip()
+                                        if uname and uname not in IGNORED_HANDLES and len(uname) >= 3:
                                             results.append({
-                                                "username": uname.lower(),
-                                                "full_name": user.get("full_name", ""),
-                                                "profile_pic_url": user.get("profile_pic_url", ""),
-                                                "is_verified": user.get("is_verified", False),
-                                                "is_business": user.get("is_business", False),
-                                                "follower_count": user.get("follower_count", 0),
+                                                "username": uname,
+                                                "full_name": user.get("full_name") or "",
+                                                "profile_pic_url": user.get("profile_pic_url") or "",
+                                                "is_verified": bool(user.get("is_verified", False)),
+                                                "is_business": bool(user.get("is_business", False)),
+                                                "follower_count": int(user.get("follower_count") or 0),
                                             })
                                 if results:
+                                    logger.debug(f"Topsearch found {len(results)} results for '{query}' via {endpoint[:60]}")
                                     return results
-                            except Exception:
-                                pass
-                except Exception:
-                    pass
+                            except Exception as parse_err:
+                                logger.debug(f"Topsearch parse error for '{query}': {parse_err}")
+                        elif resp.status_code in (401, 403):
+                            # Auth required — skip remaining UA variants for this endpoint
+                            break
+                except Exception as req_err:
+                    logger.debug(f"Topsearch request error for '{query}' [{endpoint[:50]}]: {req_err}")
             if results:
                 break
         return results
@@ -339,9 +788,9 @@ class InstagramFinder:
                 "fields": f"business_discovery.username({username}){{id,username,name,biography,followers_count,follows_count,media_count,profile_picture_url,website}}",
                 "access_token": self.graph_api_token,
             }
-            async with httpx.AsyncClient(timeout=6.0) as client:
-                resp = await client.get(url, params=params)
-                if resp.status_code == 200:
+            async with self._get_resilient_client(timeout=6.0) as client:
+                resp = await self.session_manager.request_with_retry(client, "GET", url, params=params)
+                if resp and resp.status_code == 200:
                     data = resp.json().get("business_discovery", {})
                     if data:
                         return {
@@ -368,9 +817,9 @@ class InstagramFinder:
         try:
             url = f"https://api.hikerapi.com/v1/user/by/username?username={username}"
             headers = {"x-access-token": self.hikerapi_api_key, "Accept": "application/json"}
-            async with httpx.AsyncClient(timeout=6.0, headers=headers) as client:
-                resp = await client.get(url)
-                if resp.status_code == 200:
+            async with self._get_resilient_client(timeout=6.0, headers=headers) as client:
+                resp = await self.session_manager.request_with_retry(client, "GET", url)
+                if resp and resp.status_code == 200:
                     user_data = resp.json()
                     if isinstance(user_data, dict) and user_data.get("username"):
                         f_count = user_data.get("follower_count", 0)
@@ -435,9 +884,9 @@ class InstagramFinder:
         try:
             url = f"https://api.apify.com/v2/acts/apify~instagram-scraper/run-sync-get-dataset-items?token={self.apify_api_key}"
             payload = {"directUrls": [f"https://www.instagram.com/{username}/"], "resultsLimit": 1}
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                resp = await client.post(url, json=payload)
-                if resp.status_code == 200:
+            async with self._get_resilient_client(timeout=10.0) as client:
+                resp = await self.session_manager.request_with_retry(client, "POST", url, json=payload)
+                if resp and resp.status_code == 200:
                     items = resp.json()
                     if isinstance(items, list) and items:
                         item = items[0]
@@ -467,9 +916,9 @@ class InstagramFinder:
         try:
             url = f"https://api.creatorcrawl.com/v1/instagram/profile?username={username}"
             headers = {"Authorization": f"Bearer {self.creatorcrawl_key}", "Accept": "application/json"}
-            async with httpx.AsyncClient(timeout=6.0, headers=headers) as client:
-                resp = await client.get(url)
-                if resp.status_code == 200:
+            async with self._get_resilient_client(timeout=6.0, headers=headers) as client:
+                resp = await self.session_manager.request_with_retry(client, "GET", url)
+                if resp and resp.status_code == 200:
                     data = resp.json().get("data", resp.json())
                     if isinstance(data, dict) and data.get("username"):
                         f_count = data.get("followers_count") or data.get("followers", 0)
@@ -497,9 +946,9 @@ class InstagramFinder:
         try:
             url = f"https://api.apidirect.io/v1/instagram/profile?username={username}"
             headers = {"X-API-Key": self.apidirect_key, "Accept": "application/json"}
-            async with httpx.AsyncClient(timeout=6.0, headers=headers) as client:
-                resp = await client.get(url)
-                if resp.status_code == 200:
+            async with self._get_resilient_client(timeout=6.0, headers=headers) as client:
+                resp = await self.session_manager.request_with_retry(client, "GET", url)
+                if resp and resp.status_code == 200:
                     data = resp.json()
                     if isinstance(data, dict) and data.get("username"):
                         f_count = data.get("followers", 0)
@@ -525,9 +974,9 @@ class InstagramFinder:
         try:
             url = f"https://api.scrapecreators.com/v1/instagram/profile?handle={username}"
             headers = {"x-api-key": self.scrapecreators_key}
-            async with httpx.AsyncClient(timeout=6.0, headers=headers) as client:
-                resp = await client.get(url)
-                if resp.status_code == 200:
+            async with self._get_resilient_client(timeout=6.0, headers=headers) as client:
+                resp = await self.session_manager.request_with_retry(client, "GET", url)
+                if resp and resp.status_code == 200:
                     data = resp.json()
                     if isinstance(data, dict) and (data.get("username") or data.get("handle")):
                         f_count = data.get("followersCount") or data.get("followers", 0)
@@ -553,9 +1002,9 @@ class InstagramFinder:
         try:
             url = f"https://api.social-api.ai/v1/instagram/user/info?username={username}"
             headers = {"Authorization": f"Bearer {self.socialapi_key}"}
-            async with httpx.AsyncClient(timeout=6.0, headers=headers) as client:
-                resp = await client.get(url)
-                if resp.status_code == 200:
+            async with self._get_resilient_client(timeout=6.0, headers=headers) as client:
+                resp = await self.session_manager.request_with_retry(client, "GET", url)
+                if resp and resp.status_code == 200:
                     data = resp.json().get("data", resp.json())
                     if isinstance(data, dict) and data.get("username"):
                         f_count = data.get("follower_count", 0)
@@ -640,48 +1089,21 @@ class InstagramFinder:
         return None
 
     async def _fetch_via_web_mirrors(self, username: str) -> Optional[Dict]:
-        """Scrape profile info from zero-key public mirrors (Greatfon, AnonIGViewer, Instanavigation, Dumpor)."""
-        mirrors = [
-            f"https://greatfon.com/v/{username}",
-            f"https://anonigviewer.com/profile/{username}",
-            f"https://instanavigation.com/user-profile/{username}",
-            f"https://dumpor.com/v/{username}",
-        ]
-        for mirror_url in mirrors:
-            try:
-                async with httpx.AsyncClient(
-                    timeout=5.0,
-                    follow_redirects=True,
-                    headers={"User-Agent": random.choice(_USER_AGENTS)}
-                ) as client:
-                    resp = await client.get(mirror_url)
-                    if resp.status_code == 200 and len(resp.text) > 400:
-                        soup = BeautifulSoup(resp.text, "html.parser")
-                        og_desc = soup.find("meta", property="og:description") or soup.find("meta", attrs={"name": "description"})
-                        desc_text = og_desc["content"] if og_desc and og_desc.get("content") else ""
-                        og_title = soup.find("meta", property="og:title")
-                        title_text = og_title["content"] if og_title and og_title.get("content") else ""
-                        
-                        if desc_text or title_text:
-                            stats_match = re.search(r"([\d\.,KMBkmb]+)\s+(?:Followers|Takipçi).*?([\d\.,KMBkmb]+)\s+(?:Following|Takip)", desc_text, re.I)
-                            f_raw = _parse_count(stats_match.group(1)) if stats_match else 0
-                            return {
-                                "username": username.lower(),
-                                "full_name": title_text.split("-")[0].split("@")[0].strip() or username,
-                                "bio": desc_text[:400],
-                                "followers_raw": f_raw,
-                                "followers": _format_count_human(f_raw) if f_raw else "N/A",
-                                "source_api": "Public Web Mirror",
-                            }
-            except Exception:
-                pass
-        return None
+        """Scrape profile info from zero-key public mirrors via WebMirrorPipeline."""
+        return await self.web_mirror_pipeline.fetch_profile(username)
 
     # ===================================================================
     # LAYER 6 + 7: Profile Detail Extraction
     # ===================================================================
 
-    async def fetch_profile_details(self, username: str, target_sector: str = "") -> Dict:
+    async def fetch_profile_details(
+        self,
+        username: str,
+        target_sector: str = "",
+        target_business_name: str = "",
+        target_website: str = "",
+        target_location: str = ""
+    ) -> Dict:
         """
         Extract rich unredacted metadata for a single Instagram profile.
         Multi-tier fallback: web_profile_info API → Googlebot → Bingbot → Embed → 3rd-party parsers.
@@ -753,23 +1175,32 @@ class InstagramFinder:
 
         # Tier 0: Instagram public web_profile_info JSON API endpoint
         try:
+            cookies = await self.session_manager.get_guest_cookies()
             web_info_url = f"https://www.instagram.com/api/v1/users/web_profile_info/?username={clean_user}"
-            async with httpx.AsyncClient(
-                timeout=5.0,
+            headers = {
+                "User-Agent": self.session_manager.get_random_user_agent("desktop"),
+                "x-ig-app-id": "936619743392459",
+                "x-asbd-id": "198387",
+                "x-ig-www-claim": "0",
+                "x-requested-with": "XMLHttpRequest",
+                "x-csrftoken": cookies.get("csrftoken", ""),
+                "Referer": f"https://www.instagram.com/{clean_user}/",
+                "Accept": "*/*",
+                "Accept-Language": "tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7",
+            }
+            async with self._get_resilient_client(
+                timeout=6.0,
                 follow_redirects=True,
-                limits=self._limits,
-                headers={
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-                    "x-ig-app-id": "936619743392459",
-                    "Accept": "*/*",
-                    "Accept-Language": "tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7",
-                }
+                headers=headers,
+                use_guest_cookies=True,
             ) as client:
-                resp = await client.get(web_info_url)
-                if resp.status_code == 200:
+                resp = await self.session_manager.request_with_retry(client, "GET", web_info_url)
+                if resp and resp.status_code == 200:
                     res_json = resp.json()
                     user_data = res_json.get("data", {}).get("user")
                     if user_data:
+                        if user_data.get("id"):
+                            default_data["id"] = str(user_data["id"])
                         bio = user_data.get("biography") or ""
                         default_data["bio"] = bio[:500]
                         if user_data.get("full_name"):
@@ -798,8 +1229,7 @@ class InstagramFinder:
                         default_data["posts"] = _format_count_human(p_cnt) if p_cnt else "0"
 
                         if bio:
-                            default_data["phone"] = self._extract_phone(bio)
-                            default_data["whatsapp_link"] = self._extract_whatsapp_link(bio)
+                            default_data["phone"], default_data["whatsapp_link"] = self._extract_phone_and_whatsapp(bio)
                             default_data["email"] = self._extract_email(bio)
                             default_data["website"] = self._extract_website(bio)
 
@@ -826,51 +1256,49 @@ class InstagramFinder:
 
         # Tier 1: Googlebot → Bingbot → Facebook bot
         for headers in [self.googlebot_headers, self.bingbot_headers]:
-            if fetched_html or default_data.get("posts_preview"):
+            if fetched_html or default_data.get("id") or bool(default_data.get("posts_preview")):
                 break
             try:
-                async with httpx.AsyncClient(
+                async with self._get_resilient_client(
                     timeout=5.0,
                     follow_redirects=True,
-                    limits=self._limits,
-                    headers=headers
+                    headers=headers,
                 ) as client:
-                    resp = await client.get(page_url)
-                    if resp.status_code == 200 and len(resp.text) > 500:
+                    resp = await self.session_manager.request_with_retry(client, "GET", page_url)
+                    if resp and resp.status_code == 200 and len(resp.text) > 500:
                         fetched_html = resp.text
             except Exception as e:
                 logger.debug(f"Profile fetch tier {headers.get('User-Agent', '')[:30]} notice @{clean_user}: {e}")
 
         # Tier 2: /embed/ endpoint
-        if not fetched_html and not default_data.get("posts_preview"):
+        if not fetched_html and not default_data.get("id") and not bool(default_data.get("posts_preview")):
             try:
                 embed_url = f"https://www.instagram.com/{clean_user}/embed/"
-                async with httpx.AsyncClient(
+                async with self._get_resilient_client(
                     timeout=5.0,
                     follow_redirects=True,
-                    limits=self._limits,
-                    headers=self.googlebot_headers
+                    headers=self.googlebot_headers,
                 ) as client:
-                    resp = await client.get(embed_url)
-                    if resp.status_code == 200 and len(resp.text) > 300:
+                    resp = await self.session_manager.request_with_retry(client, "GET", embed_url)
+                    if resp and resp.status_code == 200 and len(resp.text) > 300:
                         fetched_html = resp.text
             except Exception:
                 pass
 
         # Tier 3: Picuki public parser (3rd party, no login needed)
-        if not fetched_html and not default_data.get("posts_preview"):
+        if not fetched_html and not default_data.get("id") and not bool(default_data.get("posts_preview")):
             try:
                 picuki_url = f"https://www.picuki.com/profile/{clean_user}"
-                async with httpx.AsyncClient(
+                async with self._get_resilient_client(
                     timeout=5.0,
                     follow_redirects=True,
                     headers={
-                        "User-Agent": random.choice(_USER_AGENTS),
+                        "User-Agent": self.session_manager.get_random_user_agent("desktop"),
                         "Accept-Language": "en-US,en;q=0.9",
-                    }
+                    },
                 ) as client:
-                    resp = await client.get(picuki_url)
-                    if resp.status_code == 200 and len(resp.text) > 500:
+                    resp = await self.session_manager.request_with_retry(client, "GET", picuki_url)
+                    if resp and resp.status_code == 200 and len(resp.text) > 500:
                         fetched_html = resp.text
             except Exception:
                 pass
@@ -889,7 +1317,8 @@ class InstagramFinder:
             og_image = soup.find("meta", property="og:image")
             if og_image and og_image.get("content"):
                 pic = og_image["content"]
-                if pic and "cdninstagram" in pic or "fbcdn" in pic:
+                # FIX: operator precedence — parentheses required around OR
+                if pic and ("cdninstagram" in pic or "fbcdn" in pic or "instagram.f" in pic):
                     default_data["profile_pic_url"] = pic
                     default_data["profile_pic_hd_url"] = pic
 
@@ -970,86 +1399,35 @@ class InstagramFinder:
             if "verified" in fetched_html.lower() or "doğrulanmış" in fetched_html.lower():
                 default_data["is_verified"] = True
 
-            # Recency / Last Activity — multi-signal detection
-            # Signal 1: Exact year detection (most recent first)
-            year_2026 = bool(re.search(r'\b2026\b', fetched_html or "", re.I))
-            year_2025 = bool(re.search(r'\b2025\b', fetched_html or "", re.I))
-            year_2024 = bool(re.search(r'\b2024\b', fetched_html or "", re.I))
-            # Signal 2: Turkish/English month + year
-            month_match = re.search(
-                r'(\d{1,2})\s+(Ocak|Şubat|Mart|Nisan|Mayıs|Haziran|Temmuz|Ağustos|Eylül|Ekim|Kasım|Aralık|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(202[4-6])',
-                fetched_html or "", re.I
-            )
-            # Signal 3: "ago" patterns for recency
-            hours_ago = bool(re.search(r'\b(\d+)\s*(saat|hour|h)\s*(önce|ago)\b', fetched_html or "", re.I))
-            days_ago_match = re.search(r'\b(\d+)\s*(gün|day|d)\s*(önce|ago)\b', fetched_html or "", re.I)
-            weeks_ago = bool(re.search(r'\b(\d+)\s*(hafta|week|w)\s*(önce|ago)\b', fetched_html or "", re.I))
-            
-            p_count = _parse_count(default_data.get("posts", "0"))
-            f_count = default_data.get("followers_raw", 0)
-            
-            if hours_ago:
-                default_data["last_active"] = "Son 24 Saat İçinde Aktif"
-                default_data["last_active_raw"] = 99
-            elif days_ago_match:
-                days = int(days_ago_match.group(1))
-                if days <= 7:
-                    default_data["last_active"] = f"Son {days} Gün İçinde Aktif"
-                    default_data["last_active_raw"] = 96
-                elif days <= 30:
-                    default_data["last_active"] = f"Son {days} Gün İçinde Aktif"
-                    default_data["last_active_raw"] = 88
-                else:
-                    default_data["last_active"] = f"Son {days} Gün İçinde Aktif"
-                    default_data["last_active_raw"] = 75
-            elif month_match:
-                default_data["last_active"] = f"Son İçerik: {month_match.group(2)} {month_match.group(3)}"
-                default_data["last_active_raw"] = 92
-            elif year_2026:
-                default_data["last_active"] = "Güncel Aktif Profil"
-                default_data["last_active_raw"] = 90
-            elif year_2025:
-                default_data["last_active"] = "Aktif Profil"
-                default_data["last_active_raw"] = 82
-            elif year_2024:
-                default_data["last_active"] = "Geçmiş İçerikli Hesap"
-                default_data["last_active_raw"] = 68
-            elif weeks_ago:
-                default_data["last_active"] = "Son Birkaç Hafta İçinde Aktif"
-                default_data["last_active_raw"] = 84
-            elif p_count == 0:
-                default_data["last_active"] = "Gönderisiz Hesap"
-                default_data["last_active_raw"] = 15
-            elif f_count > 5000 and p_count > 10:
-                default_data["last_active"] = "Yüksek Aktiviteli Hesap"
-                default_data["last_active_raw"] = 85
-            elif f_count > 1000 and p_count > 5:
-                default_data["last_active"] = "Aktif Hesap"
-                default_data["last_active_raw"] = 75
-            elif p_count > 0:
-                default_data["last_active"] = "İçerik Mevcut"
-                default_data["last_active_raw"] = 60
-            else:
-                default_data["last_active"] = "Profil Mevcut"
-                default_data["last_active_raw"] = 50
-
             # Story indicator
             if "story" in fetched_html.lower() or "hikaye" in fetched_html.lower():
                 default_data["has_story"] = True
 
-            # Engagement Rate calculation
-            f_raw = default_data["followers_raw"]
-            p_cnt = _parse_count(default_data["posts"])
-            if f_raw > 0:
-                if f_raw < 5000:
-                    est_eng = round(3.5 + (f_raw % 17) * 0.1, 1)
-                elif f_raw < 50000:
-                    est_eng = round(2.1 + (f_raw % 13) * 0.1, 1)
-                else:
-                    est_eng = round(1.2 + (f_raw % 9) * 0.1, 1)
-                default_data["engagement_rate"] = f"%{est_eng}"
+        # Recency / Last Activity — multi-signal detection using RecencyClassifier
+        p_cnt = _parse_count(str(default_data.get("posts", "0")))
+        posts_captions = " ".join([p.get("caption", "") for p in default_data.get("posts_preview", [])])
+        recency_input = f"{fetched_html} {default_data.get('bio', '')} {posts_captions}".strip()
+        recency_res = RecencyClassifier.classify(
+            text_or_html=recency_input,
+            post_count=p_cnt,
+        )
+        default_data["last_active"] = recency_res.human_text
+        default_data["last_active_raw"] = recency_res.raw_score
+        default_data["recency_status"] = recency_res.status_enum
+        default_data["is_zero_post"] = recency_res.is_zero_post
+
+        # Engagement Rate calculation
+        f_raw = default_data.get("followers_raw", 0)
+        if f_raw > 0:
+            if f_raw < 5000:
+                est_eng = round(3.5 + (f_raw % 17) * 0.1, 1)
+            elif f_raw < 50000:
+                est_eng = round(2.1 + (f_raw % 13) * 0.1, 1)
             else:
-                default_data["engagement_rate"] = "% 2.5"
+                est_eng = round(1.2 + (f_raw % 9) * 0.1, 1)
+            default_data["engagement_rate"] = f"%{est_eng}"
+        else:
+            default_data["engagement_rate"] = "% 2.5"
 
         # Deep Contact Extraction
         full_text = f"{default_data['full_name']} {default_data['bio']} {default_data.get('website', '')} {fetched_html}"
@@ -1069,32 +1447,223 @@ class InstagramFinder:
         if not default_data["website"]:
             default_data["website"] = default_data["linktree_url"] or self._extract_website(full_text)
 
-        default_data["relevance_score"] = self._calculate_relevance_score(default_data, target_sector)
+        default_data["relevance_score"] = self._calculate_relevance_score(
+            default_data,
+            target_sector=target_sector,
+            target_business_name=target_business_name,
+            target_website=target_website,
+            target_location=target_location,
+        )
         return default_data
+
+    async def fetch_user_stories(self, username: str, user_id: Optional[str] = None) -> List[Dict]:
+        """
+        Fetch active stories for a user using Instagram guest APIs or Web Mirror Pipeline fallback.
+        Returns structured list of StoryMediaItem dicts.
+        No login required — uses guest cookies + anonymous mirror fallbacks.
+        """
+        clean_user = username.strip().lower().replace("@", "")
+        stories: List[Dict] = []
+        if not clean_user:
+            return stories
+
+        # --- TIER 1: Direct IG Guest API (requires user_id) ---
+        if user_id:
+            try:
+                cookies = await self.session_manager.get_guest_cookies()
+                headers = {
+                    "User-Agent": self.session_manager.get_random_user_agent("desktop"),
+                    "x-ig-app-id": random.choice(_IG_APP_IDS),
+                    "x-asbd-id": "198387",
+                    "x-ig-www-claim": "0",
+                    "x-requested-with": "XMLHttpRequest",
+                    "x-csrftoken": cookies.get("csrftoken", ""),
+                    "Referer": f"https://www.instagram.com/{clean_user}/",
+                    "Accept": "*/*",
+                }
+                reel_url = f"https://www.instagram.com/api/v1/feed/reels_media/?reel_ids={user_id}"
+                async with self._get_resilient_client(timeout=7.0, headers=headers, use_guest_cookies=True) as client:
+                    resp = await self.session_manager.request_with_retry(client, "GET", reel_url)
+                    if resp and resp.status_code == 200:
+                        data = resp.json()
+                        reels = data.get("reels", {}).get(str(user_id), {}).get("items", [])
+                        for item in reels:
+                            media_type = "video" if item.get("media_type") == 2 else "image"
+                            media_url = ""
+                            if media_type == "video" and item.get("video_versions"):
+                                media_url = item["video_versions"][0].get("url", "")
+                            elif (item.get("image_versions2") or {}).get("candidates"):
+                                media_url = (item.get("image_versions2") or {}).get("candidates", [{}])[0].get("url", "")
+
+                            taken_at = item.get("taken_at", 0)
+                            expiring_at = item.get("expiring_at", taken_at + 86400 if taken_at else 0)
+                            if media_url:
+                                stories.append({
+                                    "id": str(item.get("id", f"story_{len(stories)+1}")),
+                                    "media_type": media_type,
+                                    "media_url": media_url,
+                                    "thumbnail_url": media_url,
+                                    "taken_at": taken_at,
+                                    "taken_at_iso": datetime.fromtimestamp(taken_at, timezone.utc).isoformat() if taken_at else "",
+                                    "expiring_at": expiring_at,
+                                    "source": "Direct IG API",
+                                })
+            except Exception as e:
+                logger.debug(f"Direct story fetch (tier 1) failed for @{clean_user}: {e}")
+
+        # --- TIER 2: GraphQL feed endpoint (no user_id needed, guest cookies) ---
+        if not stories:
+            try:
+                cookies = await self.session_manager.get_guest_cookies()
+                gql_headers = {
+                    "User-Agent": self.session_manager.get_random_user_agent("mobile_app"),
+                    "x-ig-app-id": random.choice(_IG_APP_IDS),
+                    "x-csrftoken": cookies.get("csrftoken", ""),
+                    "Accept": "*/*",
+                }
+                # Use the public stories highlight reel endpoint
+                story_endpoints = [
+                    f"https://www.instagram.com/api/v1/users/{user_id}/story/" if user_id else None,
+                    f"https://i.instagram.com/api/v1/feed/user/{user_id}/reel_media/" if user_id else None,
+                ]
+                for ep in story_endpoints:
+                    if not ep:
+                        continue
+                    try:
+                        async with self._get_resilient_client(timeout=6.0, headers=gql_headers, use_guest_cookies=True) as client:
+                            resp = await self.session_manager.request_with_retry(client, "GET", ep)
+                            if resp and resp.status_code == 200:
+                                data = resp.json()
+                                items = data.get("items") or data.get("reel", {}).get("items") or []
+                                for item in items:
+                                    media_type = "video" if item.get("media_type") == 2 else "image"
+                                    media_url = ""
+                                    if media_type == "video" and item.get("video_versions"):
+                                        media_url = item["video_versions"][0].get("url", "")
+                                    elif (item.get("image_versions2") or {}).get("candidates"):
+                                        media_url = (item.get("image_versions2") or {}).get("candidates", [{}])[0].get("url", "")
+                                    taken_at = item.get("taken_at", 0)
+                                    if media_url:
+                                        stories.append({
+                                            "id": str(item.get("id", f"gql_story_{len(stories)+1}")),
+                                            "media_type": media_type,
+                                            "media_url": media_url,
+                                            "thumbnail_url": media_url,
+                                            "taken_at": taken_at,
+                                            "taken_at_iso": datetime.fromtimestamp(taken_at, timezone.utc).isoformat() if taken_at else "",
+                                            "expiring_at": taken_at + 86400 if taken_at else 0,
+                                            "source": "IG GraphQL API",
+                                        })
+                                if stories:
+                                    break
+                    except Exception:
+                        continue
+            except Exception as e:
+                logger.debug(f"Story fetch (tier 2 GraphQL) failed for @{clean_user}: {e}")
+
+        # --- TIER 3: Web Mirror Pipeline (zero-key, anonymous viewer sites) ---
+        if not stories:
+            try:
+                mirror_stories = await self.web_mirror_pipeline.fetch_stories(clean_user)
+                if mirror_stories:
+                    stories = mirror_stories
+                    logger.info(f"Stories fetched via mirror pipeline for @{clean_user}: {len(stories)} items")
+            except Exception as e:
+                logger.debug(f"Story fetch (tier 3 mirrors) failed for @{clean_user}: {e}")
+
+        return stories
+
+    async def fetch_user_highlights(self, username: str, user_id: Optional[str] = None) -> List[Dict]:
+        """
+        Fetch highlight trays and media for a user using Instagram guest APIs or Web Mirror Pipeline fallback.
+        Returns structured list of HighlightTrayItem dicts.
+        """
+        clean_user = username.strip().lower().replace("@", "")
+        highlights: List[Dict] = []
+        if not clean_user:
+            return highlights
+
+        # Try Direct IG Guest API if user_id is provided
+        if user_id:
+            try:
+                cookies = await self.session_manager.get_guest_cookies()
+                headers = {
+                    "User-Agent": self.session_manager.get_random_user_agent("desktop"),
+                    "x-ig-app-id": "936619743392459",
+                    "x-asbd-id": "198387",
+                    "x-ig-www-claim": "0",
+                    "x-requested-with": "XMLHttpRequest",
+                    "x-csrftoken": cookies.get("csrftoken", ""),
+                    "Referer": f"https://www.instagram.com/{clean_user}/",
+                    "Accept": "*/*",
+                }
+                hl_url = f"https://www.instagram.com/api/v1/highlights/{user_id}/highlights_tray/"
+                async with self._get_resilient_client(timeout=6.0, headers=headers, use_guest_cookies=True) as client:
+                    resp = await self.session_manager.request_with_retry(client, "GET", hl_url)
+                    if resp and resp.status_code == 200:
+                        data = resp.json()
+                        trays = data.get("tray", [])
+                        for tray in trays:
+                            cover_pic = (tray.get("cover_media") or {}).get("cropped_image_version", {}).get("url", "")
+                            items = []
+                            for item in tray.get("items", []):
+                                media_type = "video" if item.get("media_type") == 2 else "image"
+                                media_url = ""
+                                if media_type == "video" and item.get("video_versions"):
+                                    media_url = item["video_versions"][0].get("url", "")
+                                elif (item.get("image_versions2") or {}).get("candidates"):
+                                    media_url = (item.get("image_versions2") or {}).get("candidates", [{}])[0].get("url", "")
+                                if media_url:
+                                    items.append({
+                                        "id": str(item.get("id")),
+                                        "media_type": media_type,
+                                        "media_url": media_url,
+                                        "taken_at": item.get("taken_at", 0),
+                                    })
+                            highlights.append({
+                                "id": str(tray.get("id", f"hl_{len(highlights)+1}")),
+                                "title": tray.get("title", "Highlight"),
+                                "cover_media_url": cover_pic,
+                                "media_count": len(items),
+                                "items": items,
+                                "source": "Direct IG API",
+                            })
+            except Exception as e:
+                logger.debug(f"Direct highlight fetch failed for @{clean_user}: {e}")
+
+        # Fallback to Web Mirror Pipeline
+        if not highlights:
+            mirror_hl = await self.web_mirror_pipeline.fetch_highlights(clean_user)
+            if mirror_hl:
+                highlights = mirror_hl
+
+        return highlights
 
     async def fetch_anonymous_user_posts_and_stories(self, username: str) -> Dict:
         """
-        Fetch public posts, gallery images, story status and reels anonymously without login.
-        Uses embed endpoints, picuki parser, and CDN URL extraction.
+        Fetch public posts, gallery images, story status, active stories, and highlights anonymously without login.
+        Uses embed endpoints, picuki parser, WebMirrorPipeline, and CDN URL extraction.
         """
         clean_user = username.strip().lower().replace("@", "")
         profile_details = await self.fetch_profile_details(clean_user)
+        user_id = profile_details.get("id")
+
+        stories = await self.fetch_user_stories(clean_user, user_id=user_id)
+        highlights = await self.fetch_user_highlights(clean_user, user_id=user_id)
 
         posts_data: List[Dict] = []
-        has_story = False
-        story_urls: List[str] = []
+        has_story = bool(stories) or profile_details.get("has_story", False)
 
         # Method 1: Instagram /embed/ endpoint
         try:
-            async with httpx.AsyncClient(
+            async with self._get_resilient_client(
                 timeout=6.0,
                 follow_redirects=True,
-                limits=self._limits,
-                headers=self.googlebot_headers
+                headers=self.googlebot_headers,
             ) as client:
                 embed_url = f"https://www.instagram.com/{clean_user}/embed/"
-                resp = await client.get(embed_url)
-                if resp.status_code == 200:
+                resp = await self.session_manager.request_with_retry(client, "GET", embed_url)
+                if resp and resp.status_code == 200:
                     html = resp.text
                     soup = BeautifulSoup(html, "html.parser")
 
@@ -1120,16 +1689,16 @@ class InstagramFinder:
         if len(posts_data) < 3:
             try:
                 picuki_url = f"https://www.picuki.com/profile/{clean_user}"
-                async with httpx.AsyncClient(
+                async with self._get_resilient_client(
                     timeout=6.0,
                     follow_redirects=True,
                     headers={
-                        "User-Agent": random.choice(_USER_AGENTS),
+                        "User-Agent": self.session_manager.get_random_user_agent("desktop"),
                         "Accept-Language": "en-US,en;q=0.9",
-                    }
+                    },
                 ) as client:
-                    resp = await client.get(picuki_url)
-                    if resp.status_code == 200:
+                    resp = await self.session_manager.request_with_retry(client, "GET", picuki_url)
+                    if resp and resp.status_code == 200:
                         soup = BeautifulSoup(resp.text, "html.parser")
                         post_imgs = soup.select("img.post-image, .photo img, .photos-item img")
                         for idx, img in enumerate(post_imgs[:12]):
@@ -1149,13 +1718,13 @@ class InstagramFinder:
         if len(posts_data) < 3:
             try:
                 imginn_url = f"https://imginn.com/{clean_user}/"
-                async with httpx.AsyncClient(
+                async with self._get_resilient_client(
                     timeout=5.0,
                     follow_redirects=True,
-                    headers={"User-Agent": random.choice(_USER_AGENTS)}
+                    headers={"User-Agent": self.session_manager.get_random_user_agent("desktop")},
                 ) as client:
-                    resp = await client.get(imginn_url)
-                    if resp.status_code == 200:
+                    resp = await self.session_manager.request_with_retry(client, "GET", imginn_url)
+                    if resp and resp.status_code == 200:
                         soup = BeautifulSoup(resp.text, "html.parser")
                         imgs = soup.select(".post-image img, .item img, figure img")
                         for idx, img in enumerate(imgs[:12]):
@@ -1184,12 +1753,16 @@ class InstagramFinder:
                 }
             ]
 
+        story_urls = [s.get("media_url") for s in stories if s.get("media_url")]
+
         return {
             "success": True,
             "username": clean_user,
             "profile": profile_details,
             "has_active_story": has_story or profile_details.get("last_active_raw", 0) > 85,
             "posts": posts_data,
+            "stories": stories,
+            "highlights": highlights,
             "story_urls": story_urls,
         }
 
@@ -1198,7 +1771,13 @@ class InstagramFinder:
     # ===================================================================
 
     async def search_profiles_by_username_or_sector(
-        self, sector_keywords: str = "", username_query: str = "", location: str = "", limit: int = 20
+        self,
+        sector_keywords: str = "",
+        username_query: str = "",
+        location: str = "",
+        limit: int = 20,
+        target_business_name: str = "",
+        target_website: str = ""
     ) -> List[Dict]:
         """
         Unified Smart Search Engine:
@@ -1213,14 +1792,34 @@ class InstagramFinder:
 
         # MODE A: Direct Username / Profile Search (no keywords)
         if u_clean and not sec_clean:
-            return await self._search_by_username_direct(u_clean, loc_clean, target_limit)
+            return await self._search_by_username_direct(
+                u_clean,
+                loc_clean,
+                target_limit,
+                target_business_name=target_business_name,
+                target_website=target_website,
+                target_sector=sec_clean,
+                target_location=location
+            )
 
         # MODE B: Sector search only
         if sec_clean and not u_clean:
-            return await self.search_profiles_by_sector(sec_clean, loc_clean, target_limit)
+            return await self.search_profiles_by_sector(
+                sec_clean,
+                loc_clean,
+                target_limit,
+                target_business_name=target_business_name,
+                target_website=target_website
+            )
 
         # MODE C: Both → intersectional
-        results = await self.search_profiles_by_sector(sec_clean or u_clean, loc_clean, target_limit)
+        results = await self.search_profiles_by_sector(
+            sec_clean or u_clean,
+            loc_clean,
+            target_limit,
+            target_business_name=target_business_name,
+            target_website=target_website
+        )
         if u_clean and sec_clean:
             def combo_sort(p: Dict):
                 un = p.get("username", "").lower()
@@ -1229,7 +1828,16 @@ class InstagramFinder:
             results.sort(key=combo_sort, reverse=True)
         return results
 
-    async def _search_by_username_direct(self, u_clean: str, loc_clean: str, target_limit: int) -> List[Dict]:
+    async def _search_by_username_direct(
+        self,
+        u_clean: str,
+        loc_clean: str,
+        target_limit: int,
+        target_business_name: str = "",
+        target_website: str = "",
+        target_sector: str = "",
+        target_location: str = ""
+    ) -> List[Dict]:
         """
         Direct username search — mimics Instagram's own search algorithm.
         Exact match ranks #1, prefix matches #2, substring matches #3.
@@ -1239,6 +1847,9 @@ class InstagramFinder:
 
         # Always include exact handle
         candidate_handles.add(u_clean)
+
+        # Initialize topsearch_results before try so it's always in scope
+        topsearch_results: List[Dict] = []
 
         # LAYER 1: Real Instagram topsearch API
         try:
@@ -1250,27 +1861,22 @@ class InstagramFinder:
         except Exception:
             pass
 
-        # LAYER 2: (Disabled for Direct Username Search)
-        # Direct handle search must NOT append artificial suffixes (_tr, _official, _salon etc.)
-        # to ensure clean, exact results without polluting with unrelated accounts.
-
         # LAYER 3: Search engine query for handles
         queries = [
             f'"{u_clean}" site:instagram.com',
             f'{u_clean} instagram profil',
         ]
         try:
-            async with httpx.AsyncClient(
+            async with self._get_resilient_client(
                 timeout=5.0,
                 follow_redirects=True,
-                limits=self._limits,
-                headers=self.googlebot_headers
+                headers=self.googlebot_headers,
             ) as client:
                 for q in queries[:2]:
                     try:
                         url = f"https://www.bing.com/search?q={urllib.parse.quote(q)}"
-                        resp = await client.get(url)
-                        if resp.status_code == 200:
+                        resp = await self.session_manager.request_with_retry(client, "GET", url)
+                        if resp is not None and resp.status_code == 200:
                             candidate_handles.update(_extract_handles_from_content(resp.text))
                     except Exception:
                         pass
@@ -1281,13 +1887,13 @@ class InstagramFinder:
         try:
             ddg_q = f'site:instagram.com {u_clean}'
             ddg_url = f"https://html.duckduckgo.com/html/?q={urllib.parse.quote(ddg_q)}"
-            async with httpx.AsyncClient(
+            async with self._get_resilient_client(
                 timeout=5.0,
                 follow_redirects=True,
-                headers=self.googlebot_headers
+                headers=self.googlebot_headers,
             ) as client:
-                resp = await client.get(ddg_url)
-                if resp.status_code == 200:
+                resp = await self.session_manager.request_with_retry(client, "GET", ddg_url)
+                if resp is not None and resp.status_code == 200:
                     candidate_handles.update(_extract_handles_from_content(resp.text))
         except Exception:
             pass
@@ -1302,15 +1908,15 @@ class InstagramFinder:
             pass
 
         # If topsearch / search engine didn't find any candidate besides exact u_clean,
-        # generate related variations as fallback
+        # generate related variations as fallback (only when we truly found nothing)
+        # FIX: topsearch_results guaranteed to be defined by this point
         if len(candidate_handles) <= 1 and not topsearch_results:
             common_variations = [
-                f"{u_clean}_official", f"{u_clean}_resmi", f"{u_clean}_tr", f"{u_clean}_turkiye",
-                f"{u_clean}_", f"_{u_clean}", f"{u_clean}official", f"{u_clean}resmi",
-                f"{u_clean}_salonu", f"{u_clean}_studio", f"{u_clean}_vip", f"{u_clean}_center"
+                f"{u_clean}_official", f"{u_clean}_resmi", f"{u_clean}_tr",
+                f"{u_clean}official", f"{u_clean}resmi",
             ]
             for var in common_variations:
-                if len(var) <= 30:
+                if 3 <= len(var) <= 30:
                     candidate_handles.add(var)
 
         # Filter irrelevant candidates
@@ -1339,7 +1945,16 @@ class InstagramFinder:
 
         async def sem_fetch(h):
             async with sem:
-                return await self.fetch_profile_details(h, "")
+                if target_business_name or target_website or target_location:
+                    return await self.fetch_profile_details(
+                        h,
+                        target_sector=target_sector,
+                        target_business_name=target_business_name or u_clean,
+                        target_website=target_website,
+                        target_location=target_location or loc_clean
+                    )
+                else:
+                    return await self.fetch_profile_details(h, target_sector)
 
         fetched = await asyncio.gather(*[sem_fetch(h) for h in handles_to_fetch], return_exceptions=True)
         results: List[Dict] = []
@@ -1364,7 +1979,12 @@ class InstagramFinder:
         return results
 
     async def search_profiles_by_sector(
-        self, sector_keywords: str, location: str = "", limit: int = 20
+        self,
+        sector_keywords: str,
+        location: str = "",
+        limit: int = 20,
+        target_business_name: str = "",
+        target_website: str = ""
     ) -> List[Dict]:
         """
         Deep Sector Search: Discover Instagram profiles based on sector keywords & location.
@@ -1452,17 +2072,17 @@ class InstagramFinder:
             f'site:instagram.com {sec_clean}',
         ]
 
-        async with httpx.AsyncClient(
+        async with self._get_resilient_client(
             timeout=5.0,
             follow_redirects=True,
-            limits=self._limits,
-            headers=self.googlebot_headers
+            headers=self.googlebot_headers,
         ) as client:
             for q in queries[:3]:
                 try:
                     bing_url = f"https://www.bing.com/search?q={urllib.parse.quote(q)}"
-                    resp = await client.get(bing_url)
-                    if resp.status_code == 200:
+                    resp = await self.session_manager.request_with_retry(client, "GET", bing_url)
+                    # FIX: resp may be None if all retries failed
+                    if resp is not None and resp.status_code == 200:
                         found_handles.update(_extract_handles_from_content(resp.text))
                 except Exception:
                     pass
@@ -1471,13 +2091,14 @@ class InstagramFinder:
         try:
             ddg_q = f'site:instagram.com "{sec_clean}"'
             ddg_url = f"https://html.duckduckgo.com/html/?q={urllib.parse.quote(ddg_q)}"
-            async with httpx.AsyncClient(
+            async with self._get_resilient_client(
                 timeout=5.0,
                 follow_redirects=True,
-                headers=self.googlebot_headers
+                headers=self.googlebot_headers,
             ) as client:
-                resp = await client.get(ddg_url)
-                if resp.status_code == 200:
+                resp = await self.session_manager.request_with_retry(client, "GET", ddg_url)
+                # FIX: resp may be None if all retries failed
+                if resp is not None and resp.status_code == 200:
                     found_handles.update(_extract_handles_from_content(resp.text))
         except Exception:
             pass
@@ -1488,8 +2109,8 @@ class InstagramFinder:
                 q = f'site:instagram.com "{sec_clean}" {loc_clean}'.strip()
                 url = "https://customsearch.googleapis.com/customsearch/v1"
                 params = {"key": self.api_key, "cx": self.cx, "q": q, "num": 10}
-                async with httpx.AsyncClient(timeout=6.0) as client:
-                    resp = await client.get(url, params=params)
+                async with self._get_resilient_client(timeout=6.0) as client:
+                    resp = await self.session_manager.request_with_retry(client, "GET", url, params=params)
                     if resp.status_code == 200:
                         data = resp.json()
                         for item in data.get("items", []):
@@ -1529,7 +2150,16 @@ class InstagramFinder:
 
         async def sem_fetch(h):
             async with sem:
-                return await self.fetch_profile_details(h, sec_clean)
+                if target_business_name or target_website:
+                    return await self.fetch_profile_details(
+                        h,
+                        target_sector=sec_clean,
+                        target_business_name=target_business_name,
+                        target_website=target_website,
+                        target_location=location
+                    )
+                else:
+                    return await self.fetch_profile_details(h, sec_clean)
 
         fetched = await asyncio.gather(*[sem_fetch(h) for h in handles_to_fetch], return_exceptions=True)
         results: List[Dict] = []
@@ -1547,11 +2177,11 @@ class InstagramFinder:
             sec_ascii_terms = [w for w in re.split(r"\s+", _slugify_tr(sec_clean)) if len(w) >= 3]
 
             rank = 4
-            if any(st in u_name for st in sec_ascii_terms):
+            if any(match_keyword_boundary(st, u_name) for st in sec_ascii_terms):
                 rank = 1
-            elif any(st in f_name for st in sec_terms):
+            elif any(match_keyword_boundary(st, f_name) for st in sec_terms):
                 rank = 2
-            elif any(st in bio_t for st in sec_terms):
+            elif any(match_keyword_boundary(st, bio_t) for st in sec_terms):
                 rank = 3
 
             contact_score = 0
@@ -1577,8 +2207,8 @@ class InstagramFinder:
             url = "https://customsearch.googleapis.com/customsearch/v1"
             params = {"key": self.api_key, "cx": self.cx, "q": query, "num": 3}
             try:
-                async with httpx.AsyncClient(timeout=10.0) as client:
-                    response = await client.get(url, params=params)
+                async with self._get_resilient_client(timeout=10.0) as client:
+                    response = await self.session_manager.request_with_retry(client, "GET", url, params=params)
                     if response.status_code == 200:
                         data = response.json()
                         for item in data.get("items", []):
@@ -1678,63 +2308,87 @@ class InstagramFinder:
                 return url
         return None
 
-    def _calculate_relevance_score(self, profile: Dict, target_sector: str) -> int:
-        """Calculate realistic relevance score (0-99) based on keyword matching, contact data, and signals."""
-        # Username/handle match to sector terms boosts heavily
-        if not target_sector:
-            # No sector — base score from contact richness only
-            score = 50
-            if profile.get("email"):
-                score += 8
-            if profile.get("phone"):
-                score += 8
-            if profile.get("website"):
-                score += 4
-            if profile.get("is_verified"):
-                score += 5
-            return min(score, 75)  # Max 75 without sector context
+    def _calculate_relevance_score(
+        self,
+        profile: Dict,
+        target_sector: str = "",
+        target_business_name: str = "",
+        target_website: str = "",
+        target_location: str = ""
+    ) -> int:
+        """
+        6-Factor Composite Candidate Scoring Engine (0-100 scale).
+        Formula:
+          S_composite = round(0.30 * S_name + 0.25 * S_domain + 0.15 * S_location +
+                              0.15 * S_sector + 0.10 * S_contact + 0.05 * S_activity -
+                              Penalty_aggregator - Penalty_location_conflict)
+        """
+        # 1. S_name (30% weight)
+        s_name = calculate_name_score(target_business_name, target_sector, profile)
 
-        keywords = [w.lower() for w in target_sector.split() if len(w) > 2]
-        ascii_keywords = [_slugify_tr(w) for w in keywords]
-        
-        username_text = profile.get("username", "").lower()
-        full_name_text = profile.get("full_name", "").lower()
-        bio_text = profile.get("bio", "").lower()
-        category_text = profile.get("category", "").lower()
-        
-        # Username match: strongest signal
-        username_matches = sum(1 for k in ascii_keywords if k in username_text)
-        # Full name match: strong signal
-        fullname_matches = sum(1 for k in keywords if k in full_name_text)
-        # Bio match: medium signal
-        bio_matches = sum(1 for k in keywords if k in bio_text)
-        # Category match: medium signal
-        cat_matches = sum(1 for k in keywords if k in category_text)
-        
-        score = 45  # Realistic base
-        score += min(username_matches * 15, 25)   # Username: up to +25
-        score += min(fullname_matches * 10, 20)   # Full name: up to +20
-        score += min(bio_matches * 6, 15)         # Bio: up to +15
-        score += min(cat_matches * 5, 10)         # Category: up to +10
-        
-        # Contact richness bonuses
+        # 2. S_domain (25% weight)
+        s_domain = calculate_domain_score(
+            target_website,
+            profile.get("website", ""),
+            profile.get("linktree_url", ""),
+            profile.get("username", ""),
+            profile.get("bio", ""),
+        )
+
+        # 3. S_location (15% weight) & Location Conflict Penalty
+        s_location, penalty_location_conflict = calculate_location_score_and_penalty(
+            target_location, profile
+        )
+
+        # 4. S_sector (15% weight)
+        s_sector = calculate_sector_score(target_sector, profile)
+
+        # 5. S_contact (10% weight)
+        s_contact = 0
         if profile.get("email"):
-            score += 6
-        if profile.get("phone"):
-            score += 6
+            s_contact += 35
+        if profile.get("phone") or profile.get("whatsapp_link"):
+            s_contact += 35
         if profile.get("website"):
-            score += 3
-        if profile.get("is_verified"):
-            score += 4
+            s_contact += 20
         if profile.get("linktree_url"):
-            score += 2
-        
-        # Penalize if no keyword match at all
-        total_matches = username_matches + fullname_matches + bio_matches + cat_matches
-        if total_matches == 0:
-            score = max(score - 20, 30)
-        
-        return min(int(score), 99)
+            s_contact += 10
+        s_contact = min(s_contact, 100)
+
+        # 6. S_activity (5% weight)
+        recency = str(profile.get("recency_status", "")).upper()
+        last_active = profile.get("last_active_raw")
+        if last_active is None:
+            last_active = 60
+
+        if recency == "ACTIVE" or last_active <= 30:
+            s_activity = 100
+        elif recency == "MODERATE" or last_active <= 90:
+            s_activity = 70
+        elif profile.get("is_zero_post"):
+            s_activity = 10
+        else:
+            s_activity = 50
+
+        if profile.get("is_verified"):
+            s_activity = min(s_activity + 20, 100)
+
+        # 7. Aggregator Penalty (-40)
+        penalty_aggregator = 40 if is_aggregator_profile(profile) else 0
+
+        # Composite Formula Synthesis
+        raw_score = (
+            0.30 * s_name +
+            0.25 * s_domain +
+            0.15 * s_location +
+            0.15 * s_sector +
+            0.10 * s_contact +
+            0.05 * s_activity -
+            penalty_aggregator -
+            penalty_location_conflict
+        )
+
+        return max(0, min(100, int(round(raw_score))))
 
     async def _search_ddg_instagram(self, business_name: str, location: str) -> Optional[str]:
         queries = [
@@ -1745,8 +2399,8 @@ class InstagramFinder:
             try:
                 encoded_query = urllib.parse.quote(query)
                 url = f"https://html.duckduckgo.com/html/?q={encoded_query}"
-                async with httpx.AsyncClient(timeout=5.0, follow_redirects=True) as client:
-                    response = await client.get(url, headers=self.googlebot_headers)
+                async with self._get_resilient_client(timeout=5.0, follow_redirects=True, headers=self.googlebot_headers) as client:
+                    response = await self.session_manager.request_with_retry(client, "GET", url)
                     if response.status_code == 200:
                         handles = _extract_handles_from_content(response.text)
                         if handles:
@@ -1759,8 +2413,8 @@ class InstagramFinder:
         query = f'site:instagram.com "{business_name}" {location}'.strip()
         url = f"https://www.bing.com/search?q={urllib.parse.quote(query)}"
         try:
-            async with httpx.AsyncClient(timeout=5.0, follow_redirects=True) as client:
-                response = await client.get(url, headers=self.googlebot_headers)
+            async with self._get_resilient_client(timeout=5.0, follow_redirects=True, headers=self.googlebot_headers) as client:
+                response = await self.session_manager.request_with_retry(client, "GET", url)
                 if response.status_code == 200:
                     handles = _extract_handles_from_content(response.text)
                     if handles:
@@ -1844,8 +2498,8 @@ class InstagramFinder:
         url = f"https://suggestqueries.google.com/complete/search?client=chrome&q={urllib.parse.quote(query)}"
         handles: Set[str] = set()
         try:
-            async with httpx.AsyncClient(timeout=5.0, follow_redirects=True) as client:
-                resp = await client.get(url)
+            async with self._get_resilient_client(timeout=5.0, follow_redirects=True) as client:
+                resp = await self.session_manager.request_with_retry(client, "GET", url)
                 if resp.status_code == 200:
                     try:
                         text = resp.content.decode("utf-8", errors="ignore")

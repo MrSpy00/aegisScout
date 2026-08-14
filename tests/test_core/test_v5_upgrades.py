@@ -3,7 +3,7 @@ Tests for Core engine upgrades: SQLite WAL/busy_timeout, compound indexing,
 lead deduplication, retry decorator, crawler, and SSRF safety filter.
 """
 import pytest
-from sqlmodel import Session, SQLModel, create_engine
+from sqlmodel import Session, SQLModel, create_engine, select
 from aegisScout.core.database import (
     make_engine,
     init_db,
@@ -20,7 +20,7 @@ def test_sqlite_pragmas_and_indexes():
     init_db(engine)
     with Session(engine) as session:
         # Check table creation and query execution
-        leads = session.query(Lead).all()
+        leads = list(session.exec(select(Lead)).all())
         assert isinstance(leads, list)
 
 
@@ -54,7 +54,7 @@ def test_lead_deduplication():
         merged_count = deduplicate_leads(session)
         assert merged_count == 1
 
-        remaining = session.query(Lead).all()
+        remaining = list(session.exec(select(Lead)).all())
         assert len(remaining) == 2
         acme = [l for l in remaining if "Acme" in l.business_name][0]
         assert acme.email == "info@acme.com"

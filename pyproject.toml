@@ -57,6 +57,14 @@ asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
 addopts = "--tb=short"
+filterwarnings = [
+    # Treat our own code's deprecation warnings as errors
+    "error::DeprecationWarning",
+    # Known/acceptable third-party deprecation warnings
+    "ignore::DeprecationWarning:sqlmodel.*",
+    "ignore::DeprecationWarning:pydantic.*",
+    "ignore::pytest.PytestUnraisableExceptionWarning",
+]
 
 [tool.mypy]
 python_version = "3.11"
@@ -68,4 +76,4 @@ source = ["src/aegisScout"]
 omit = ["*/tests/*", "*/gui_assets.py", "*/gui.py", "*/gui_impl.py", "*/gui/*", "*/main.py"]
 
 [tool.coverage.report]
-fail_under = 30
+fail_under = 35

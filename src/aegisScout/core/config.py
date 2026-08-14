@@ -103,6 +103,9 @@ class AppSettings(BaseSettings):
     instagram_business_account_id: Optional[str] = None
     instagram_login_access_token: Optional[str] = None
     instagram_proxy: Optional[str] = None
+    # Session cookie auth (used by InstagramSessionManager.load_session)
+    instagram_sessionid: Optional[str] = None
+    instagram_ds_user_id: Optional[str] = None
 
     # --- Other Third-Party Session Cookies ---
     linkedin_session_cookie: Optional[str] = None
@@ -130,10 +133,6 @@ class AppSettings(BaseSettings):
     emailosint_api_key: Optional[str] = None
     serper_api_key: Optional[str] = None
     serpapi_api_key: Optional[str] = None
-
-    # --- GUI & UI Preferences ---
-    gui_theme: str = "theme-amethyst"
-    gui_language: str = "tr"
 
     # --- Multi-Key Rotation Helper ---
     _key_indices: dict = {}

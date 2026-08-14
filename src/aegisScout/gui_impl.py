@@ -24,7 +24,7 @@ import time
 from pathlib import Path
 import threading
 from datetime import datetime, timezone, timedelta
-from sqlmodel import Session, select, text
+from sqlmodel import Session, select, text, col
 from sqlalchemy import func
 
 from aegisScout.core.config import settings
@@ -273,21 +273,19 @@ class GuiApi:
                     except (ValueError, TypeError):
                         pass
 
-                # Dynamic column sorting
-                col_map = {
-                    "business_name": Lead.business_name,
-                    "sector": Lead.sector,
-                    "address": Lead.address,
-                    "status": Lead.status,
-                    "priority_score": Lead.priority_score,
-                    "rating": Lead.rating,
-                    "id": Lead.id,
+                # Dynamic column sorting (whitelisted safe columns)
+                allowed_cols = {
+                    "business_name": "business_name",
+                    "sector": "sector",
+                    "address": "address",
+                    "status": "status",
+                    "priority_score": "priority_score",
+                    "rating": "rating",
+                    "id": "id",
                 }
-                sort_col = col_map.get(sort_by, Lead.id)
-                if str(sort_dir).lower() == "asc":
-                    stmt = stmt.order_by(sort_col.asc())
-                else:
-                    stmt = stmt.order_by(sort_col.desc())
+                col_name = allowed_cols.get(sort_by, "id")
+                dir_str = "ASC" if str(sort_dir).lower() == "asc" else "DESC"
+                stmt = stmt.order_by(text(f"{col_name} {dir_str}"))
 
                 leads = session.exec(stmt).all()
 
@@ -1969,7 +1967,8 @@ class GuiApi:
 
                 # Reload Settings singleton so future reads see the new value.
                 new_cfg = _cfg_module.Settings()
-                if key in new_cfg.model_fields:
+                # Pydantic V2.11+: access model_fields from the class, not the instance
+                if key in type(new_cfg).model_fields:
                     setattr(_cfg_module.settings, key, getattr(new_cfg, key))
                 return {"success": True, "target": ".env", "key": key}
             except Exception as e:

@@ -50,12 +50,28 @@ class OpenRouterProvider(BaseLLMProvider):
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
         messages.append({"role": "user", "content": prompt})
+        raw_model = kwargs.get("model", OPENROUTER_DEFAULT_MODEL)
+        # Model migration mappings
+        if raw_model in ("llama-3.1-8b-instant", "meta-llama/llama-3.1-8b-instruct", "meta-llama/llama-3.1-8b-instant"):
+            model = "openai/gpt-oss-20b"
+            default_reasoning = "low"
+        elif raw_model in ("llama-3.3-70b-versatile", "meta-llama/llama-3.3-70b-instruct", "meta-llama/llama-3.3-70b-versatile"):
+            model = "openai/gpt-oss-120b"
+            default_reasoning = "medium"
+        else:
+            model = raw_model
+            default_reasoning = "low" if "gpt-oss-20b" in model else ("medium" if "gpt-oss-120b" in model else None)
+
+        reasoning_effort = kwargs.get("reasoning_effort", default_reasoning)
+
         payload: dict[str, Any] = {
-            "model": kwargs.get("model", OPENROUTER_DEFAULT_MODEL),
+            "model": model,
             "messages": messages,
             "temperature": kwargs.get("temperature", 0.7),
             "max_tokens": kwargs.get("max_tokens", 1024),
         }
+        if reasoning_effort:
+            payload["reasoning_effort"] = reasoning_effort
         if kwargs.get("response_format") is not None:
             payload["response_format"] = kwargs["response_format"]
 

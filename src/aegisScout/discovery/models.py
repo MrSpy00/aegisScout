@@ -1,7 +1,10 @@
 from typing import Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
+
 
 class LeadCandidate(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, extra="allow")
+
     business_name: str
     sector: Optional[str] = None
     phone: Optional[str] = None
@@ -29,12 +32,7 @@ class LeadCandidate(BaseModel):
 
     # Extended metadata — set by providers that have richer data.
     # Prefixed with _ to signal they are transport-only (not direct DB columns).
-    _place_id: Optional[str] = None   # Google Places place ID for dedup
-    _lat: Optional[float] = None       # Geographic latitude
-    _lon: Optional[float] = None       # Geographic longitude
+    _place_id: Optional[str] = None    # Google Places place ID for dedup
+    _lat: Optional[float] = None        # Geographic latitude
+    _lon: Optional[float] = None        # Geographic longitude
     _reviews_json: Optional[str] = None  # Serialised review snippets
-
-    class Config:
-        # Allow fields with leading underscore
-        populate_by_name = True
-        extra = "allow"

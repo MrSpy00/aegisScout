@@ -49,12 +49,13 @@ async def test_gemini_provider(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_groq_provider(monkeypatch):
+    import json
     monkeypatch.setattr(settings, "groq_api_key", "mock-groq-key")
     provider = build_provider("groq")
     assert isinstance(provider, GroqProvider)
 
     with respx.mock:
-        respx.post("https://api.groq.com/openai/v1/chat/completions").mock(
+        route = respx.post("https://api.groq.com/openai/v1/chat/completions").mock(
             return_value=httpx.Response(
                 200,
                 json={"choices": [{"message": {"content": "groq-response"}}]}
@@ -62,6 +63,21 @@ async def test_groq_provider(monkeypatch):
         )
         res = await provider.generate("hello")
         assert res == "groq-response"
+        req_payload = json.loads(route.calls.last.request.content)
+        assert req_payload["model"] == "openai/gpt-oss-120b"
+        assert req_payload["reasoning_effort"] == "medium"
+
+        # Test llama-3.1-8b-instant migration to openai/gpt-oss-20b with reasoning_effort low
+        await provider.generate("hello 8b", model="llama-3.1-8b-instant")
+        req_payload_8b = json.loads(route.calls.last.request.content)
+        assert req_payload_8b["model"] == "openai/gpt-oss-20b"
+        assert req_payload_8b["reasoning_effort"] == "low"
+
+        # Test llama-3.3-70b-versatile migration to openai/gpt-oss-120b with reasoning_effort medium
+        await provider.generate("hello 70b", model="llama-3.3-70b-versatile")
+        req_payload_70b = json.loads(route.calls.last.request.content)
+        assert req_payload_70b["model"] == "openai/gpt-oss-120b"
+        assert req_payload_70b["reasoning_effort"] == "medium"
 
 @pytest.mark.asyncio
 async def test_mistral_provider(monkeypatch):
@@ -156,10 +172,12 @@ def test_gui_clear_leads():
         )
         session.add(lead)
         session.commit()
+        session.refresh(lead)
         lead_id = lead.id
 
     # Check it exists
     leads = api.get_leads()
+    assert isinstance(leads, list)
     assert any(l["id"] == lead_id for l in leads)
 
     # Test clear by filter (sector mismatch first, should not delete)

@@ -54,7 +54,13 @@ class CRMSyncManager:
 
         serialized_leads = []
         for lead in leads:
-            data = lead.dict() if hasattr(lead, "dict") else dict(lead)
+            # Prefer model_dump() (Pydantic V2 / SQLModel ≥0.0.14); fall back gracefully
+            if hasattr(lead, "model_dump"):
+                data = lead.model_dump()
+            elif hasattr(lead, "dict"):
+                data = lead.dict()
+            else:
+                data = dict(lead)
             for k, v in data.items():
                 if isinstance(v, datetime):
                     data[k] = v.isoformat()
