@@ -17,7 +17,7 @@ import json
 import re
 import ssl
 import socket
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 
 import httpx
@@ -350,7 +350,7 @@ async def get_full_domain_intel(domain: str, include_slow: bool = False) -> Dict
     
     report: Dict[str, Any] = {
         "domain": domain,
-        "scanned_at": datetime.utcnow().isoformat(),
+        "scanned_at": datetime.now(timezone.utc).isoformat(),
         "subdomains": [],
         "ip_info": {},
         "shodan_data": {},

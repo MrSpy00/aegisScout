@@ -51,7 +51,7 @@ def test_smtp_rotation_and_limits():
                 channel="email",
                 content="test content",
                 status="sent",
-                sent_at=datetime.utcnow() - timedelta(minutes=10),
+                sent_at=datetime.now(timezone.utc) - timedelta(minutes=10),
                 smtp_account_id=selected1.id
             )
             session.add(msg)

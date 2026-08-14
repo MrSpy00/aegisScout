@@ -1,7 +1,7 @@
 import re
 import httpx
 import socket
-from datetime import datetime
+from datetime import datetime, timezone
 from bs4 import BeautifulSoup
 from typing import Optional, Tuple
 from aegisScout.utils.logger import get_logger
@@ -30,7 +30,7 @@ async def get_domain_age_days(domain: str) -> Optional[int]:
                         date_str = date_str.replace("Z", "+00:00")
                         dt = datetime.fromisoformat(date_str)
                         dt_naive = dt.replace(tzinfo=None)
-                        age = (datetime.utcnow() - dt_naive).days
+                        age = (datetime.now(timezone.utc).replace(tzinfo=None) - dt_naive).days
                         return age
     except Exception as e:
         logger.debug(f"RDAP lookup failed for {domain}: {e}")
@@ -95,12 +95,15 @@ async def get_domain_age_days(domain: str) -> Optional[int]:
                     clean_date_str = re.sub(r"\s*(?:UTC|GMT|EST|EDT|PST|PDT|BST|EEST|EET)\s*", "", date_str)
                     clean_date_str = clean_date_str.split("T")[0]
                     for fmt in (
-                        "%Y-%m-%d", "%d-%m-%Y", "%Y/%m/%d", "%d/%m/%Y", 
-                        "%Y.%m.%d", "%d.%m.%Y", "%d-%b-%Y", "%Y-%b-%d"
+                        "%Y-%m-%d",
+                        "%Y/%m/%d",
+                        "%d.%m.%Y",
+                        "%d-%m-%Y",
+                        "%Y.%m.%d",
                     ):
                         try:
                             dt = datetime.strptime(clean_date_str[:10], fmt)
-                            return (datetime.utcnow() - dt).days
+                            return (datetime.now(timezone.utc).replace(tzinfo=None) - dt).days
                         except Exception:
                             pass
                     # Regex fallback if formatting differs
@@ -113,7 +116,7 @@ async def get_domain_age_days(domain: str) -> Optional[int]:
                                 dt = datetime(int(nums[2]), int(nums[1]), int(nums[0]))
                             else:
                                 continue
-                            return (datetime.utcnow() - dt).days
+                            return (datetime.now(timezone.utc).replace(tzinfo=None) - dt).days
                         except Exception:
                             pass
     except Exception as e:

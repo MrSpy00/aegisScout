@@ -75,7 +75,7 @@ async def check_and_send_followups() -> dict:
                 if not last_msg.sent_at:
                     continue
 
-                days_elapsed = (datetime.utcnow() - last_msg.sent_at).days
+                days_elapsed = (_utcnow() - (last_msg.sent_at.replace(tzinfo=None) if last_msg.sent_at.tzinfo else last_msg.sent_at)).days
 
                 # Step 1: Check if last message was Initial, and we need to send Follow-up 1
                 if last_msg.message_type == "initial" and has_step1 and lead.email and campaign.followup_subject_1 and campaign.followup_body_1:
