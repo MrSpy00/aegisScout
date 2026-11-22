@@ -1,11 +1,12 @@
 from datetime import datetime, timezone
 from typing import Optional, List
+from sqlalchemy import DateTime
 from sqlmodel import SQLModel, Field, Relationship, UniqueConstraint
 import json as _json
 
 
 def _utcnow() -> datetime:
-    """Return the current UTC datetime (timezone-aware). Replaces deprecated utcnow()."""
+    """Return the current UTC datetime (naive UTC for SQLite compat)."""
     return datetime.now(timezone.utc).replace(tzinfo=None)  # Store as naive UTC for SQLite compat
 
 
@@ -14,7 +15,7 @@ class UserSession(SQLModel, table=True):
 
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(index=True)
-    created_at: datetime = Field(default_factory=_utcnow)
+    created_at: datetime = Field(default_factory=_utcnow, sa_type=DateTime)
 
 
 class Lead(SQLModel, table=True):
@@ -49,8 +50,8 @@ class Lead(SQLModel, table=True):
     status: str = Field(
         default="new", index=True
     )  # new | researched | drafted | contacted | replied | converted | rejected | do_not_contact | visited | pitch_sent | won | lost
-    discovered_at: datetime = Field(default_factory=_utcnow)
-    updated_at: datetime = Field(default_factory=_utcnow)
+    discovered_at: datetime = Field(default_factory=_utcnow, sa_type=DateTime)
+    updated_at: datetime = Field(default_factory=_utcnow, sa_type=DateTime)
 
     # 📍 Geographic coordinates (for map view)
     lat: Optional[float] = Field(default=None)
@@ -156,7 +157,7 @@ class ResearchNote(SQLModel, table=True):
     lead_id: int = Field(foreign_key="leads.id", index=True)
     source: str  # 'website', 'instagram_bio', 'google_reviews', 'google_custom_search'
     content: str
-    scraped_at: datetime = Field(default_factory=_utcnow)
+    scraped_at: datetime = Field(default_factory=_utcnow, sa_type=DateTime)
 
     # Relationships
     lead: Lead = Relationship(back_populates="research_notes")
@@ -176,8 +177,8 @@ class SmtpAccount(SQLModel, table=True):
     imap_user: Optional[str] = Field(default=None)
     imap_pass: Optional[str] = Field(default=None)
     is_active: bool = Field(default=True)
-    created_at: datetime = Field(default_factory=_utcnow)
-    last_used_at: Optional[datetime] = Field(default=None)
+    created_at: datetime = Field(default_factory=_utcnow, sa_type=DateTime)
+    last_used_at: Optional[datetime] = Field(default=None, sa_type=DateTime)
 
     # Relationships
     messages: List["Message"] = Relationship(back_populates="smtp_account")
@@ -193,8 +194,8 @@ class Message(SQLModel, table=True):
     content: str
     ai_generated: bool = Field(default=False)
     status: str = Field(default="draft")  # draft, approved, sent, failed
-    sent_at: Optional[datetime] = Field(default=None)
-    created_at: datetime = Field(default_factory=_utcnow)
+    sent_at: Optional[datetime] = Field(default=None, sa_type=DateTime)
+    created_at: datetime = Field(default_factory=_utcnow, sa_type=DateTime)
     smtp_account_id: Optional[int] = Field(default=None, foreign_key="smtp_accounts.id", index=True)
     message_type: str = Field(default="initial")  # initial | followup_1 | followup_2
 
@@ -210,7 +211,7 @@ class Campaign(SQLModel, table=True):
     name: str
     sector_filter: Optional[str] = Field(default=None)
     location_filter: Optional[str] = Field(default=None)
-    created_at: datetime = Field(default_factory=_utcnow)
+    created_at: datetime = Field(default_factory=_utcnow, sa_type=DateTime)
     session_id: Optional[int] = Field(default=1, foreign_key="user_sessions.id", index=True)
 
     # Follow-up sequence settings
@@ -235,8 +236,8 @@ class SearchPreset(SQLModel, table=True):
     radius_km: int = Field(default=10)
     provider_name: str = Field(default="all")
     notes: Optional[str] = Field(default=None)
-    created_at: datetime = Field(default_factory=_utcnow)
-    updated_at: datetime = Field(default_factory=_utcnow)
+    created_at: datetime = Field(default_factory=_utcnow, sa_type=DateTime)
+    updated_at: datetime = Field(default_factory=_utcnow, sa_type=DateTime)
     session_id: Optional[int] = Field(default=1, foreign_key="user_sessions.id", index=True)
 
 
@@ -254,8 +255,8 @@ class DiscoveryDraft(SQLModel, table=True):
     region_query: Optional[str] = Field(default=None)
     keyword_query: Optional[str] = Field(default=None)
     notes: Optional[str] = Field(default=None)
-    created_at: datetime = Field(default_factory=_utcnow)
-    updated_at: datetime = Field(default_factory=_utcnow)
+    created_at: datetime = Field(default_factory=_utcnow, sa_type=DateTime)
+    updated_at: datetime = Field(default_factory=_utcnow, sa_type=DateTime)
     session_id: Optional[int] = Field(default=1, foreign_key="user_sessions.id", index=True)
 
 
@@ -263,7 +264,7 @@ class ActivityLog(SQLModel, table=True):
     __tablename__ = "activity_log"
 
     id: Optional[int] = Field(default=None, primary_key=True)
-    timestamp: datetime = Field(default_factory=_utcnow)
+    timestamp: datetime = Field(default_factory=_utcnow, sa_type=DateTime)
     action: str
     details: Optional[str] = Field(default=None)
     session_id: Optional[int] = Field(default=1, foreign_key="user_sessions.id", index=True)
@@ -276,7 +277,7 @@ class CrmLog(SQLModel, table=True):
     lead_id: int = Field(foreign_key="leads.id", index=True)
     session_id: Optional[int] = Field(default=1, foreign_key="user_sessions.id", index=True)
     note: str
-    created_at: datetime = Field(default_factory=_utcnow)
+    created_at: datetime = Field(default_factory=_utcnow, sa_type=DateTime)
 
     # Relationships
     lead: Optional[Lead] = Relationship(back_populates="crm_logs")
