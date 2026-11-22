@@ -3,6 +3,12 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11+-brightgreen.svg)](https://www.python.org/)
 
+> **Yasal ve Platform Uyarıları (KVKK / İYS / GDPR / ToS):**
+> - **Mod B varsayılan olarak kapalıdır** (`mod_b_acknowledged = False`). Otomatik Instagram DM gönderimi (`instagrapi`) Meta/Instagram Kullanım Koşullarını ihlal eder ve hesap kısıtlamasına yol açabilir; varsayılan olarak yalnızca manuel onaylı **Mod A** önerilir.
+> - Türkiye'de ticari elektronik ileti ve kişisel veri işleme faaliyetleri **6698 sayılı KVKK**, **İYS (İleti Yönetim Sistemi)**, AB'de **GDPR** ve ABD'de **CAN-SPAM** kurallarına tabidir. Yasal uyumluluk tamamen kullanıcının sorumluluğundadır.
+>
+> *Legal Notice: **Mode B (Instagram automation) is disabled by default.** Unofficial automation violates Meta Terms of Service. Users are solely responsible for complying with KVKK, İYS, GDPR, and CAN-SPAM before collecting contacts or sending outreach.*
+
 ---
 
 ### 🌐 Dil Seçimi / Language Selection
@@ -271,7 +277,7 @@ aegisScout export --output data/exports/leads.csv
 
 ## ⚖️ Kullanım Şartları ve Yasal Uyarı
 
-- **Instagram ToS Uyarısı:** Mod B (Tam Otomasyon) özelliğinin kullanımı Meta/Instagram Kullanım Koşullarını ihlal edebilir. Hesap güvenliği için günlük limitlere uyulması (maks. 15-20 DM/gün) ve yedek hesaplar kullanılması önerilir.
+- **Instagram ToS Uyarısı:** Mod B (Tam Otomasyon) varsayılan olarak kapalıdır ve kullanımı Meta/Instagram Kullanım Koşullarını ihlal edebilir. Varsayılan olarak taslak hazırlayan **Mod A (Yardımcı Erişim)** kullanılmalıdır.
 - **Yasal Uyum (KVKK & İYS & GDPR):** Toplanan verilerin işlenmesi ve soğuk e-posta gönderimi aşamalarında Kişisel Verilerin Korunması Kanunu (KVKK), İleti Yönetim Sistemi (İYS) ve ilgili veri koruma mevzuatına uyulması kullanıcının sorumluluğundadır.
 
 ---
@@ -518,8 +524,8 @@ aegisScout export --output data/exports/leads.csv
 
 ## ⚖️ Terms of Use & Legal Compliance
 
-- **Instagram ToS Warning:** Using Mode B (Full Automation) may violate Meta/Instagram Terms of Service. Account safety requires observing daily rate limits (max 15-20 DMs/day) and utilizing secondary accounts.
-- **Regulatory Compliance (GDPR, CAN-SPAM, KVKK):** The user is responsible for ensuring compliance with applicable data privacy and anti-spam legislation when harvesting public business details and initiating direct cold communication.
+- **Instagram ToS Warning:** Mode B (Full Automation) is disabled by default and may violate Meta/Instagram Terms of Service. Prefer **Mode A (Assisted Mode)** for manual review before sending.
+- **Regulatory Compliance (GDPR, CAN-SPAM, KVKK, İYS):** The user is responsible for ensuring compliance with applicable data privacy and anti-spam legislation when harvesting public business details and initiating direct outreach.
 
 ---
 
